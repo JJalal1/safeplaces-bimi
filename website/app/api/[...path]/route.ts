@@ -35,6 +35,8 @@ async function handle(req:Request){
   let user=await customerUser();const cookies:string[]=[];
   const refresh=cookieValue(req.headers.get('cookie'),refreshCookie);
   if(provider&&!user&&refresh){try{const session=await provider.refresh(refresh);user=await provider.user(session.access_token);cookies.push(authCookie(accessCookie,session.access_token),authCookie(refreshCookie,session.refresh_token));}catch(error){if(error instanceof CustomerAuthError&&error.code==='AUTH_INVALID')cookies.push(...clearAuthCookies());else throw error;}}
+  const customerOnly=new URL(req.url).searchParams.get('scope')==='customer';
+  if(customerOnly)return json({user,authConfigured:!!provider},200,cookies);
   const admin=await adminUser();return json({user,admin:!!admin,bootstrap:await canBootstrap(),authConfigured:!!provider},200,cookies);
  }
  if(path.startsWith('auth/')){
