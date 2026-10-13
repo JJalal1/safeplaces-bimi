@@ -24,7 +24,7 @@ export type StandaloneAdminIdentity=CustomerUser & {adminId:string};
  */
 export function standaloneCustomer(identity:VerifiedIdentity|null|undefined):CustomerUser|null{
   if(!identity||!identity.emailVerified||!uuid.test(identity.id)||
-    !emailPattern.test(identity.email)||identity.email.length>200)return null;
+    !emailPattern.test(identity.email)||identity.email.length>200||identity.email!==identity.email.trim())return null;
   const email=identity.email.trim().toLowerCase();
   const fullName=typeof identity.name==='string'?identity.name.trim().slice(0,120):'';
   return {
