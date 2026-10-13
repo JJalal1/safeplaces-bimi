@@ -1,5 +1,5 @@
 import {betterAuth} from 'better-auth';
-import {drizzleAdapter} from 'better-auth/adapters/drizzle';
+import {drizzleAdapter} from '@better-auth/drizzle-adapter';
 import {getDb} from '../db';
 import {authUser,authSession,authAccount,authVerification} from '../db/auth-schema';
 import {authBindings,enabledProviders,emailSettings,readyAuthConfig} from './auth-settings';
@@ -36,6 +36,7 @@ export function getStandaloneAuth(){
   emailAndPassword:{
    enabled:true,
    minPasswordLength:12,
+   revokeSessionsOnPasswordReset:true,
    requireEmailVerification:true,
    sendResetPassword:async({user,url})=>sendAuthEmail(bindings,user.email,'reset',url)
   },
