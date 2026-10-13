@@ -63,7 +63,7 @@ export function standaloneAuthConfig(config:Record<string,unknown>,allowLoopback
     const url=new URL(baseURL);
     const isLocal=allowLoopback&&url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname);
     if(!(url.protocol==='https:'||isLocal)||url.username||url.password||url.search||url.hash||
-       url.pathname!=='/'||url.hostname.length>253)return null;
+       !['','/'].includes(url.pathname)||url.hostname.length>253)return null;
     return {secret,baseURL:url.origin};
   }catch{return null;}
 }
