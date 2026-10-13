@@ -13,6 +13,8 @@ import {getAdminData} from '../../../lib/admin-data';
 import {productReady} from '../../../lib/admin-utils';
 import {z} from 'zod';
 import {customerUser,customerAuthConfig} from '../../../lib/customer-session';
+import {getStandaloneAuth} from '../../../lib/better-auth-server';
+import {enabledProviders,authBindings} from '../../../lib/auth-settings';
 import {CustomerAuth,CustomerAuthError,cookieValue,authCookie,clearAuthCookies,accessCookie,refreshCookie,recoveryCookie} from '../../../lib/customer-auth';
 export const dynamic='force-dynamic';
 const json=(data:unknown,status=200,cookies:string[]=[])=>{const response=Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});for(const cookie of cookies)response.headers.append('Set-Cookie',cookie);return response;};
@@ -30,14 +32,15 @@ async function priceOrder(lines:{id:string;quantity:number}[],code:string){const
 async function handle(req:Request){
  const path=new URL(req.url).pathname.replace(/^\/api\//,'');const db=getDb();
  if(req.method!=='GET')safeOrigin(req);
- const auth=customerAuthConfig(),provider=auth?new CustomerAuth(auth):null;
+ const standalone=getStandaloneAuth();
+ const auth=standalone?null:customerAuthConfig(),provider=auth?new CustomerAuth(auth):null;
  if(req.method==='GET'&&path==='session'){
   let user=await customerUser();const cookies:string[]=[];
-  const refresh=cookieValue(req.headers.get('cookie'),refreshCookie);
+  const refresh=standalone?'':cookieValue(req.headers.get('cookie'),refreshCookie);
   if(provider&&!user&&refresh){try{const session=await provider.refresh(refresh);user=await provider.user(session.access_token);cookies.push(authCookie(accessCookie,session.access_token),authCookie(refreshCookie,session.refresh_token));}catch(error){if(error instanceof CustomerAuthError&&error.code==='AUTH_INVALID')cookies.push(...clearAuthCookies());else throw error;}}
   const customerOnly=new URL(req.url).searchParams.get('scope')==='customer';
-  if(customerOnly)return json({user,authConfigured:!!provider},200,cookies);
-  const admin=await adminUser();return json({user,admin:!!admin,bootstrap:await canBootstrap(),authConfigured:!!provider},200,cookies);
+  if(customerOnly)return json({user,authConfigured:!!provider||!!standalone,socialProviders:standalone?enabledProviders(authBindings()):[]},200,cookies);
+  const admin=await adminUser();return json({user,admin:!!admin,bootstrap:await canBootstrap(),authConfigured:!!provider||!!standalone,socialProviders:standalone?enabledProviders(authBindings()):[]},200,cookies);
  }
  if(path.startsWith('auth/')){
   if(req.method!=='POST')throw new HttpError('NOT_FOUND',404);
