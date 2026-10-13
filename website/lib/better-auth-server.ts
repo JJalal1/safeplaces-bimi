@@ -17,7 +17,7 @@ export function getStandaloneAuth(){
    clientId:String(bindings[prefix+'_CLIENT_ID']),
    clientSecret:String(bindings[prefix+'_CLIENT_SECRET']),
    ...(name==='microsoft'?{tenantId:'common'}:{}),
-   ...(name==='google'?{prompt:'select_account'}:{})
+   ...((name==='google'||name==='microsoft')?{prompt:'select_account'}:{})
   };
  }
  return betterAuth({
@@ -33,7 +33,7 @@ export function getStandaloneAuth(){
   },
   trustedOrigins:[ready.baseURL,...(providers.includes('apple')?['https://appleid.apple.com']:[])],
   socialProviders,
-  account:{accountLinking:{enabled:true,trustedProviders:[]}},
+  account:{encryptOAuthTokens:true,accountLinking:{enabled:true,trustedProviders:[]}},
   emailAndPassword:{
    enabled:true,
    minPasswordLength:12,
