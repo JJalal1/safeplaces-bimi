@@ -16,7 +16,8 @@ export function getStandaloneAuth(){
   socialProviders[name]={
    clientId:String(bindings[prefix+'_CLIENT_ID']),
    clientSecret:String(bindings[prefix+'_CLIENT_SECRET']),
-   ...(name==='microsoft'?{tenantId:'common'}:{})
+   ...(name==='microsoft'?{tenantId:'common'}:{}),
+   ...(name==='google'?{prompt:'select_account'}:{})
   };
  }
  return betterAuth({
@@ -30,7 +31,7 @@ export function getStandaloneAuth(){
   advanced:{
    database:{generateId:()=>crypto.randomUUID()}
   },
-  trustedOrigins:[ready.baseURL],
+  trustedOrigins:[ready.baseURL,...(providers.includes('apple')?['https://appleid.apple.com']:[])],
   socialProviders,
   account:{accountLinking:{enabled:true,trustedProviders:[]}},
   emailAndPassword:{
