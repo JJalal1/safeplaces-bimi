@@ -1,4 +1,4 @@
-export type CustomerUser={userId:string;email:string;displayName:string;fullName:string|null;provider:'supabase'|'preview'};
+export type CustomerUser={userId:string;email:string;displayName:string;fullName:string|null;provider:'supabase'|'preview'|'standalone'};
 export function customerReturnPath(value:string|undefined,lang='ar'){
  const fallback='/'+(lang==='en'?'en':'ar')+'/account';
  if(!value||!value.startsWith('/')||value.startsWith('//')||value.includes('\\')||/[\u0000-\u001f]/.test(value))return fallback;
