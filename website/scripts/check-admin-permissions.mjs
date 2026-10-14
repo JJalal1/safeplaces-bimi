@@ -29,7 +29,7 @@ const api=readFileSync(new URL('../app/api/[...path]/route.ts',import.meta.url),
 for(const required of [
  "requirePermission('products')","requirePermission('coupons')",
  "requirePermission(b.type)","canAdminContent(admin,b.type)",
- "selected.some(row=>!canAdminContent(admin,row.type))",
+ "selected.some(row=>!canAdminContent(admin,'type' in row?String(row.type):''))",
  "admin.role!=='owner'",
  "getAdminData(admin)"
 ]) assert.ok(api.includes(required),'Missing API guard: '+required);
