@@ -25,6 +25,8 @@ jobs:
         run: pnpm exec tsc --noEmit --incremental false
       - name: Authentication policy
         run: node scripts/check-standalone-auth-policy.mjs
+      - name: Staff authorization policy
+        run: node scripts/check-admin-permissions.mjs
       - name: Existing customer auth tests
         run: node scripts/check-customer-auth.mjs
       - name: Build
