@@ -1,12 +1,11 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "safeplaces-staging",
-  "main": "./build/sites-worker.ts",
   "compatibility_date": "2026-10-15",
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "workers_dev": true,
+  "workers_dev": false,
   "d1_databases": [
     {
       "binding": "DB",
@@ -15,9 +14,9 @@
     }
   ],
   "vars": {
-    "SITE_PUBLIC": "true",
+    "SITE_PUBLIC": "false",
     "SITE_INDEXABLE": "false",
-    "STANDALONE_AUTH_ENABLED": "true",
+    "STANDALONE_AUTH_ENABLED": "false",
     "CUSTOMER_AUTH_ENABLED": "false",
     "ADMIN_BOOTSTRAP_PRIVATE": "false"
   }
