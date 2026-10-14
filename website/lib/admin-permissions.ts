@@ -30,7 +30,7 @@ export function contentPermission(type:string):AdminPermission|null{
   category:'category',brand:'brand',service:'service',project:'project',
   client:'client',certificate:'certificate',banner:'homepage'
  };
- return mapping[type]||null;
+ return Object.prototype.hasOwnProperty.call(mapping,type)?mapping[type]:null;
 }
 export function canAdminContent(admin:AdminGrant|null|undefined,type:string):boolean{
  const permission=contentPermission(type);
