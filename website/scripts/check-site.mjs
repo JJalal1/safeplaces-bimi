@@ -79,8 +79,8 @@ try{
  const loginPage=await request('/en/account/login?return_to=%2Fen%2Fcheckout&reason=checkout');const loginHtml=await loginPage.text();assert.match(loginHtml,/Sign in to continue checkout/);assert.match(loginHtml,/Email registration is not open yet/);assert.match(loginHtml,/<fieldset disabled/);assert.equal(loginPage.headers.get('cache-control'),'private, no-store');assert.equal(loginPage.headers.get('referrer-policy'),'no-referrer');
  await expectJSON('/api/auth/login',{email:'customer@example.test',password:'Long test passphrase'}, {},503);
  await expectJSON('/api/wishlist',undefined,{},401);
- await expectJSON('/api/orders',{},{},401);
- const guestCheckout=await request('/en/checkout');assert.match(await guestCheckout.text(),/Welcome back/);
+ await expectJSON('/api/orders',{},{},409);
+ const guestCheckout=await request('/en/checkout');assert.match(await guestCheckout.text(),/Customer &amp; billing details|Customer & billing details/);
  const quoteInfo=await request('/en/quote');assert.match(await quoteInfo.text(),/does not commit you to a purchase/);
  const demoPage=await request('/en/shop/safety-helmets');const demoHtml=await demoPage.text();
  assert.match(demoHtml,/Demo price for review/);assert.match(demoHtml,/Add to cart/);
@@ -95,7 +95,7 @@ try{
  await expectJSON('/api/admin/bootstrap',{},owner);
  await expectJSON('/api/admin/data',undefined,other,403);
  const firstWishlist=await expectJSON('/api/wishlist',{id:'catalog-safety-helmets',action:'add'},owner);assert.deepEqual(firstWishlist.ids,['catalog-safety-helmets']);assert.deepEqual((await expectJSON('/api/wishlist',undefined,other)).ids,[]);await expectJSON('/api/wishlist',{id:'catalog-safety-helmets',action:'remove'},other);assert.deepEqual((await expectJSON('/api/wishlist',undefined,owner)).ids,['catalog-safety-helmets']);await expectJSON('/api/wishlist',{id:'catalog-safety-helmets',action:'remove'},owner);assert.deepEqual((await expectJSON('/api/wishlist',undefined,owner)).ids,[]);
- console.log('PASS: required login for checkout and saved favourites, private account caches, disabled unconfigured email registration and durable user-isolated wishlists');
+ console.log('PASS: guest checkout route, signed-in favourites, private account caches and disabled unconfigured email registration');
  const admin=await expectJSON('/api/admin/data',undefined,owner);assert.equal(admin.products.length,8);assert.equal(admin.content.filter(r=>r.type==='service').length,6);
  for(const lang of ['ar','en']){const response=await request('/'+lang+'/admin',undefined,owner);const html=await response.text();assert.equal(response.status,200);assert.match(response.headers.get('cache-control'),/no-store/);assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');assert.match(html,/management-console/);assert.match(html,/console-sidebar/);assert.match(html,/console-metrics/);assert.doesNotMatch(html,/marketplace-header/);assert.doesNotMatch(html,/footer-grid/);}
  assert.equal((await request('/ar/admin/unknown',undefined,owner)).status,404);
@@ -151,6 +151,9 @@ try{
  const review=await expectJSON('/api/checkout/review',{items,coupon:'TEST10'});assert.equal(review.total,20700);
  const orderBody={name:quote.name,email:quote.email,phone:quote.phone,company:quote.company,items,coupon:'TEST10',billing:'',key:uuid(),total:1};
  const order=await expectJSON('/api/orders',orderBody,owner);assert.equal((await expectJSON('/api/orders',orderBody,owner)).number,order.number);
+  const guestOrderBody={...orderBody,coupon:'',key:uuid()};const guestOrder=await expectJSON('/api/orders',guestOrderBody);assert.match(guestOrder.number,/^SPO-/);assert.equal((await expectJSON('/api/orders',guestOrderBody)).number,guestOrder.number);
+  const guestSaved=await db.prepare('SELECT user_id,payment_status FROM orders WHERE id=?').bind(guestOrder.id).first();assert.equal(guestSaved.user_id,null);assert.equal(guestSaved.payment_status,'pending');
+  assert.equal((await expectJSON('/api/account',undefined,other)).orders.length,0);
  const stored=await db.prepare('SELECT total,payment_status FROM orders WHERE id=?').bind(order.id).first();assert.equal(stored.total,20700);assert.equal(stored.payment_status,'pending');
  await expectJSON('/api/checkout/review',{items,coupon:'TEST10'}, {},400);
  assert.equal((await db.prepare('SELECT used FROM coupons WHERE code=?').bind('TEST10').first()).used,1);
@@ -159,7 +162,7 @@ try{
  const parallel=await Promise.all([request('/api/orders',{...orderBody,coupon:'RACE10',key:uuid()},owner),request('/api/orders',{...orderBody,coupon:'RACE10',key:uuid()},owner)]);assert.deepEqual(parallel.map(r=>r.status).sort(),[200,400]);
  assert.equal((await db.prepare("SELECT COUNT(*) AS count FROM orders WHERE coupon='RACE10'").first()).count,1);
  assert.equal((await db.prepare("SELECT used FROM coupons WHERE code='RACE10'").first()).used,1);
- console.log('PASS: authoritative server pricing, gated checkout, concurrent single-use coupons, transaction rollback, idempotency and separate payment state');
+ console.log('PASS: authoritative server pricing, guest checkout, gated order activation, concurrent coupons, transaction rollback, idempotency and pending payments');
  const c=admin.content.find(c=>c.type==='category'&&c.slug==='ppe');await expectJSON('/api/admin/content',{...c,titleAr:'معدات الحماية المحدثة',titleEn:'Updated PPE'},owner);const changed=await request('/ar/shop/category/ppe');assert.match(await changed.text(),/معدات الحماية المحدثة/);
  const service=admin.content.find(c=>c.type==='service'&&c.slug==='training');await expectJSON('/api/admin/content',{...service,active:0},owner);assert.equal((await request('/ar/services/training')).status,404);
  await expectJSON('/api/admin/bulk',{type:'content',ids:[service.id],action:'publish'},owner);assert.equal((await request('/ar/services/training')).status,200);
