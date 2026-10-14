@@ -1,4 +1,4 @@
-// Keep this module browser-safe. Update the canonical host during the production-domain release.
+// Shared client/server config: never import Cloudflare Worker bindings here.
 export const SITE_URL='https://safe-places-safety.kh-ng-gian-l-3883.chatgpt.site';
 export type Lang='ar'|'en';
 export const langOf=(value:string):Lang=>value==='en'?'en':'ar';
