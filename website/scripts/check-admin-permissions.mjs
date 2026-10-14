@@ -17,6 +17,8 @@ assert.equal(canAdmin(owner,'dashboard'),true);
 assert.equal(canAdminContent(staff,'service'),false);
 assert.equal(canAdminContent(owner,'service'),true);
 assert.equal(canAdminContent(staff,'__proto__'),false);
+assert.equal(canAdminContent(owner,'__proto__'),false);
+assert.equal(canAdminContent(owner,'constructor'),false);
 assert.equal(contentPermission('category'),'category');
 assert.equal(contentPermission('banner'),'homepage');
 assert.equal(contentPermission('unknown'),null);
