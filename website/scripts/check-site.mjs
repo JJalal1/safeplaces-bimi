@@ -154,12 +154,7 @@ try{
   const guestOrderBody={...orderBody,coupon:'',key:uuid()};const guestOrder=await expectJSON('/api/orders',guestOrderBody);assert.match(guestOrder.number,/^SPO-/);assert.equal((await expectJSON('/api/orders',guestOrderBody)).number,guestOrder.number);
   const guestSaved=await db.prepare('SELECT user_id,payment_status FROM orders WHERE id=?').bind(guestOrder.id).first();assert.equal(guestSaved.user_id,null);assert.equal(guestSaved.payment_status,'pending');
   assert.equal((await expectJSON('/api/account',undefined,other)).orders.length,0);
- const guestBody={...orderBody,coupon:'',key:uuid()};
-  const guestOrder=await expectJSON('/api/orders',guestBody);
-  assert.equal((await expectJSON('/api/orders',guestBody)).number,guestOrder.number);
-  const guestRecord=await db.prepare('SELECT user_id,email,total FROM orders WHERE id=?').bind(guestOrder.id).first();
-  assert.equal(guestRecord.user_id,null);assert.equal(guestRecord.email,guestBody.email);
-  assert.equal((await expectJSON('/api/account',undefined,other)).orders.length,0);
+
   const stored=await db.prepare('SELECT total,payment_status FROM orders WHERE id=?').bind(order.id).first();assert.equal(stored.total,20700);assert.equal(stored.payment_status,'pending');
  await expectJSON('/api/checkout/review',{items,coupon:'TEST10'}, {},400);
  assert.equal((await db.prepare('SELECT used FROM coupons WHERE code=?').bind('TEST10').first()).used,1);
