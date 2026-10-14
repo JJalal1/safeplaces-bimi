@@ -1,4 +1,5 @@
 import vinext from "vinext";
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
@@ -13,6 +14,11 @@ const { d1, r2 } = hostingConfig;
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const managedLinux = readExecutionProfile() === "managed-linux";
+// Explicit opt-in: the default build remains the existing private Sites preview.
+const standaloneStaging = process.env.SAFEPLACES_STAGING_BUILD === "1";
+const stagingBindings = standaloneStaging
+  ? JSON.parse(readFileSync(new URL("./wrangler.staging.jsonc", import.meta.url), "utf8"))
+  : null;
 
 const localBindingConfig = {
   main: "./build/sites-worker.ts",
@@ -62,14 +68,13 @@ export default defineConfig(async ({ command }) => {
     },
     plugins: [
       vinext(),
-      sites({ mockAuth: !managedLinux }),
-      connectorPreview(),
+      ...(!standaloneStaging ? [sites({ mockAuth: !managedLinux }), connectorPreview()] : []),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
         config: {
-          ...localBindingConfig,
-          ...(command === "serve"
+          ...(stagingBindings ? { ...stagingBindings, main: "./build/sites-worker.ts" } : localBindingConfig),
+          ...(command === "serve" && !standaloneStaging
             ? {
                 services: [
                   {
@@ -81,7 +86,7 @@ export default defineConfig(async ({ command }) => {
               }
             : {}),
         },
-        ...(command === "serve"
+        ...(command === "serve" && !standaloneStaging
           ? {
               auxiliaryWorkers: [
                 {
