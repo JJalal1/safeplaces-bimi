@@ -146,7 +146,7 @@ async function handle(req:Request){
    if(b.type!=='products'&&['feature','unfeature'].includes(b.action))throw new HttpError('INVALID_BULK_ACTION');
    const selected=b.type==='products'?await db.select().from(schema.products).where(inArray(schema.products.id,ids)):b.type==='content'?await db.select().from(schema.content).where(inArray(schema.content.id,ids)):await db.select().from(schema.coupons).where(inArray(schema.coupons.id,ids));
    if(selected.length!==ids.length)throw new HttpError('NOT_FOUND',404);
-   if(b.type==='content'&&selected.some(row=>!canAdminContent(admin,row.type)))throw new HttpError('FORBIDDEN',403);
+   if(b.type==='content'&&selected.some(row=>!canAdminContent(admin,'type' in row?String(row.type):'')))throw new HttpError('FORBIDDEN',403);
    if(b.type==='products'&&b.action==='publish'&&selected.some(row=>!productReady(row as typeof schema.products.$inferSelect)))throw new HttpError('PRICE_REQUIRED');
    const record=db.insert(schema.activity).values({id:id(),userId:admin.userId,action:b.type+':bulk:'+b.action,entityId:JSON.stringify(ids),createdAt:now()});
    if(b.type==='products')await db.batch([db.update(schema.products).set(['feature','unfeature'].includes(b.action)?{featured:b.action==='feature'?1:0}:{active:b.action==='publish'?1:0}).where(inArray(schema.products.id,ids)),record]);
