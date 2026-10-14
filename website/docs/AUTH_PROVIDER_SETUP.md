@@ -50,7 +50,7 @@ Team members have a unique normalized invitation email, optional immutable user 
 
 Grants correspond to the existing admin menu sections: overview; orders; quotes; contacts; products; categories; brands; customers; coupons; homepage and about; services; projects; previous clients; certificates; activity history; store settings. Staff **cannot** edit team membership.
 
-Both the navigation and API endpoints are permission-restricted. `GET /api/admin/data` only returns data applicable to the allowed sections; note that granting `dashboard` permits aggregated store-wide data. Media download and upload access are also enforced. These controls **must be rechecked via real integration and security tests**, including forbidden direct API requests.
+Both the navigation and API endpoints are permission-restricted. `GET /api/admin/data` only returns data applicable to the allowed sections; the `dashboard` itself does not unlock orders, customers or other department records; overview widgets show only data from other independently approved sections. Media download and upload access are also enforced. These controls **must be rechecked via real integration and security tests**, including forbidden direct API requests.
 
 Current caveat: a section permission permits both viewing and editing that section; more granular read-only roles are **not yet implemented**.
 
