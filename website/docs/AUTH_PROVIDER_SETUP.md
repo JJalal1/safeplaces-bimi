@@ -64,4 +64,4 @@ Current caveat: a section permission permits both viewing and editing that secti
 6. Confirm owner can revoke staff even when an employee remains signed into Google.
 7. Only then cut over the domain and enable public traffic. Hosting is **not purchased or connected yet**.
 
-**Status:** Coding in draft PR; no verified live Google sessions, owner UUID, customer or employee sign-in, migrated independent D1 or public deployment. Do not publish yet.
+Guest purchase requests now support both signed-in and signed-out users after approved prices and the owner-controlled `orderEnabled` switch. No payment is collected; unverified orders stay in pending payment state, and guests retain their order reference for sales follow-up. This is not a payment gateway or complete order-tracking system.\n\n**Status:** Coding in draft PR; no verified live Google sessions, owner UUID, customer or employee sign-in, migrated independent D1 or public deployment. Do not publish yet.
