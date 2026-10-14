@@ -33,7 +33,7 @@ export function Admin({authorized,bootstrap,signin,signout,initialData,userName,
  const visibleNavigation=navigation.map(group=>({...group,items:group.items.filter(([key])=>allowedTab(key))})).filter(group=>group.items.length>0);
 
  const {lang,notify}=useStore();
- const [tab,setTab]=useState(isOwner||permissions.includes('dashboard')?'dashboard':permissions[0]||'dashboard');const [data,setData]=useState<AdminData|null>(initialData);
+ const [tab,setTab]=useState<string>(isOwner||permissions.includes('dashboard')?'dashboard':permissions[0]||'dashboard');const [data,setData]=useState<AdminData|null>(initialData);
  const [error,setError]=useState('');const [editor,setEditor]=useState<{type:string;row:any}|null>(null);
  const [busy,setBusy]=useState(false);const [refreshing,setRefreshing]=useState(false);
  const [search,setSearch]=useState('');const [globalSearch,setGlobalSearch]=useState('');const searchRef=useRef<HTMLInputElement>(null);
