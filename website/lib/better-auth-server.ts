@@ -2,24 +2,17 @@ import {betterAuth} from 'better-auth';
 import {drizzleAdapter} from '@better-auth/drizzle-adapter';
 import {getDb} from '../db';
 import {authUser,authSession,authAccount,authVerification} from '../db/auth-schema';
-import {authBindings,enabledProviders,emailSettings,readyAuthConfig} from './auth-settings';
-import {sendAuthEmail} from './auth-email';
+import {authBindings,enabledProviders,readyAuthConfig} from './auth-settings';
 
+/**
+ * Google-only launch. Password signup, reset and other social providers can
+ * be enabled later when their email and OAuth integrations are fully tested.
+ */
 export function getStandaloneAuth(){
  const bindings=authBindings(),ready=readyAuthConfig(bindings);
  if(!ready)return null;
- const email=emailSettings(bindings)!;
- const providers=enabledProviders(bindings);
- const socialProviders:Record<string,any>={};
- for(const name of providers){
-  const prefix=name.toUpperCase();
-  socialProviders[name]={
-   clientId:String(bindings[prefix+'_CLIENT_ID']),
-   clientSecret:String(bindings[prefix+'_CLIENT_SECRET']),
-   ...(name==='microsoft'?{tenantId:'common'}:{}),
-   ...((name==='google'||name==='microsoft')?{prompt:'select_account'}:{})
-  };
- }
+ const google=enabledProviders(bindings).includes('google');
+ if(!google)return null;
  return betterAuth({
   baseURL:ready.baseURL,
   basePath:'/api/auth',
@@ -28,23 +21,15 @@ export function getStandaloneAuth(){
    provider:'sqlite',
    schema:{user:authUser,session:authSession,account:authAccount,verification:authVerification}
   }),
-  advanced:{
-   database:{generateId:()=>crypto.randomUUID()}
+  advanced:{database:{generateId:()=>crypto.randomUUID()}},
+  trustedOrigins:[ready.baseURL],
+  socialProviders:{
+   google:{
+    clientId:String(bindings.GOOGLE_CLIENT_ID),
+    clientSecret:String(bindings.GOOGLE_CLIENT_SECRET),
+    prompt:'select_account'
+   }
   },
-  trustedOrigins:[ready.baseURL,...(providers.includes('apple')?['https://appleid.apple.com']:[])],
-  socialProviders,
-  account:{encryptOAuthTokens:true,accountLinking:{enabled:true,trustedProviders:[]}},
-  emailAndPassword:{
-   enabled:true,
-   minPasswordLength:12,
-   revokeSessionsOnPasswordReset:true,
-   requireEmailVerification:true,
-   sendResetPassword:async({user,url})=>sendAuthEmail(bindings,user.email,'reset',url)
-  },
-  emailVerification:{
-   sendOnSignUp:true,
-   autoSignInAfterVerification:false,
-   sendVerificationEmail:async({user,url})=>sendAuthEmail(bindings,user.email,'verify',url)
-  }
+  emailAndPassword:{enabled:false}
  });
 }
