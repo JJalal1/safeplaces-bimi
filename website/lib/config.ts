@@ -1,4 +1,6 @@
-export const SITE_URL='https://safe-places-safety.kh-ng-gian-l-3883.chatgpt.site';
+import {env} from 'cloudflare:workers';
+const configuredHost=(env as unknown as Record<string,unknown>).SITE_URL;
+export const SITE_URL=typeof configuredHost==='string'&&/^https:\/\/[a-z0-9.-]+(?::[0-9]{1,5})?$/.test(configuredHost)?configuredHost:'https://safe-places-safety.kh-ng-gian-l-3883.chatgpt.site';
 export type Lang='ar'|'en';
 export const langOf=(value:string):Lang=>value==='en'?'en':'ar';
 export const local=(lang:Lang,ar:string,en:string)=>lang==='ar'?ar:en;
