@@ -35,3 +35,5 @@ jobs:
         run: node scripts/check-site.mjs
       - name: Cloudflare staging build without deployment
         run: pnpm run build:staging
+      - name: Validate staging release bundle without deployment
+        run: pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.json
