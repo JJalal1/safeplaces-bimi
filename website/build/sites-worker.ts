@@ -27,7 +27,7 @@ export default {
     const response = new Response(result.body, result);
     response.headers.set('X-Content-Type-Options', 'nosniff');
     // Staging and private previews must never be indexed, even for 404s or API responses.
-    if (env.SITE_INDEXABLE !== 'true') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    if ((env as unknown as Record<string, unknown>).SITE_INDEXABLE !== 'true') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
     response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     const pathname = new URL(request.url).pathname;
