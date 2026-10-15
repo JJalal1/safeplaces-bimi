@@ -26,6 +26,8 @@ export default {
     const result = await runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx));
     const response = new Response(result.body, result);
     response.headers.set('X-Content-Type-Options', 'nosniff');
+    // Staging and private previews must never be indexed, even for 404s or API responses.
+    if (env.SITE_INDEXABLE !== 'true') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
     response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     const pathname = new URL(request.url).pathname;
