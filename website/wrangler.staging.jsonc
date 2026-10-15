@@ -14,7 +14,7 @@
     }
   ],
   "vars": {
-    "SITE_PUBLIC": "false",
+    "SITE_PUBLIC": "true",
     "SITE_INDEXABLE": "false",
     "STANDALONE_AUTH_ENABLED": "false",
     "CUSTOMER_AUTH_ENABLED": "false",
