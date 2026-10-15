@@ -1,9 +1,9 @@
+// Fail closed until Cloudflare Access has been configured for pages.dev.
 export default {
-  async fetch(request, env) {
-    if (!env.STAGING) return new Response("Staging backend unavailable", { status: 503 });
-    const url = new URL(request.url);
-    // The service binding routes to the private staging worker, not to workers.dev.
-    const backend = new Request(url.toString(), request);
-    return env.STAGING.fetch(backend);
-  }
+  async fetch() {
+    return new Response('Safe Places preview is not enabled yet.', {
+      status: 503,
+      headers: { 'content-type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex, nofollow', 'cache-control': 'no-store' },
+    });
+  },
 };
