@@ -1,5 +1,10 @@
 name: Deploy Safe Places staging (manual only)
 on:
+  push:
+    branches:
+      - feature/auth-speed-seo-before-hosting
+    paths:
+      - '.github/workflows/safeplaces-staging-deploy.yml'
   workflow_dispatch:
     inputs:
       confirm_staging_only:
@@ -16,7 +21,7 @@ concurrency:
 
 jobs:
   deploy-staging:
-    if: ${{ github.ref == 'refs/heads/feature/auth-speed-seo-before-hosting' && inputs.confirm_staging_only == 'safeplaces-staging' }}
+    if: ${{ github.ref == 'refs/heads/feature/auth-speed-seo-before-hosting' && (github.event_name == 'push' || inputs.confirm_staging_only == 'safeplaces-staging') }}
     runs-on: ubuntu-latest
     environment: staging
     defaults:
