@@ -34,6 +34,26 @@ const mobileToastCss=readFileSync('app/marketplace.css','utf8');
 assert.ok(mobileToastCss.includes('bottom: calc(73px + env(safe-area-inset-bottom))'),'Confirmation must be visible above the mobile bottom bar');
 console.log('PASS: non-blocking mobile add-to-cart confirmation, optional cart access, and demo checkout safety');
 
+const mobileNavStart=storeUxSource.indexOf(' <nav className="mobile-shopping-nav"');
+const mobileNavEnd=storeUxSource.indexOf('</nav>',mobileNavStart);
+assert.ok(mobileNavStart>0&&mobileNavEnd>mobileNavStart,'Bottom navigation must be present');
+const mobileNav=storeUxSource.slice(mobileNavStart,mobileNavEnd);
+assert.equal((mobileNav.match(/<a\\b/g)||[]).length,4,'Keep four primary destinations plus one More control');
+assert.equal((mobileNav.match(/<button\\b/g)||[]).length,1,'Use a single More action for secondary pages');
+assert.ok(mobileNav.includes('aria-controls="mobile-more-panel"'),'More needs an accessible panel');
+assert.ok(storeUxSource.includes('role="dialog" aria-modal="true"'),'More must have accessible dialog semantics');
+assert.ok(storeUxSource.includes("['services','الخدمات','Services']"),'Services must remain reachable');
+assert.ok(storeUxSource.includes("['projects','المشاريع','Projects']"),'Projects must remain reachable');
+assert.ok(storeUxSource.includes("['wishlist','المفضلة','Wishlist']"),'Wishlist must remain reachable');
+assert.ok(storeUxSource.includes("['quote','طلب عرض سعر','Request a quote']"),'Quotation flow must remain reachable');
+assert.ok(storeUxSource.includes('className="mobile-header-actions"'),'Language selection and quotation shortcut must remain accessible');
+assert.ok(mobileToastCss.includes('.marketplace-header .header-tools, .marketplace-header .navigation-bar { display: none !important; }'),'Hide duplicated mobile header navigation');
+assert.ok(mobileToastCss.includes('.page-heading .breadcrumb, .page-heading .eyebrow { display: none; }'),'Keep compact mobile page headings');
+assert.ok(mobileToastCss.includes('.cart-shopping-layout > .cart-page { order: 0;'),'Show cart items before the summary');
+assert.ok(mobileToastCss.includes('.cart-shopping-layout > .cart-summary { order: 1;'),'Show cart summary after products');
+console.log('PASS: unified five-tab mobile navigation, More sheet, compact headings and cart-first layout');
+
+
 
 const shoppingSource=ts.transpileModule(readFileSync('lib/shopping.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {presentCatalog,matchesProduct,relatedProducts}=await import('data:text/javascript;base64,'+Buffer.from(shoppingSource).toString('base64'));
