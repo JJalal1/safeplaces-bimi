@@ -16,6 +16,7 @@
   "vars": {
     "SITE_PUBLIC": "true",
     "SITE_INDEXABLE": "false",
+    "SITE_DEMO_PRICES": "true",
     "STANDALONE_AUTH_ENABLED": "false",
     "CUSTOMER_AUTH_ENABLED": "false",
     "ADMIN_BOOTSTRAP_PRIVATE": "false"
