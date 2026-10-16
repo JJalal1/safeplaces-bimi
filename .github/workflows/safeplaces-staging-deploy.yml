@@ -5,6 +5,7 @@ on:
       - feature/auth-speed-seo-before-hosting
     paths:
       - '.github/workflows/safeplaces-staging-deploy.yml'
+      - 'website/**'
   workflow_dispatch:
     inputs:
       confirm_staging_only:
@@ -53,7 +54,7 @@ jobs:
           fi
       - name: Verify this is a staging-only release
         run: |
-          node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("wrangler.staging.jsonc","utf8")); if(c.name!=="safeplaces-staging" || c.workers_dev!==false || c.vars?.SITE_INDEXABLE!=="false" || c.vars?.STANDALONE_AUTH_ENABLED!=="false" || c.d1_databases?.[0]?.database_name!=="safeplaces-staging") process.exit(1)'
+          node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("wrangler.staging.jsonc","utf8")); if(c.name!=="safeplaces-staging" || c.workers_dev!==false || c.vars?.SITE_INDEXABLE!=="false" || c.vars?.SITE_DEMO_PRICES!=="true" || c.vars?.STANDALONE_AUTH_ENABLED!=="false" || c.d1_databases?.[0]?.database_name!=="safeplaces-staging") process.exit(1)'
       - name: Deploy staging Worker only
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
