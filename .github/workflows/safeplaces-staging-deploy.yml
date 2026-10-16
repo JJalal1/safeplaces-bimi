@@ -1,4 +1,4 @@
-name: Deploy Safe Places staging (manual only)
+name: Deploy Safe Places staging (protected only)
 on:
   push:
     branches:
