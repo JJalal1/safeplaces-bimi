@@ -22,6 +22,10 @@ const {presentCatalog,matchesProduct,relatedProducts}=await import('data:text/ja
 const unpriced={id:'catalog-safety-helmets',slug:'safety-helmets',nameAr:'خوذ السلامة',nameEn:'Safety helmets',category:'ppe',price:null,oldPrice:null,kind:'quote',active:1};
 assert.equal(presentCatalog([unpriced],true)[0].previewOnly,true);
 assert.equal(presentCatalog([unpriced],false)[0].price,null);
+assert.equal(presentCatalog([{...unpriced,slug:'fire-pumps',category:'firefighting'}],true)[0].kind,'quote','Fire pumps remain quotation-only');
+assert.equal(presentCatalog([{...unpriced,slug:'fire-pumps',category:'firefighting'}],true)[0].price,null);
+assert.equal(presentCatalog([{...unpriced,slug:'unlisted-product'}],true)[0].price,null,'Unknown products must not acquire guessed prices');
+assert.equal(presentCatalog([{...unpriced,kind:'direct',slug:'safety-helmets'}],true)[0].price,null,'Do not invent pricing for an unpriced existing direct-sale listing');
 assert.equal(unpriced.price,null,'Review projection must not modify stored prices');
 assert.equal(presentCatalog([{...unpriced,price:8700}],true)[0].price,8700,'Actual prices must be preserved');
 assert.equal(matchesProduct(unpriced,'خوذ السَّلامة'),true);
