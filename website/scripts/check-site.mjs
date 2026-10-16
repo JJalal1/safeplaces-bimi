@@ -65,7 +65,7 @@ assert.match(csvText(['Name'],[['A "quoted" name']]),/"A ""quoted"" name"/);
 console.log('PASS: Saudi reporting boundaries, actual paid-order totals, customer aggregation and safe CSV export');
 
 const serverRoot=resolve('dist/server');const modulePaths=['index.js',...readdirSync(serverRoot,{recursive:true}).filter(p=>p.endsWith('.js')&&p!=='index.js')];
-const mf=new Miniflare({name:'safeplaces-test',modulesRoot:serverRoot,modules:modulePaths.map(p=>({type:'ESModule',path:resolve(serverRoot,p)})),compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'test-db'},r2Buckets:['BUCKET'],bindings:{ADMIN_BOOTSTRAP_PRIVATE:'true',SITE_PUBLIC:'false'},port:0,host:'127.0.0.1'});
+const mf=new Miniflare({name:'safeplaces-test',modulesRoot:serverRoot,modules:modulePaths.map(p=>({type:'ESModule',path:resolve(serverRoot,p)})),compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'test-db'},r2Buckets:['BUCKET'],bindings:{ADMIN_BOOTSTRAP_PRIVATE:'true',SITE_PUBLIC:'false',SITE_INDEXABLE:'false',SITE_DEMO_PRICES:'true'},port:0,host:'127.0.0.1'});
 try{
  const db=await mf.getD1Database('DB');
  for(const migration of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())for(const sql of readFileSync('drizzle/'+migration,'utf8').split('--> statement-breakpoint').filter(s=>s.trim()))await db.prepare(sql).run();
