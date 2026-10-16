@@ -34,6 +34,32 @@ const mobileToastCss=readFileSync('app/marketplace.css','utf8');
 assert.ok(mobileToastCss.includes('bottom: calc(73px + env(safe-area-inset-bottom))'),'Confirmation must be visible above the mobile bottom bar');
 console.log('PASS: non-blocking mobile add-to-cart confirmation, optional cart access, and demo checkout safety');
 
+const persistenceSource=ts.transpileModule(readFileSync('lib/cart-persistence.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const {CART_STORAGE_KEY,restoreStore,serializeStore,replayStoreActions}=await import('data:text/javascript;base64,'+Buffer.from(persistenceSource).toString('base64'));
+assert.equal(CART_STORAGE_KEY,'safeplaces-store','Preserve all existing guest carts under the same key');
+const savedItem={id:'catalog-safety-helmets',slug:'safety-helmets',nameAr:'خوذ السلامة',nameEn:'Safety helmets',category:'ppe',image:null,price:3500,quantity:2,previewOnly:true};
+const originalSaved=JSON.stringify({cart:[savedItem],quote:[{...savedItem,id:'quote',quantity:1}],wish:[],recent:[]});
+const fresh=restoreStore(originalSaved);
+assert.equal(fresh.cart[0].quantity,2,'Previously saved guest carts must survive an upgrade');
+assert.equal(fresh.quote.length,1,'Previously saved quotation requests must survive an upgrade');
+const viewed=replayStoreActions(fresh,[s=>({...s,recent:['catalog-fire-extinguishers',...s.recent]})]);
+assert.deepEqual(viewed.cart,fresh.cart,'Visiting a product must not clear the restored basket');
+const returned=restoreStore(serializeStore(viewed));
+assert.deepEqual(returned.cart,fresh.cart,'Cart contents and quantities survive navigation/remount');
+assert.deepEqual(restoreStore(serializeStore({...returned,cart:[...returned.cart,{...savedItem,id:'another',quantity:3}]})).cart.map(i=>i.quantity),[2,3],'Multiple items survive remount');
+assert.deepEqual(restoreStore('{broken').cart,[],'Malformed saved data must not crash rendering');
+assert.equal(restoreStore(JSON.stringify({cart:[{...savedItem,quantity:3000}],quote:[]})).cart[0].quantity,999,'Persisted quantities are bounded');
+const stateProviderSource=readFileSync('components/store.tsx','utf8');
+assert.ok(stateProviderSource.includes('queuedChanges.current.push(fn)'),'Changes before hydration must be replayed');
+assert.ok(stateProviderSource.includes('setState(replayStoreActions(restored,pending))'),'Replay early product views on restored basket');
+assert.ok(stateProviderSource.includes('if(!loaded)return;try{localStorage.setItem('),'Persistence must wait for hydration');
+assert.ok(!stateProviderSource.includes("setState(s=>{const next=fn(s)"),'Never perform a storage write inside React state updater');
+assert.ok(stateProviderSource.includes('if(!ready)return <div className="cart-loading"'),'Do not show an empty cart before restoration');
+assert.ok(readFileSync('components/forms.tsx','utf8').includes('if(!ready)return <div className="cart-loading"'),'Do not show empty cart summary while hydration is pending');
+assert.ok(readFileSync('components/forms.tsx','utf8').includes("money(sum.vat,lang)"),'Cart summary must show VAT calculated with shared totals');
+console.log('PASS: guest basket survives product navigation, storage migration, queued hydration actions and VAT summary');
+
+
 const mobileNavStart=storeUxSource.indexOf(' <nav className="mobile-shopping-nav"');
 const mobileNavEnd=storeUxSource.indexOf('</nav>',mobileNavStart);
 assert.ok(mobileNavStart>0&&mobileNavEnd>mobileNavStart,'Bottom navigation must be present');
