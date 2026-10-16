@@ -542,3 +542,9 @@ footer { background: var(--navy-deep); }
  .product-info .product-actions > .button { padding-inline: 8px; font-size: 9px; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .product-rail { scroll-behavior: auto; } }
+
+/* An add-to-cart confirmation stays clear of the fixed mobile shopping navigation. */
+@media (max-width: 650px) {
+ .toast { bottom: calc(73px + env(safe-area-inset-bottom)); width: max-content; max-width: calc(100vw - 24px); border-radius: 9px; }
+ .toast > a { white-space: nowrap; font-weight: 700; }
+}

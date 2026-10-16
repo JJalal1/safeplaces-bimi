@@ -17,6 +17,24 @@ assert.throws(()=>discountFor({type:'fixed',value:100,minimum:50000,maximum:null
 assert.throws(()=>discountFor({type:'fixed',value:100,minimum:0,maximum:null,categories:'["alarms"]'},[line]),/COUPON_NOT_APPLICABLE/);
 console.log('PASS: monetary totals, VAT rounding and coupon eligibility');
 
+// The standard Add to cart button must be non-blocking: no forced cart drawer
+// or navigation. Only an explicitly chosen Buy now action can start checkout.
+const storeUxSource=readFileSync('components/store.tsx','utf8');
+const addStart=storeUxSource.indexOf(" const add=(p:Product");
+const addEnd=storeUxSource.indexOf(" const remove=",addStart);
+assert.ok(addStart>=0&&addEnd>addStart,'Cart action must be present in StoreProvider');
+const addAction=storeUxSource.slice(addStart,addEnd);
+assert.doesNotMatch(addAction,/setCartOpen\\(true\\)/,'Adding an item must not open a blocking drawer');
+assert.doesNotMatch(addAction,/window\\.location/,'Adding an item must not navigate away');
+assert.ok(addAction.includes("if(type==='cart'&&feedback)announce("),'Cart additions should trigger unobtrusive feedback');
+assert.ok(storeUxSource.includes("toast.target==='cart'?'cart':'quote'"),'Cart notification must offer an optional View cart link');
+assert.ok(storeUxSource.includes("cartCount=state.cart.reduce((sum,item)=>sum+item.quantity,0)"),'Header quantity badge must reflect cart additions');
+assert.ok(storeUxSource.includes("!small&&!quoted&&!product.previewOnly&&<button"),'Do not offer Buy now for demo prices');
+const mobileToastCss=readFileSync('app/marketplace.css','utf8');
+assert.ok(mobileToastCss.includes('bottom: calc(73px + env(safe-area-inset-bottom))'),'Confirmation must be visible above the mobile bottom bar');
+console.log('PASS: non-blocking mobile add-to-cart confirmation, optional cart access, and demo checkout safety');
+
+
 const shoppingSource=ts.transpileModule(readFileSync('lib/shopping.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {presentCatalog,matchesProduct,relatedProducts}=await import('data:text/javascript;base64,'+Buffer.from(shoppingSource).toString('base64'));
 const unpriced={id:'catalog-safety-helmets',slug:'safety-helmets',nameAr:'خوذ السلامة',nameEn:'Safety helmets',category:'ppe',price:null,oldPrice:null,kind:'quote',active:1};
