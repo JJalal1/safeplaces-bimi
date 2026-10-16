@@ -47,3 +47,7 @@
 .customer-social-microsoft .customer-social-mark{color:#0078d4}
 .customer-social-facebook .customer-social-mark{color:#1877f2}
 .customer-social-separator{text-align:center;color:#697c8e;font-size:12px;margin:9px 0 3px}
+
+.customer-auth-closed { display:flex; flex-direction:column; gap:16px; align-items:stretch; }
+.customer-auth-closed .button { justify-content:center; }
+.customer-auth-closed .text-link { text-align:center; font-size:13px; }
