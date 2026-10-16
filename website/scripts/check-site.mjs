@@ -80,7 +80,7 @@ try{
  assert.equal((await request('/ar/does-not-exist')).status,404);
  const sitemap=await request('/sitemap.xml');assert.equal(sitemap.status,200);const xml=await sitemap.text();assert.doesNotMatch(xml,/\/ar\/services\/fire-alarm/,'Private preview must not expose crawlable sitemap entries');assert.doesNotMatch(xml,/\/en\/shop\/fire-extinguishers/);
  const robots=await request('/robots.txt');assert.match(await robots.text(),/Disallow: \//);
- const loginPage=await request('/en/account/login?return_to=%2Fen%2Fcheckout&reason=checkout');const loginHtml=await loginPage.text();assert.match(loginHtml,/Sign in to continue checkout/);assert.match(loginHtml,/Email registration is not open yet/);assert.match(loginHtml,/<fieldset disabled/);assert.equal(loginPage.headers.get('cache-control'),'private, no-store');assert.equal(loginPage.headers.get('referrer-policy'),'no-referrer');
+ const loginPage=await request('/en/account/login?return_to=%2Fen%2Fcheckout&reason=checkout');const loginHtml=await loginPage.text();assert.match(loginHtml,/Sign in to continue checkout/);assert.match(loginHtml,/Continue shopping without an account/);assert.doesNotMatch(loginHtml,/<fieldset disabled/);assert.equal(loginPage.headers.get('cache-control'),'private, no-store');assert.equal(loginPage.headers.get('referrer-policy'),'no-referrer');
  await expectJSON('/api/auth/login',{email:'customer@example.test',password:'Long test passphrase'}, {},503);
  await expectJSON('/api/wishlist',undefined,{},401);
  await expectJSON('/api/orders',{},{},409);
