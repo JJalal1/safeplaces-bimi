@@ -1,6 +1,6 @@
 'use client';
 import {createContext,useContext,useState,useEffect,useCallback,useRef,type ReactNode} from 'react';
-import {Search,ShoppingBag,Heart,UserRound,Home,LayoutGrid,Menu,X,Minus,Plus,ArrowLeft,ArrowRight,Trash2,Check,ChevronDown} from 'lucide-react';
+import {Search,ShoppingBag,Heart,UserRound,Home,Store,LayoutGrid,Menu,X,Minus,Plus,ArrowLeft,ArrowRight,Trash2,Check,ChevronDown} from 'lucide-react';
 import {local,money,type Lang} from '../lib/config';
 import {productName,type Product} from '../lib/catalog';
 import {EquipmentPhoto,ProductPhoto,referencePhotoSrc} from './visuals';
@@ -44,7 +44,7 @@ export function Header({path,phone,products,categories,query='',preview=false}:{
  </header>{preview&&<div className="demo-strip"><div className="container">{local(lang,'نسخة المعاينة: الأسعار الموسومة «تجريبية» للتصميم فقط. إرسال الشراء بهذه الأسعار معطل.','Review version: prices marked “Demo” are for preview only. Ordering at these prices is disabled.')}</div></div>}
  <nav className="mobile-shopping-nav" aria-label={local(lang,'التنقل الرئيسي','Primary navigation')}>
   <a className={!path?'active':''} aria-current={!path?'page':undefined} href={root}><Home size={20}/>{local(lang,'الرئيسية','Home')}</a>
-  <a className={path.startsWith('shop')?'active':''} aria-current={path.startsWith('shop')?'page':undefined} href={root+'/shop'}><Search size={20}/>{local(lang,'التسوق','Shop')}</a>
+  <a className={path.startsWith('shop')?'active':''} aria-current={path.startsWith('shop')?'page':undefined} href={root+'/shop'}><Store size={20}/>{local(lang,'التسوق','Shop')}</a>
   <a className={path.startsWith('cart')||path.startsWith('checkout')?'active':''} aria-current={path.startsWith('cart')?'page':undefined} href={root+'/cart'}><ShoppingBag size={20}/>{local(lang,'السلة','Cart')}{cartCount>0&&<b>{cartCount}</b>}</a>
   <a className={path.startsWith('account')?'active':''} aria-current={path.startsWith('account')?'page':undefined} href={root+'/account'}><UserRound size={20}/>{local(lang,'حسابي','Account')}</a>
   <button type="button" className={moreOpen||['services','projects','about','contact','quote','wishlist','certificates'].some(page=>path===page||path.startsWith(page+'/'))?'active':''} aria-haspopup="dialog" aria-expanded={moreOpen} aria-controls="mobile-more-panel" onClick={()=>setMoreOpen(true)}><LayoutGrid size={20}/>{local(lang,'المزيد','More')}</button>

@@ -590,3 +590,13 @@ footer { background: var(--navy-deep); }
  .marketplace-header .brand-logo { width: 41px; height: 40px; }
  .mobile-more-links { grid-template-columns: 1fr 1fr; }
 }
+
+/* Keep a compact two-column product assortment even on narrow phones. */
+@media (max-width: 360px) {
+ .shop-products, .product-grid.marketplace-products { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+ .market-product-card .product-art { height: 144px; }
+ .market-product-card .product-card-body { padding: 9px; }
+ .market-product-card h3 { font-size: 11px; min-height: 37px; }
+ .market-product-card .product-actions.small > .button { font-size: 9px; min-height: 36px; }
+ .market-product-card .product-price strong { font-size: 16px; }
+}
