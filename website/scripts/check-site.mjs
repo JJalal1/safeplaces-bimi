@@ -38,8 +38,8 @@ const mobileNavStart=storeUxSource.indexOf(' <nav className="mobile-shopping-nav
 const mobileNavEnd=storeUxSource.indexOf('</nav>',mobileNavStart);
 assert.ok(mobileNavStart>0&&mobileNavEnd>mobileNavStart,'Bottom navigation must be present');
 const mobileNav=storeUxSource.slice(mobileNavStart,mobileNavEnd);
-assert.equal((mobileNav.match(/<a\\b/g)||[]).length,4,'Keep four primary destinations plus one More control');
-assert.equal((mobileNav.match(/<button\\b/g)||[]).length,1,'Use a single More action for secondary pages');
+assert.equal((mobileNav.match(/<a\b/g)||[]).length,4,'Keep four primary destinations plus one More control');
+assert.equal((mobileNav.match(/<button\b/g)||[]).length,1,'Use a single More action for secondary pages');
 assert.ok(mobileNav.includes('aria-controls="mobile-more-panel"'),'More needs an accessible panel');
 assert.ok(storeUxSource.includes('role="dialog" aria-modal="true"'),'More must have accessible dialog semantics');
 assert.ok(storeUxSource.includes("['services','الخدمات','Services']"),'Services must remain reachable');
