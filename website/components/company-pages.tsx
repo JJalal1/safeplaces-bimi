@@ -47,7 +47,7 @@ function ArticleTitle({lang,title,id,number}:{lang:Lang;title:Bilingual;id:strin
 }
 
 function ReadingContents({lang,sections}:{lang:Lang;sections:{id:string;title:Bilingual}[]}){
- return <nav className="company-contents" aria-labelledby="company-contents-title"><h2 id="company-contents-title">{local(lang,'في هذه الصفحة','On this page')}</h2><ol>{sections.map((section,index)=><li key={section.id}><a href={'#'+section.id}><span aria-hidden="true">{String(index+1).padStart(2,'0')}</span><span>{t(lang,section.title)}</span></a></li>)}</ol></nav>;
+ return <nav className="company-contents" aria-labelledby="company-contents-title"><div className="company-contents-heading"><h2 id="company-contents-title">{local(lang,'في هذه الصفحة','On this page')}</h2><span className="company-contents-hint" aria-hidden="true">{local(lang,'مرّر لبقية الأقسام','Swipe for more sections')}</span></div><ol>{sections.map((section,index)=><li key={section.id}><a href={'#'+section.id}><span aria-hidden="true">{String(index+1).padStart(2,'0')}</span><span>{t(lang,section.title)}</span></a></li>)}</ol></nav>;
 }
 
 function ContactPanel({lang,settings}:{lang:Lang;settings:Settings}){

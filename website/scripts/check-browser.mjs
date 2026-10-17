@@ -177,6 +177,8 @@ try{
  const menu=page.locator('.mobile-shopping-nav button[aria-controls="mobile-more-panel"]');
  await menu.click();await page.locator('#mobile-more-panel').waitFor({state:'visible'});
  assert.ok(await page.evaluate(()=>document.querySelector('#mobile-more-panel').contains(document.activeElement)),'Opening the company menu must move focus into it');
+ await page.screenshot({path:join(screenshots,'ar-company-menu-390.png'),fullPage:false,animations:'disabled'});
+ report.screenshots.push('screenshots/ar-company-menu-390.png');
  await page.keyboard.press('Shift+Tab');assert.ok(await page.evaluate(()=>document.querySelector('#mobile-more-panel').contains(document.activeElement)),'Menu focus must stay in the dialog');
  await page.keyboard.press('Escape');await page.locator('#mobile-more-panel').waitFor({state:'detached'});
  assert.ok(await menu.evaluate(element=>document.activeElement===element),'Closing the company menu must restore focus');
