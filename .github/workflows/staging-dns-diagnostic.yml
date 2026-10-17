@@ -1,0 +1,48 @@
+name: Diagnose Safe Places staging DNS and access
+on:
+  push:
+    branches:
+      - feature/auth-speed-seo-before-hosting
+    paths:
+      - '.github/workflows/staging-dns-diagnostic.yml'
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check DNS and HTTP from an independent runner
+        shell: bash
+        run: |
+          node <<'NODE'
+          const dns = require('node:dns').promises;
+          const hosts = [
+            'cloudflare.com',
+            'workers.dev',
+            'safeplaces-sales.workers.dev',
+            'safeplaces-staging.safeplaces-sales.workers.dev',
+            '16e0812e-safeplaces-staging.safeplaces-sales.workers.dev',
+          ];
+          (async()=>{
+            for(const host of hosts){
+              const out={host};
+              try{out.systemA=await dns.resolve4(host);}catch(e){out.systemError=e.code||String(e);}
+              for(const [name,base] of [['google','https://dns.google/resolve'],['cloudflare','https://cloudflare-dns.com/dns-query']]){
+                try{
+                  const res=await fetch(base+'?name='+encodeURIComponent(host)+'&type=A',{headers:{accept:'application/dns-json'},signal:AbortSignal.timeout(12000)});
+                  const json=await res.json();
+                  out[name]={http:res.status,dns_status:json.Status,answers:json.Answer?.filter(x=>x.type===1).map(x=>x.data)};
+                }catch(e){out[name+'Error']=String(e).slice(0,180);}
+              }
+              console.log(JSON.stringify(out));
+            }
+            for(const host of hosts.filter(x=>x.startsWith('safeplaces-')||x.startsWith('16e0812e'))){
+              const url='https://'+host+'/ar';
+              try{
+                const res=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(15000)});
+                console.log(JSON.stringify({url,http_status:res.status,location:res.headers.get('location'),server:res.headers.get('server'),cf_ray:res.headers.get('cf-ray')}));
+                await res.body?.cancel();
+              }catch(e){console.log(JSON.stringify({url,http_error:String(e).slice(0,320)}));}
+            }
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          NODE

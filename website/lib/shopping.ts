@@ -1,10 +1,27 @@
 import type {Product} from './catalog';
 
-// Owner-approved private review prices. Order APIs always use the persisted
-// catalog instead of this display-only projection. Public pages exclude it.
-const reviewPrices:Record<string,number>={'fire-extinguishers':14900,'fire-alarm-devices':8900,'fire-pumps':685000,'sprinklers':2900,'hoses-and-reels':34900,'safety-helmets':3500,'protective-equipment':6900,'emergency-and-signs':4900};
+// Illustrative sample prices in halalas, strictly for the protected staging review.
+// These are not approved sale prices and are never written to D1 or order APIs.
+const reviewPrices:Record<string,number>={
+ 'fire-extinguishers':14900,
+ 'fire-alarm-devices':8900,
+ 'sprinklers':2900,
+ 'hoses-and-reels':34900,
+ 'safety-helmets':3500,
+ 'protective-equipment':6900,
+ 'emergency-and-signs':4900
+};
+const quoteOnlySlugs=new Set(['fire-pumps']);
 export function presentCatalog(products:Product[],privateReview:boolean):Product[]{
- return products.map(p=>privateReview&&p.price===null&&reviewPrices[p.slug]?{...p,kind:'direct',price:reviewPrices[p.slug],oldPrice:null,previewOnly:true,descriptionAr:'الصورة والسعر للمعاينة. تُعتمد المواصفات والنوع والسعر النهائي قبل إتاحة الشراء. تواصل مع الفريق لتحديد المنتج المناسب لاحتياجك.',descriptionEn:'The photograph and price are illustrative. Product type, specifications and final price are confirmed before purchasing is enabled. Contact our team to select equipment for your needs.'}:p);
+ return products.map(p=>{
+  if(!privateReview || quoteOnlySlugs.has(p.slug))return p;
+  const sample=reviewPrices[p.slug];
+  // Never replace genuine approved prices, or turn unknown items into direct-sale products.
+  if(p.price!==null||!sample||p.kind!=='quote')return p;
+  return {...p,kind:'direct',price:sample,oldPrice:null,previewOnly:true,
+   descriptionAr:'سعر تجريبي للمعاينة فقط وليس عرض بيع. يُحدد الطراز والمواصفات والسعر النهائي بعد الاعتماد؛ لا يمكن إرسال طلب شراء بهذا السعر.',
+   descriptionEn:'Illustrative preview price only, not an offer to sell. Model, specifications and final price require approval; purchase orders at this price are disabled.'};
+ });
 }
 export const normalizeSearch=(value:string)=>value.toLowerCase().normalize('NFKD').replace(/[\u064b-\u065f]/g,'').replace(/[أإآ]/g,'ا');
 export function matchesProduct(p:Product,query:string){const text=normalizeSearch([p.nameAr,p.nameEn,p.sku,p.brand,p.category,p.keywords].filter(Boolean).join(' '));return normalizeSearch(query).trim().split(/\s+/).every(word=>text.includes(word));}

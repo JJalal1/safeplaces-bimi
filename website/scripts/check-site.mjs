@@ -17,11 +17,94 @@ assert.throws(()=>discountFor({type:'fixed',value:100,minimum:50000,maximum:null
 assert.throws(()=>discountFor({type:'fixed',value:100,minimum:0,maximum:null,categories:'["alarms"]'},[line]),/COUPON_NOT_APPLICABLE/);
 console.log('PASS: monetary totals, VAT rounding and coupon eligibility');
 
+// The standard Add to cart button must be non-blocking: no forced cart drawer
+// or navigation. Only an explicitly chosen Buy now action can start checkout.
+const storeUxSource=readFileSync('components/store.tsx','utf8');
+const addStart=storeUxSource.indexOf(" const add=(p:Product");
+const addEnd=storeUxSource.indexOf(" const remove=",addStart);
+assert.ok(addStart>=0&&addEnd>addStart,'Cart action must be present in StoreProvider');
+const addAction=storeUxSource.slice(addStart,addEnd);
+assert.doesNotMatch(addAction,/setCartOpen\\(true\\)/,'Adding an item must not open a blocking drawer');
+assert.doesNotMatch(addAction,/window\\.location/,'Adding an item must not navigate away');
+assert.ok(addAction.includes("if(type==='cart'&&feedback)announce("),'Cart additions should trigger unobtrusive feedback');
+assert.ok(storeUxSource.includes("toast.target==='cart'?'cart':'quote'"),'Cart notification must offer an optional View cart link');
+assert.ok(storeUxSource.includes("cartCount=state.cart.reduce((sum,item)=>sum+item.quantity,0)"),'Header quantity badge must reflect cart additions');
+assert.ok(storeUxSource.includes("!small&&!quoted&&!product.previewOnly&&<button"),'Do not offer Buy now for demo prices');
+const mobileToastCss=readFileSync('app/marketplace.css','utf8');
+assert.ok(mobileToastCss.includes('bottom: calc(73px + env(safe-area-inset-bottom))'),'Confirmation must be visible above the mobile bottom bar');
+console.log('PASS: non-blocking mobile add-to-cart confirmation, optional cart access, and demo checkout safety');
+
+const persistenceSource=ts.transpileModule(readFileSync('lib/cart-persistence.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const {CART_STORAGE_KEY,restoreStore,serializeStore,replayStoreActions}=await import('data:text/javascript;base64,'+Buffer.from(persistenceSource).toString('base64'));
+assert.equal(CART_STORAGE_KEY,'safeplaces-store','Preserve all existing guest carts under the same key');
+const savedItem={id:'catalog-safety-helmets',slug:'safety-helmets',nameAr:'خوذ السلامة',nameEn:'Safety helmets',category:'ppe',image:null,price:3500,quantity:2,previewOnly:true};
+const originalSaved=JSON.stringify({cart:[savedItem],quote:[{...savedItem,id:'quote',quantity:1}],wish:[],recent:[]});
+const fresh=restoreStore(originalSaved);
+assert.equal(fresh.cart[0].quantity,2,'Previously saved guest carts must survive an upgrade');
+assert.equal(fresh.quote.length,1,'Previously saved quotation requests must survive an upgrade');
+const viewed=replayStoreActions(fresh,[s=>({...s,recent:['catalog-fire-extinguishers',...s.recent]})]);
+assert.deepEqual(viewed.cart,fresh.cart,'Visiting a product must not clear the restored basket');
+const returned=restoreStore(serializeStore(viewed));
+assert.deepEqual(returned.cart,fresh.cart,'Cart contents and quantities survive navigation/remount');
+assert.deepEqual(restoreStore(serializeStore({...returned,cart:[...returned.cart,{...savedItem,id:'another',quantity:3}]})).cart.map(i=>i.quantity),[2,3],'Multiple items survive remount');
+assert.deepEqual(restoreStore('{broken').cart,[],'Malformed saved data must not crash rendering');
+assert.equal(restoreStore(JSON.stringify({cart:[{...savedItem,quantity:3000}],quote:[]})).cart[0].quantity,999,'Persisted quantities are bounded');
+const stateProviderSource=readFileSync('components/store.tsx','utf8');
+assert.ok(stateProviderSource.includes('queuedChanges.current.push(fn)'),'Changes before hydration must be replayed');
+assert.ok(stateProviderSource.includes('setState(replayStoreActions(restored,pending))'),'Replay early product views on restored basket');
+assert.ok(stateProviderSource.includes('if(!loaded)return;try{localStorage.setItem('),'Persistence must wait for hydration');
+assert.ok(!stateProviderSource.includes("setState(s=>{const next=fn(s)"),'Never perform a storage write inside React state updater');
+assert.ok(stateProviderSource.includes('if(!ready)return <div className="cart-loading"'),'Do not show an empty cart before restoration');
+assert.ok(readFileSync('components/forms.tsx','utf8').includes('if(!ready)return <div className="cart-loading"'),'Do not show empty cart summary while hydration is pending');
+assert.ok(readFileSync('components/forms.tsx','utf8').includes("money(sum.vat,lang)"),'Cart summary must show VAT calculated with shared totals');
+console.log('PASS: guest basket survives product navigation, storage migration, queued hydration actions and VAT summary');
+
+
+const mobileNavStart=storeUxSource.indexOf(' <nav className="mobile-shopping-nav"');
+const mobileNavEnd=storeUxSource.indexOf('</nav>',mobileNavStart);
+assert.ok(mobileNavStart>0&&mobileNavEnd>mobileNavStart,'Bottom navigation must be present');
+const mobileNav=storeUxSource.slice(mobileNavStart,mobileNavEnd);
+assert.equal((mobileNav.match(/<a\b/g)||[]).length,4,'Keep four primary destinations plus one More control');
+assert.equal((mobileNav.match(/<button\b/g)||[]).length,1,'Use a single More action for secondary pages');
+assert.ok(mobileNav.includes('aria-controls="mobile-more-panel"'),'More needs an accessible panel');
+assert.ok(storeUxSource.includes('role="dialog" aria-modal="true"'),'More must have accessible dialog semantics');
+assert.ok(storeUxSource.includes("['services','الخدمات','Services']"),'Services must remain reachable');
+assert.ok(storeUxSource.includes("['projects','المشاريع','Projects']"),'Projects must remain reachable');
+assert.ok(storeUxSource.includes("['wishlist','المفضلة','Wishlist']"),'Wishlist must remain reachable');
+assert.ok(storeUxSource.includes("['quote','طلب عرض سعر','Request a quote']"),'Quotation flow must remain reachable');
+assert.ok(storeUxSource.includes('className="mobile-header-actions"'),'Mobile language selector must remain accessible');
+assert.ok(!storeUxSource.includes('className="mobile-quote-link"'),'Avoid the cramped quote button next to language on phones');
+assert.ok(mobileToastCss.includes('.marketplace-header .header-tools, .marketplace-header .navigation-bar { display: none !important; }'),'Hide duplicated mobile header navigation');
+assert.ok(mobileToastCss.includes('.page-heading .breadcrumb, .page-heading .eyebrow { display: none; }'),'Keep compact mobile page headings');
+assert.ok(mobileToastCss.includes('.cart-shopping-layout > .cart-page { order: 0;'),'Show cart items before the summary');
+assert.ok(mobileToastCss.includes('.cart-shopping-layout > .cart-summary { order: 1;'),'Show cart summary after products');
+console.log('PASS: unified five-tab mobile navigation, More sheet, compact headings and cart-first layout');
+const companySource=readFileSync('components/company-pages.tsx','utf8');
+const routeSource=readFileSync('app/(site)/[lang]/[[...slug]]/page.tsx','utf8');
+const companyCss=readFileSync('app/company-experience.css','utf8');
+assert.ok(routeSource.includes('body=<HomeOverview lang={l}'),'Use the focused corporate-and-shop homepage');
+assert.ok(routeSource.includes('body=<AboutOverview lang={l}'),'Keep About as a distinct company profile');
+assert.ok(routeSource.includes('<ServicesOverview lang={l}'),'Keep technical services separate from About');
+assert.ok(routeSource.includes('<ServiceOverview lang={l}'),'Render service detail pages with scope and requirements');
+assert.ok(companySource.includes('company-home-about'),'Show a short company introduction on the homepage');
+assert.ok(companySource.includes('company-process'),'Describe quotation and supply workflow without inventing achievements');
+assert.ok(companySource.includes('company-detail-grid'),'Service details should explain scope and required information');
+assert.ok(companyCss.includes('.company-service-grid { display:grid;'),'Replace oversized service cards with content-first compact cards');
+assert.ok(companyCss.includes('padding-top:145px;'),'Reduce the excessively tall mobile hero');
+console.log('PASS: bilingual corporate/shop homepage, distinct About and Services content, compact mobile layouts');
+
+
+
+
 const shoppingSource=ts.transpileModule(readFileSync('lib/shopping.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {presentCatalog,matchesProduct,relatedProducts}=await import('data:text/javascript;base64,'+Buffer.from(shoppingSource).toString('base64'));
 const unpriced={id:'catalog-safety-helmets',slug:'safety-helmets',nameAr:'خوذ السلامة',nameEn:'Safety helmets',category:'ppe',price:null,oldPrice:null,kind:'quote',active:1};
 assert.equal(presentCatalog([unpriced],true)[0].previewOnly,true);
 assert.equal(presentCatalog([unpriced],false)[0].price,null);
+assert.equal(presentCatalog([{...unpriced,slug:'fire-pumps',category:'firefighting'}],true)[0].kind,'quote','Fire pumps remain quotation-only');
+assert.equal(presentCatalog([{...unpriced,slug:'fire-pumps',category:'firefighting'}],true)[0].price,null);
+assert.equal(presentCatalog([{...unpriced,slug:'unlisted-product'}],true)[0].price,null,'Unknown products must not acquire guessed prices');
+assert.equal(presentCatalog([{...unpriced,kind:'direct',slug:'safety-helmets'}],true)[0].price,null,'Do not invent pricing for an unpriced existing direct-sale listing');
 assert.equal(unpriced.price,null,'Review projection must not modify stored prices');
 assert.equal(presentCatalog([{...unpriced,price:8700}],true)[0].price,8700,'Actual prices must be preserved');
 assert.equal(matchesProduct(unpriced,'خوذ السَّلامة'),true);
@@ -61,7 +144,7 @@ assert.match(csvText(['Name'],[['A "quoted" name']]),/"A ""quoted"" name"/);
 console.log('PASS: Saudi reporting boundaries, actual paid-order totals, customer aggregation and safe CSV export');
 
 const serverRoot=resolve('dist/server');const modulePaths=['index.js',...readdirSync(serverRoot,{recursive:true}).filter(p=>p.endsWith('.js')&&p!=='index.js')];
-const mf=new Miniflare({name:'safeplaces-test',modulesRoot:serverRoot,modules:modulePaths.map(p=>({type:'ESModule',path:resolve(serverRoot,p)})),compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'test-db'},r2Buckets:['BUCKET'],bindings:{ADMIN_BOOTSTRAP_PRIVATE:'true',SITE_PUBLIC:'false'},port:0,host:'127.0.0.1'});
+const mf=new Miniflare({name:'safeplaces-test',modulesRoot:serverRoot,modules:modulePaths.map(p=>({type:'ESModule',path:resolve(serverRoot,p)})),compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'test-db'},r2Buckets:['BUCKET'],bindings:{ADMIN_BOOTSTRAP_PRIVATE:'true',SITE_PUBLIC:'false',SITE_INDEXABLE:'false',SITE_DEMO_PRICES:'true'},port:0,host:'127.0.0.1'});
 try{
  const db=await mf.getD1Database('DB');
  for(const migration of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())for(const sql of readFileSync('drizzle/'+migration,'utf8').split('--> statement-breakpoint').filter(s=>s.trim()))await db.prepare(sql).run();
@@ -74,13 +157,13 @@ try{
  for(const lang of ['ar','en'])for(const path of paths){const r=await request('/'+lang+path);const html=await r.text();assert.equal(r.status,200,lang+path+': '+html.slice(0,600));assert.match(html,new RegExp('lang="'+lang+'"'));assert.match(html,new RegExp('dir="'+(lang==='ar'?'rtl':'ltr')+'"'));assert.match(html,/<h1/);assert.match(html,/rel="canonical"/);assert.match(html,/hreflang="ar"/);assert.match(html,/hreflang="en"/);assert.doesNotMatch(html,/Your site is taking shape/);}
  const root=await request('/');assert.equal(root.status,307);assert.equal(root.headers.get('location'),'/ar');
  assert.equal((await request('/ar/does-not-exist')).status,404);
- const sitemap=await request('/sitemap.xml');assert.equal(sitemap.status,200);const xml=await sitemap.text();assert.match(xml,/\/ar\/services\/fire-alarm/);assert.match(xml,/\/en\/shop\/fire-extinguishers/);
+ const sitemap=await request('/sitemap.xml');assert.equal(sitemap.status,200);const xml=await sitemap.text();assert.doesNotMatch(xml,/\/ar\/services\/fire-alarm/,'Private preview must not expose crawlable sitemap entries');assert.doesNotMatch(xml,/\/en\/shop\/fire-extinguishers/);
  const robots=await request('/robots.txt');assert.match(await robots.text(),/Disallow: \//);
- const loginPage=await request('/en/account/login?return_to=%2Fen%2Fcheckout&reason=checkout');const loginHtml=await loginPage.text();assert.match(loginHtml,/Sign in to continue checkout/);assert.match(loginHtml,/Email registration is not open yet/);assert.match(loginHtml,/<fieldset disabled/);assert.equal(loginPage.headers.get('cache-control'),'private, no-store');assert.equal(loginPage.headers.get('referrer-policy'),'no-referrer');
+ const loginPage=await request('/en/account/login?return_to=%2Fen%2Fcheckout&reason=checkout');const loginHtml=await loginPage.text();assert.match(loginHtml,/Sign in to continue checkout/);assert.match(loginHtml,/Continue shopping without an account/);assert.doesNotMatch(loginHtml,/<fieldset disabled/);assert.equal(loginPage.headers.get('cache-control'),'private, no-store');assert.equal(loginPage.headers.get('referrer-policy'),'no-referrer');
  await expectJSON('/api/auth/login',{email:'customer@example.test',password:'Long test passphrase'}, {},503);
  await expectJSON('/api/wishlist',undefined,{},401);
- await expectJSON('/api/orders',{},{},401);
- const guestCheckout=await request('/en/checkout');assert.match(await guestCheckout.text(),/Welcome back/);
+ await expectJSON('/api/orders',{},{},409);
+ const guestCheckout=await request('/en/checkout');const guestCheckoutHtml=await guestCheckout.text();assert.match(guestCheckoutHtml,/<main id="main">/);assert.doesNotMatch(guestCheckoutHtml,/Sign in to continue checkout/,'Guests must reach the checkout even with an empty cart');
  const quoteInfo=await request('/en/quote');assert.match(await quoteInfo.text(),/does not commit you to a purchase/);
  const demoPage=await request('/en/shop/safety-helmets');const demoHtml=await demoPage.text();
  assert.match(demoHtml,/Demo price for review/);assert.match(demoHtml,/Add to cart/);
@@ -88,6 +171,9 @@ try{
  assert.equal(productSchema.offers,undefined,'Demo prices must never become merchant offers');
  const shopPage=await request('/ar/shop');const shopHtml=await shopPage.text();const shopMain=shopHtml.match(/<main id="main">([\s\S]*?)<\/main>/)[1];assert.match(shopMain,/shopping-filter-trigger/);assert.match(shopMain,/aria-expanded="false"/);assert.doesNotMatch(shopMain,/shop-sidebar|shop-filter-dialog/);
  const filteredPage=await request('/en/shop?category=ppe&max=50');const filteredMain=(await filteredPage.text()).match(/<main id="main">([\s\S]*?)<\/main>/)[1];assert.match(filteredMain,/Safety helmets/);assert.doesNotMatch(filteredMain,/Vests, gloves &amp; safety glasses/);assert.match(filteredMain,/shopping-filter-chips/);
+ const aboutPage=await request('/en/about');const aboutHtml=await aboutPage.text();assert.match(aboutHtml,/Who we serve/);assert.match(aboutHtml,/How we work/);assert.doesNotMatch(aboutHtml,/company-service-grid/,'About should not duplicate the services listing');
+ const servicesPage=await request('/en/services');const servicesHtml=await servicesPage.text();assert.match(servicesHtml,/Questions before requesting a service/);assert.match(servicesHtml,/company-service-grid/);
+ const serviceDetails=await request('/en/services/fire-alarm');const serviceDetailsHtml=await serviceDetails.text();assert.match(serviceDetailsHtml,/What information helps us/);
  const homePage=await request('/en');const homeHtml=await homePage.text();assert.match(homeHtml,/safety-hero/);assert.match(homeHtml,/\/images\/hero.webp/);assert.match(homeHtml,/fetchPriority="high"/i);assert.match(homeHtml,/Shop safety equipment/);assert.match(homeHtml,/Discuss your project/);assert.match(homeHtml,/Equipment and services/);assert.doesNotMatch(homeHtml,/<canvas\b|facility-explorer|facility-renderer|facility-device-menu|Start the 3D experience/,'The homepage must not load the cancelled 3D experience');
  console.log('PASS: 50 Arabic/English pages, RTL/LTR, headings, canonical, hreflang, sitemap, redirects, 404 and demo-price disclosure');
  await expectJSON('/api/admin/data',undefined,{},403);
@@ -95,7 +181,7 @@ try{
  await expectJSON('/api/admin/bootstrap',{},owner);
  await expectJSON('/api/admin/data',undefined,other,403);
  const firstWishlist=await expectJSON('/api/wishlist',{id:'catalog-safety-helmets',action:'add'},owner);assert.deepEqual(firstWishlist.ids,['catalog-safety-helmets']);assert.deepEqual((await expectJSON('/api/wishlist',undefined,other)).ids,[]);await expectJSON('/api/wishlist',{id:'catalog-safety-helmets',action:'remove'},other);assert.deepEqual((await expectJSON('/api/wishlist',undefined,owner)).ids,['catalog-safety-helmets']);await expectJSON('/api/wishlist',{id:'catalog-safety-helmets',action:'remove'},owner);assert.deepEqual((await expectJSON('/api/wishlist',undefined,owner)).ids,[]);
- console.log('PASS: required login for checkout and saved favourites, private account caches, disabled unconfigured email registration and durable user-isolated wishlists');
+ console.log('PASS: guest checkout route, signed-in favourites, private account caches and disabled unconfigured email registration');
  const admin=await expectJSON('/api/admin/data',undefined,owner);assert.equal(admin.products.length,8);assert.equal(admin.content.filter(r=>r.type==='service').length,6);
  for(const lang of ['ar','en']){const response=await request('/'+lang+'/admin',undefined,owner);const html=await response.text();assert.equal(response.status,200);assert.match(response.headers.get('cache-control'),/no-store/);assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');assert.match(html,/management-console/);assert.match(html,/console-sidebar/);assert.match(html,/console-metrics/);assert.doesNotMatch(html,/marketplace-header/);assert.doesNotMatch(html,/footer-grid/);}
  assert.equal((await request('/ar/admin/unknown',undefined,owner)).status,404);
@@ -151,7 +237,11 @@ try{
  const review=await expectJSON('/api/checkout/review',{items,coupon:'TEST10'});assert.equal(review.total,20700);
  const orderBody={name:quote.name,email:quote.email,phone:quote.phone,company:quote.company,items,coupon:'TEST10',billing:'',key:uuid(),total:1};
  const order=await expectJSON('/api/orders',orderBody,owner);assert.equal((await expectJSON('/api/orders',orderBody,owner)).number,order.number);
- const stored=await db.prepare('SELECT total,payment_status FROM orders WHERE id=?').bind(order.id).first();assert.equal(stored.total,20700);assert.equal(stored.payment_status,'pending');
+  const guestOrderBody={...orderBody,coupon:'',key:uuid()};const guestCheckoutPurchase=await expectJSON('/api/orders',guestOrderBody);assert.match(guestCheckoutPurchase.number,/^SPO-/);assert.equal((await expectJSON('/api/orders',guestOrderBody)).number,guestCheckoutPurchase.number);
+  const guestSaved=await db.prepare('SELECT user_id,payment_status FROM orders WHERE id=?').bind(guestCheckoutPurchase.id).first();assert.equal(guestSaved.user_id,null);assert.equal(guestSaved.payment_status,'pending');
+  assert.equal((await expectJSON('/api/account',undefined,other)).orders.length,0);
+
+  const stored=await db.prepare('SELECT total,payment_status FROM orders WHERE id=?').bind(order.id).first();assert.equal(stored.total,20700);assert.equal(stored.payment_status,'pending');
  await expectJSON('/api/checkout/review',{items,coupon:'TEST10'}, {},400);
  assert.equal((await db.prepare('SELECT used FROM coupons WHERE code=?').bind('TEST10').first()).used,1);
  assert.equal((await expectJSON('/api/account',undefined,other)).orders.length,0);
@@ -159,7 +249,7 @@ try{
  const parallel=await Promise.all([request('/api/orders',{...orderBody,coupon:'RACE10',key:uuid()},owner),request('/api/orders',{...orderBody,coupon:'RACE10',key:uuid()},owner)]);assert.deepEqual(parallel.map(r=>r.status).sort(),[200,400]);
  assert.equal((await db.prepare("SELECT COUNT(*) AS count FROM orders WHERE coupon='RACE10'").first()).count,1);
  assert.equal((await db.prepare("SELECT used FROM coupons WHERE code='RACE10'").first()).used,1);
- console.log('PASS: authoritative server pricing, gated checkout, concurrent single-use coupons, transaction rollback, idempotency and separate payment state');
+ console.log('PASS: authoritative server pricing, guest checkout, gated order activation, concurrent coupons, transaction rollback, idempotency and pending payments');
  const c=admin.content.find(c=>c.type==='category'&&c.slug==='ppe');await expectJSON('/api/admin/content',{...c,titleAr:'معدات الحماية المحدثة',titleEn:'Updated PPE'},owner);const changed=await request('/ar/shop/category/ppe');assert.match(await changed.text(),/معدات الحماية المحدثة/);
  const service=admin.content.find(c=>c.type==='service'&&c.slug==='training');await expectJSON('/api/admin/content',{...service,active:0},owner);assert.equal((await request('/ar/services/training')).status,404);
  await expectJSON('/api/admin/bulk',{type:'content',ids:[service.id],action:'publish'},owner);assert.equal((await request('/ar/services/training')).status,200);

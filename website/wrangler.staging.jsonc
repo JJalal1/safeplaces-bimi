@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "safeplaces-staging",
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "safeplaces-staging",
+      "database_id": "d0d80657-6032-40b4-af39-407731d3c972"
+    }
+  ],
+  "vars": {
+    "SITE_PUBLIC": "true",
+    "SITE_INDEXABLE": "false",
+    "SITE_DEMO_PRICES": "true",
+    "STANDALONE_AUTH_ENABLED": "false",
+    "CUSTOMER_AUTH_ENABLED": "false",
+    "ADMIN_BOOTSTRAP_PRIVATE": "false"
+  }
+}

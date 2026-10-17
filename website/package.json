@@ -11,10 +11,13 @@
     "build": "node scripts/run-framework.mjs build",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "build:staging": "SAFEPLACES_STAGING_BUILD=1 node scripts/run-framework.mjs build"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "better-auth": "1.7.7",
+    "@better-auth/drizzle-adapter": "1.7.7",
     "@hookform/resolvers": "^5.7.1",
     "@shadcn/react": "^0.3.0",
     "class-variance-authority": "0.7.1",

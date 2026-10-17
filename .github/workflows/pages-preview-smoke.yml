@@ -1,0 +1,33 @@
+name: Smoke test protected Safe Places Pages preview
+on:
+  push:
+    branches:
+      - feature/auth-speed-seo-before-hosting
+    paths:
+      - '.github/workflows/pages-preview-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm Pages DNS and unauthenticated Access redirect
+        shell: bash
+        run: |
+          node <<'NODE'
+          const dns=require('node:dns').promises;
+          const host='safeplaces-preview.pages.dev';
+          (async()=>{
+            const addresses=await dns.resolve4(host);
+            console.log(JSON.stringify({host,addresses}));
+            const url='https://'+host+'/ar';
+            const res=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(15000)});
+            const location=res.headers.get('location')||'';
+            console.log(JSON.stringify({url,status:res.status,access_redirect:location.includes('cloudflareaccess.com'),location_host:location?new URL(location).hostname:null}));
+            if (![301,302,303,307,308,401,403].includes(res.status)) {
+              console.error('Unexpected public access to protected Pages URL');
+              process.exitCode=1;
+            }
+            await res.body?.cancel();
+          })().catch(e=>{console.error(String(e));process.exitCode=1});
+          NODE

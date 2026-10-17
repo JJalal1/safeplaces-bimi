@@ -1,0 +1,71 @@
+name: Deploy Safe Places staging (protected only)
+on:
+  push:
+    branches:
+      - feature/auth-speed-seo-before-hosting
+    paths:
+      - '.github/workflows/safeplaces-staging-deploy.yml'
+      - 'website/**'
+  workflow_dispatch:
+    inputs:
+      confirm_staging_only:
+        description: "Type safeplaces-staging to confirm that you are NOT deploying production"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safeplaces-staging-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    if: ${{ github.ref == 'refs/heads/feature/auth-speed-seo-before-hosting' && (github.event_name == 'push' || inputs.confirm_staging_only == 'safeplaces-staging') }}
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.25.0'
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
+      - name: Validate TypeScript
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Build isolated staging bundle
+        run: pnpm run build:staging
+      - name: Check Cloudflare bundle before deployment
+        run: pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.json
+      - name: Ensure Cloudflare deployment token exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Add the token as a GitHub staging environment secret. Never commit it."
+            exit 1
+          fi
+      - name: Verify this is a staging-only release
+        run: |
+          node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("wrangler.staging.jsonc","utf8")); if(c.name!=="safeplaces-staging" || c.workers_dev!==false || c.vars?.SITE_INDEXABLE!=="false" || c.vars?.SITE_DEMO_PRICES!=="true" || c.vars?.STANDALONE_AUTH_ENABLED!=="false" || c.d1_databases?.[0]?.database_name!=="safeplaces-staging") process.exit(1)'
+      - name: Deploy staging Worker only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: |
+          set -euo pipefail
+          # Pasted tokens may include invisible line breaks or trailing whitespace.
+          # Normalize only whitespace locally; never echo or persist the secret.
+          export CLOUDFLARE_API_TOKEN="$(node -e "process.stdout.write((process.env.CLOUDFLARE_API_TOKEN || '').replace(/\\s+/g, ''))")"
+          if ! node -e "process.exit(/^[A-Za-z0-9._-]{20,}$/.test(process.env.CLOUDFLARE_API_TOKEN || '') ? 0 : 1)"; then
+            echo "::error::The API token has unexpected characters. Save only its value as the GitHub secret."
+            exit 1
+          fi
+          pnpm exec wrangler deploy --config dist/server/wrangler.json
