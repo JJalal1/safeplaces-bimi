@@ -21,7 +21,7 @@ jobs:
         with:
           version: '11.25.0'
       - name: Install dependencies without modifying deployment
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: TypeScript
         run: pnpm exec tsc --noEmit --incremental false
       - name: Authentication policy

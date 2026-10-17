@@ -93,7 +93,33 @@ assert.ok(routeSource.includes('<ServicesOverview lang={l}'),'Keep technical ser
 assert.ok(routeSource.includes('<ServiceOverview lang={l}'),'Render service detail pages with scope and requirements');
 assert.ok(companySource.includes('company-home-about'),'Show a short company introduction on the homepage');
 assert.ok(companySource.includes('company-process'),'Describe quotation and supply workflow without inventing achievements');
-assert.ok(companySource.includes('company-detail-grid'),'Service details should explain scope and required information');
+// Validate the content contract, independently of the component's old card layout
+// or the wording of a particular heading. Rendered coverage follows below.
+const moduleURL=source=>'data:text/javascript;base64,'+Buffer.from(source).toString('base64');
+const compileSource=path=>ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const configURL=moduleURL(compileSource('lib/config.ts'));
+const {initialSettings}=await import(configURL);
+const {getAboutSections,getServiceGuide,overviewQuestions}=await import(moduleURL(compileSource('lib/company-copy.ts').replace(/from ['"]\.\/config['"]/g,'from '+JSON.stringify(configURL))));
+const {services:serviceDefinitions}=await import(moduleURL(compileSource('lib/catalog.ts')));
+const aboutSections=getAboutSections(initialSettings);
+assert.equal(new Set(aboutSections.map(section=>section.id)).size,aboutSections.length,'Reading section IDs must be unique');
+for(const topic of ['identity','customers','equipment','selection','buying-routes','enquiry','scope','records','next-step'])assert.ok(aboutSections.some(section=>section.id===topic),'Company profile must cover '+topic);
+for(const langIndex of [0,1]){
+ const paragraphs=aboutSections.flatMap(section=>section.paragraphs.map(paragraph=>paragraph[langIndex]));
+ assert.ok(paragraphs.length>=12&&paragraphs.join(' ').length>=3500,'Company profile must contain substantive Arabic and English prose');
+ assert.ok(aboutSections.every(section=>section.title[langIndex]&&section.paragraphs.length>=2),'Each company topic needs a heading and explanation');
+}
+assert.equal(serviceDefinitions.length,6,'The service directory must retain all six service routes');
+const introductions=new Set();
+for(const service of serviceDefinitions){
+ const guide=getServiceGuide(service.slug);introductions.add(JSON.stringify(guide.introduction));
+ assert.ok(guide.introduction.length>=2&&guide.scopeNotes.length>=1,'Explain relevance and scope for '+service.slug);
+ assert.ok(guide.inputs.length>=4&&guide.boundaries.length>=1,'Explain required inputs and quotation boundaries for '+service.slug);
+ assert.ok(guide.steps.length>=3&&guide.questions.length>=2,'Keep a practical process and FAQ for '+service.slug);
+ for(const copy of [...guide.introduction,...guide.scopeNotes,guide.inputsIntro,...guide.inputs,...guide.boundaries,...guide.steps.flatMap(step=>[step.title,step.detail]),...guide.questions.flatMap(item=>[item.question,item.answer])])assert.ok(copy.length===2&&copy.every(text=>typeof text==='string'&&text.trim().length>0),'Service guidance must be present in both languages: '+service.slug);
+}
+assert.equal(introductions.size,serviceDefinitions.length,'Different services must not all fall back to generic copy');
+assert.ok(overviewQuestions.length>=3,'The directory must answer questions before requesting a service');
 assert.ok(companyCss.includes('.company-service-grid { display:grid;'),'Replace oversized service cards with content-first compact cards');
 assert.ok(companyCss.includes('padding-top:145px;'),'Reduce the excessively tall mobile hero');
 console.log('PASS: bilingual corporate/shop homepage, distinct About and Services content, compact mobile layouts');
@@ -176,9 +202,41 @@ try{
  assert.equal(productSchema.offers,undefined,'Demo prices must never become merchant offers');
  const shopPage=await request('/ar/shop');const shopHtml=await shopPage.text();const shopMain=shopHtml.match(/<main id="main">([\s\S]*?)<\/main>/)[1];assert.match(shopMain,/shopping-filter-trigger/);assert.match(shopMain,/aria-expanded="false"/);assert.doesNotMatch(shopMain,/shop-sidebar|shop-filter-dialog/);
  const filteredPage=await request('/en/shop?category=ppe&max=50');const filteredMain=(await filteredPage.text()).match(/<main id="main">([\s\S]*?)<\/main>/)[1];assert.match(filteredMain,/Safety helmets/);assert.doesNotMatch(filteredMain,/Vests, gloves &amp; safety glasses/);assert.match(filteredMain,/shopping-filter-chips/);
- const aboutPage=await request('/en/about');const aboutHtml=await aboutPage.text();assert.match(aboutHtml,/Who we serve/);assert.match(aboutHtml,/How we work/);assert.doesNotMatch(aboutHtml,/company-service-grid/,'About should not duplicate the services listing');
- const servicesPage=await request('/en/services');const servicesHtml=await servicesPage.text();assert.match(servicesHtml,/Questions before requesting a service/);assert.match(servicesHtml,/company-service-grid/);
- const serviceDetails=await request('/en/services/fire-alarm');const serviceDetailsHtml=await serviceDetails.text();assert.match(serviceDetailsHtml,/What information helps us/);
+ const mainContent=html=>html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/)?.[1]||'';
+ const textContent=html=>html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<[^>]+>/g,' ').replace(/&#x([0-9a-f]+);/gi,(_,value)=>String.fromCodePoint(parseInt(value,16))).replace(/&#(\d+);/g,(_,value)=>String.fromCodePoint(Number(value))).replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim();
+ const renderedSection=(html,id)=>{const section=html.match(new RegExp('<section\\b[^>]*\\bid="'+id+'"[^>]*>[\\s\\S]*?<\\/section>'))?.[0];assert.ok(section,'Missing rendered section '+id);assert.match(section,/<h2\b/,'The section needs a visible heading');return section;};
+ const containsCopy=(html,copy,message)=>assert.ok(textContent(html).includes(copy.replace(/\s+/g,' ').trim()),message);
+ for(const lang of ['ar','en']){
+  const langIndex=lang==='ar'?0:1;
+  const aboutHtml=mainContent(await (await request('/'+lang+'/about')).text());
+  assert.doesNotMatch(aboutHtml,/company-service-grid/,'About should not duplicate the services listing');
+  for(const section of aboutSections){
+   assert.ok(aboutHtml.includes('href="#'+section.id+'"'),'The reading contents must link to '+section.id);
+   const rendered=renderedSection(aboutHtml,section.id);containsCopy(rendered,section.title[langIndex],'Render the company topic heading');
+   for(const paragraph of section.paragraphs)containsCopy(rendered,paragraph[langIndex],'Render substantive company copy: '+lang+'/'+section.id);
+  }
+  const servicesHtml=mainContent(await (await request('/'+lang+'/services')).text());
+  for(const service of serviceDefinitions)assert.ok(servicesHtml.includes('href="/'+lang+'/services/'+service.slug+'"'),'Directory must link to '+service.slug);
+  assert.ok((servicesHtml.match(/<summary\b/g)||[]).length>=overviewQuestions.length,'Directory FAQ must render as expandable questions');
+  for(const question of overviewQuestions){containsCopy(servicesHtml,question.question[langIndex],'Render the directory question');containsCopy(servicesHtml,question.answer[langIndex],'Render the directory answer');}
+  for(const service of serviceDefinitions){
+   const detailHtml=mainContent(await (await request('/'+lang+'/services/'+service.slug)).text());const guide=getServiceGuide(service.slug);
+   const expected={
+    'service-context':guide.introduction,
+    'service-scope':[...(langIndex===0?service.scopeAr:service.scopeEn).map(item=>[item,item]),...guide.scopeNotes],
+    'service-inputs':[guide.inputsIntro,...guide.inputs],
+    'service-boundaries':guide.boundaries,
+    'service-process':guide.steps.flatMap(step=>[step.title,step.detail]),
+    'service-questions':guide.questions.flatMap(item=>[item.question,item.answer])
+   };
+   for(const [id,copies] of Object.entries(expected)){
+    assert.ok(detailHtml.includes('href="#'+id+'"'),'Service contents must link to '+id);
+    const rendered=renderedSection(detailHtml,id);for(const copy of copies)containsCopy(rendered,copy[langIndex],'Render '+service.slug+'/'+id+' in '+lang);
+   }
+   assert.ok(detailHtml.includes('href="/'+lang+'/quote?service='+service.slug+'"'),'The quotation link must preserve the selected service');
+  }
+ }
+ console.log('PASS: rendered bilingual company topics, reading links, six distinct service guides, scope, required inputs, boundaries, process and FAQ');
  const homePage=await request('/en');const homeHtml=await homePage.text();assert.match(homeHtml,/safety-hero/);assert.match(homeHtml,/\/images\/hero.webp/);assert.match(homeHtml,/fetchPriority="high"/i);assert.match(homeHtml,/Shop safety equipment/);assert.match(homeHtml,/Discuss your project/);assert.match(homeHtml,/Equipment and services/);assert.doesNotMatch(homeHtml,/<canvas\b|facility-explorer|facility-renderer|facility-device-menu|Start the 3D experience/,'The homepage must not load the cancelled 3D experience');
  console.log('PASS: 50 Arabic/English pages, RTL/LTR, headings, canonical, hreflang, sitemap, redirects, 404 and demo-price disclosure');
  await expectJSON('/api/admin/data',undefined,{},403);

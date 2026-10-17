@@ -25,7 +25,7 @@ let mf,server,browser,context,page,origin;
 const storageKey='safeplaces-store';
 const paths=['','about','services','services/fire-protection','services/fire-alarm','services/maintenance','services/readiness','services/training','services/safety-supply','shop','shop/category/ppe','shop/safety-helmets','cart','checkout','quote','contact','projects','certificates','privacy','terms','returns','collection','account'];
 const critical=new Set(['','about','shop','cart','checkout','quote']);
-const screenshotPages=new Set(['','about','services','shop','quote']);
+const screenshotPages=new Set(['','about','services','services/fire-protection','shop','shop/category/ppe','shop/safety-helmets','checkout','quote','contact','projects','certificates','privacy']);
 const mime={'.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.jpg':'image/jpeg','.jpeg':'image/jpeg','.ico':'image/x-icon','.woff2':'font/woff2','.woff':'font/woff','.ttf':'font/ttf','.txt':'text/plain','.xml':'application/xml'};
 
 async function until(check,message,timeout=6000){
@@ -130,7 +130,7 @@ try{
   const path='/'+lang+(route?'/'+route:'');await visit(page,path);
   for(const width of [390,1440]){
    await layout(page,path,width);
-   if(screenshotPages.has(route)&&((lang==='ar'&&width===390)||(lang==='en'&&width===1440)))await screenshot(page,lang+'-'+(route||'home')+'-'+width);
+   if(screenshotPages.has(route)&&((lang==='ar'&&width===390)||(lang==='en'&&width===1440)))await screenshot(page,lang+'-'+(route||'home').replaceAll('/','-')+'-'+width);
   }
   if(critical.has(route))for(const width of [360,768])await layout(page,path,width);
   if(route==='about'){
