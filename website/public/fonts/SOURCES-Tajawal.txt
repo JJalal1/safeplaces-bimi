@@ -1,0 +1,45 @@
+Tajawal webfonts for Safe Places
+
+Source: https://github.com/google/fonts/tree/main/ofl/tajawal
+Retrieved: 2026-10-17, through the official GitHub repository API.
+Copyright: 2018 Boutros International. (http://www.boutrosfonts.com)
+License: SIL Open Font License, Version 1.1. See OFL-Tajawal.txt.
+Designers listed by Google Fonts: Boutros Fonts, Mourad Boutros, Soulaf Khalifeh.
+
+The source TTF files were converted to WOFF2 locally using fontTools 4.61.1
+and the installed Node.js Brotli codec. No glyph subsetting was performed.
+All source Unicode mappings, glyph order, horizontal metrics, and GSUB/GPOS/
+GDEF layout tables were compared after WOFF2 decoding and preserved.
+Both Arabic and Latin source coverage are included. No third-party font
+service is contacted when the website displays these fonts.
+
+Weight 400
+Source file: ofl/tajawal/Tajawal-Regular.ttf
+Source Git blob SHA-1: d23d25b8b68db86d5b727d181c2008fd874216eb
+Source URL: https://github.com/google/fonts/blob/main/ofl/tajawal/Tajawal-Regular.ttf
+Source bytes: 60364
+Output file: tajawal-400.woff2
+Output bytes: 20708
+Output SHA-256: a662bdd6cc1880714b5a3646a9c8a542128139e62ee578aabdebdb211c40e541
+
+Weight 500
+Source file: ofl/tajawal/Tajawal-Medium.ttf
+Source Git blob SHA-1: 96dee5410d185adfa57475bb02695c11f8836208
+Source URL: https://github.com/google/fonts/blob/main/ofl/tajawal/Tajawal-Medium.ttf
+Source bytes: 62280
+Output file: tajawal-500.woff2
+Output bytes: 20680
+Output SHA-256: 051bb73c82e3b8d28029ce33149e14bdaabb5ac06d1f92e8d1bb9fc899e89721
+
+Weight 700
+Source file: ofl/tajawal/Tajawal-Bold.ttf
+Source Git blob SHA-1: 71e1488e90215abcc8aedc541d94a2bcbec574f3
+Source URL: https://github.com/google/fonts/blob/main/ofl/tajawal/Tajawal-Bold.ttf
+Source bytes: 59988
+Output file: tajawal-700.woff2
+Output bytes: 20900
+Output SHA-256: eb37689e0f31d25e386309e49ef8b75f7a60f484ba52da26f30049b181171f17
+
+License source: https://github.com/google/fonts/blob/main/ofl/tajawal/OFL.txt
+License Git blob SHA-1: 76c01b50a1da8b3ae44a6f05c2e0d6ccb1cac5b9
+The bundled license retains the original text with LF line endings.

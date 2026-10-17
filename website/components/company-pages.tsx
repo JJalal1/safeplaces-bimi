@@ -18,7 +18,7 @@ function SectionHeading({lang,title,detail,href,action}:{lang:Lang;title:Bilingu
 function ServiceTile({lang,s,heading='h3',compact=false}:{lang:Lang;s:Service;heading?:'h2'|'h3';compact?:boolean}){
  const scope=lang==='ar'?s.scopeAr:s.scopeEn;
  const Heading=heading;
- return <article className="company-service-tile">
+ return <article className={'company-service-tile'+(compact?' is-compact':'')} data-service={s.slug}>
   <div className="company-service-title"><span className="company-service-icon" aria-hidden="true"><Icon name={s.icon} size={24}/></span><Heading>{local(lang,s.ar,s.en)}</Heading></div>
   <p>{local(lang,s.descAr,s.descEn)}</p>
   {!compact&&scope.length>0&&<ul className="company-service-scope">{scope.slice(0,3).map((item,index)=><li key={index}>{item}</li>)}</ul>}
@@ -31,14 +31,19 @@ function Process({lang,steps}:{lang:Lang;steps:RequestStep[]}){
 }
 
 function Enquiry({lang,service}:{lang:Lang;service?:string}){
- return <aside className="company-enquiry"><div>
+ return <aside className="company-enquiry"><span className="company-enquiry-icon" aria-hidden="true"><Icon name="clipboard" size={28}/></span><div>
   <h2>{service?local(lang,'ناقش نطاق الخدمة معنا','Discuss your service requirements'):local(lang,'لديك قائمة توريد أو مشروع خاص؟','Have a supply list or a project?')}</h2>
   <p>{service?local(lang,'ابدأ بمعلومات الموقع والاحتياج والمرفقات المتاحة. نراجع التفاصيل لتحديد النطاق قبل اعتماد العرض.','Start with your site information, requirements and available attachments. The details are reviewed to define the scope before a proposal is approved.'):local(lang,'أرسل الكميات أو مخططات المشروع أو وصف الاحتياج. إرسال الاستفسار لا يعني التزامًا بالشراء.','Share your quantities, project drawings or requirements. An enquiry does not commit you to a purchase.')}</p>
  </div><a className="button primary" href={'/'+lang+'/quote'+(service?'?service='+encodeURIComponent(service):'')}>{local(lang,'إرسال طلب عرض سعر','Request a quotation')}<Arrow lang={lang}/></a></aside>;
 }
 
-function Intro({lang,title,description}:{lang:Lang;title:Bilingual;description:Bilingual}){
- return <header className="company-page-heading"><h1>{t(lang,title)}</h1><p>{t(lang,description)}</p></header>;
+function Intro({lang,title,description,kind='service',icon='shield'}:{lang:Lang;title:Bilingual;description:Bilingual;kind?:'about'|'services'|'service';icon?:string}){
+ const label:Bilingual=kind==='about'?['عن المؤسسة','COMPANY PROFILE']:kind==='services'?['الخدمات والحلول','SERVICES & SOLUTIONS']:['خدمات المؤسسة','OUR SERVICES'];
+ return <header className={'company-page-heading company-brand-intro company-intro-'+kind}><div className="company-intro-copy"><div className="company-intro-kicker"><span aria-hidden="true"/><span>{t(lang,label)}</span></div><h1>{t(lang,title)}</h1><p>{t(lang,description)}</p></div><span className="company-intro-mark" aria-hidden="true"><Icon name={icon} size={42}/></span></header>;
+}
+
+function ArticleTitle({lang,title,id,number}:{lang:Lang;title:Bilingual;id:string;number:string}){
+ return <h2 id={id} tabIndex={-1}><span className="company-section-number" aria-hidden="true">{number}</span><span>{t(lang,title)}</span></h2>;
 }
 
 function ReadingContents({lang,sections}:{lang:Lang;sections:{id:string;title:Bilingual}[]}){
@@ -76,12 +81,12 @@ export function AboutOverview({lang,settings}:{lang:Lang;settings:Settings}){
   {path:'/projects',title:['المشاريع','Projects'],detail:['الأعمال والمعلومات المنشورة','Published work and project information']},
   {path:'/certificates',title:['المستندات','Documents'],detail:['الملفات المتاحة والاستفسار عنها','Available files and document enquiries']}
  ];
- return <div className="company-experience container company-main">
-  <Intro lang={lang} title={['عن مؤسسة المناطق الآمنة','About Safe Places']} description={['تعرف على نشاط المؤسسة في الخبر، ومن نخدم، وكيف نراجع احتياجات السلامة والتوريد والخدمات من أول استفسار إلى تحديد النطاق.','Learn about our business in Al Khobar, the requirements we serve, and how equipment and service enquiries move from an initial brief to a defined scope.']}/>
+ return <div className="company-experience container company-main company-about-page">
+  <Intro lang={lang} kind="about" title={['عن مؤسسة المناطق الآمنة','About Safe Places']} description={['تعرف على نشاط المؤسسة في الخبر، ومن نخدم، وكيف نراجع احتياجات السلامة والتوريد والخدمات من أول استفسار إلى تحديد النطاق.','Learn about our business in Al Khobar, the requirements we serve, and how equipment and service enquiries move from an initial brief to a defined scope.']}/>
   <div className="company-reading-layout">
    <aside className="company-reading-aside"><ReadingContents lang={lang} sections={sections}/></aside>
    <article className="company-article company-prose" aria-label={local(lang,'التعريف بالمؤسسة وطريقة العمل','Company profile and enquiry process')}>
-    {sections.map(section=><section className="company-article-section" id={section.id} key={section.id} aria-labelledby={section.id+'-title'}><h2 id={section.id+'-title'} tabIndex={-1}>{t(lang,section.title)}</h2>{section.paragraphs.map((paragraph,index)=><p key={index}>{t(lang,paragraph)}</p>)}{section.id==='records'&&<ContactPanel lang={lang} settings={settings}/>}</section>)}
+    {sections.map((section,index)=><section className="company-article-section" id={section.id} key={section.id} aria-labelledby={section.id+'-title'}><ArticleTitle lang={lang} title={section.title} id={section.id+'-title'} number={String(index+1).padStart(2,'0')}/>{section.paragraphs.map((paragraph,index)=><p key={index}>{t(lang,paragraph)}</p>)}{section.id==='records'&&<ContactPanel lang={lang} settings={settings}/>}</section>)}
     <nav className="company-related-links" aria-label={local(lang,'خطوتك التالية','Your next step')}>{destinations.map(item=><a href={root+item.path} key={item.path}><strong>{t(lang,item.title)}</strong><span>{t(lang,item.detail)}<Arrow lang={lang}/></span></a>)}</nav>
     <Enquiry lang={lang}/>
    </article>
@@ -90,8 +95,8 @@ export function AboutOverview({lang,settings}:{lang:Lang;settings:Settings}){
 }
 
 export function ServicesOverview({lang,services}:{lang:Lang;services:Service[]}){
- return <div className="company-experience container company-main">
-  <Intro lang={lang} title={['خدمات السلامة ومكافحة الحريق','Fire protection & safety services']} description={['ابدأ من احتياج الموقع: نظام جديد، معدات تحتاج فحصًا، دعم جاهزية، تدريب أو قائمة توريد. لكل مسار نطاق ومعلومات تساعد على مراجعته.','Start with the site requirement: a new system, equipment inspection, readiness support, training or a supply list. Each route has its own scope and information needs.']}/>
+ return <div className="company-experience container company-main company-services-page">
+  <Intro lang={lang} kind="services" icon="clipboard" title={['خدمات السلامة ومكافحة الحريق','Fire protection & safety services']} description={['ابدأ من احتياج الموقع: نظام جديد، معدات تحتاج فحصًا، دعم جاهزية، تدريب أو قائمة توريد. لكل مسار نطاق ومعلومات تساعد على مراجعته.','Start with the site requirement: a new system, equipment inspection, readiness support, training or a supply list. Each route has its own scope and information needs.']}/>
   <div className="company-services-intro company-prose"><p>{local(lang,'تشرح الصفحات التالية متى تكون كل خدمة مناسبة، وما البنود الممكن مراجعتها، وما نحتاجه لتحديد العرض. يمكن أن يجمع الطلب عدة خدمات، مع فصل التوريد عن التركيب والاختبار والصيانة وأي مخرجات مطلوبة.','The pages below explain when each service is relevant, the activities that can be reviewed, and the information needed to define a proposal. One enquiry can cover several services, with supply, installation, testing, maintenance and required deliverables identified separately.')}</p></div>
   <section className="company-service-grid company-service-directory" aria-label={local(lang,'دليل الخدمات','Service directory')}>{services.map(s=><ServiceTile key={s.slug} lang={lang} s={s} heading="h2"/>)}</section>
   <section className="company-block company-service-brief" aria-labelledby="service-brief-title"><div><h2 id="service-brief-title">{local(lang,'طلب واضح من البداية','A clear brief from the start')}</h2><p>{local(lang,'لا يلزم أن تكون جميع التفاصيل مكتملة عند أول تواصل. اذكر ما هو مؤكد وما يحتاج إلى مراجعة، مع تحديد الأولوية والموعد المطلوب.','Your initial enquiry does not need every detail. Distinguish confirmed information from points that need review, and identify your priority and requested timing.')}</p></div><ol>
@@ -116,19 +121,19 @@ export function ServiceOverview({lang,service,categories}:{lang:Lang;service:Ser
   {id:'service-process',title:['خطوات الطلب','Enquiry steps']},
   {id:'service-questions',title:['أسئلة شائعة','Common questions']}
  ];
- return <div className="company-experience container company-main">
+ return <div className="company-experience container company-main company-service-page">
   <a className="company-back" href={root+'/services'}><Arrow lang={lang}/>{local(lang,'جميع الخدمات','All services')}</a>
-  <Intro lang={lang} title={[service.ar,service.en]} description={[service.descAr,service.descEn]}/>
+  <Intro lang={lang} icon={service.icon} title={[service.ar,service.en]} description={[service.descAr,service.descEn]}/>
   <div className="company-reading-layout">
    <aside className="company-reading-aside"><ReadingContents lang={lang} sections={sections}/><div className="company-side-note"><h2>{local(lang,'جهّز طلبك','Prepare your enquiry')}</h2><p>{local(lang,'ابدأ بالمعلومات المتاحة، وحدد ما إذا كان المطلوب توريدًا أو عملًا في الموقع أو كليهما.','Start with the information available and clarify whether you need supply, on-site work, or both.')}</p><a className="text-link" href={root+'/quote?service='+encodeURIComponent(service.slug)}>{local(lang,'طلب هذه الخدمة','Request this service')}<Arrow lang={lang}/></a></div></aside>
    <article className="company-article company-prose" aria-label={local(lang,'تفاصيل '+service.ar,service.en+' details')}>
-    <section className="company-article-section" id="service-context" aria-labelledby="service-context-title"><h2 id="service-context-title" tabIndex={-1}>{t(lang,sections[0].title)}</h2>{guide.introduction.map((paragraph,index)=><p key={index}>{t(lang,paragraph)}</p>)}</section>
-    <section className="company-article-section" id="service-scope" aria-labelledby="service-scope-title"><h2 id="service-scope-title" tabIndex={-1}>{t(lang,sections[1].title)}</h2>{scope.length>0&&<ul className="company-scope-list">{scope.map((item,index)=><li key={index}>{item}</li>)}</ul>}{guide.scopeNotes.map((paragraph,index)=><p key={index}>{t(lang,paragraph)}</p>)}</section>
-    <section className="company-article-section" id="service-inputs" aria-labelledby="service-inputs-title"><h2 id="service-inputs-title" tabIndex={-1}>{t(lang,sections[2].title)}</h2><p>{t(lang,guide.inputsIntro)}</p><ul className="company-input-list">{guide.inputs.map((item,index)=><li key={index}>{t(lang,item)}</li>)}</ul></section>
-    <section className="company-article-section" id="service-boundaries" aria-labelledby="service-boundaries-title"><h2 id="service-boundaries-title" tabIndex={-1}>{t(lang,sections[3].title)}</h2>{guide.boundaries.map((paragraph,index)=><p key={index}>{t(lang,paragraph)}</p>)}</section>
-    <section className="company-article-section" id="service-process" aria-labelledby="service-process-title"><h2 id="service-process-title" tabIndex={-1}>{t(lang,sections[4].title)}</h2><Process lang={lang} steps={guide.steps}/></section>
+    <section className="company-article-section" id="service-context" aria-labelledby="service-context-title"><ArticleTitle lang={lang} title={sections[0].title} id="service-context-title" number="01"/>{guide.introduction.map((paragraph,index)=><p key={index}>{t(lang,paragraph)}</p>)}</section>
+    <section className="company-article-section" id="service-scope" aria-labelledby="service-scope-title"><ArticleTitle lang={lang} title={sections[1].title} id="service-scope-title" number="02"/>{scope.length>0&&<ul className="company-scope-list">{scope.map((item,index)=><li key={index}>{item}</li>)}</ul>}{guide.scopeNotes.map((paragraph,index)=><p key={index}>{t(lang,paragraph)}</p>)}</section>
+    <section className="company-article-section" id="service-inputs" aria-labelledby="service-inputs-title"><ArticleTitle lang={lang} title={sections[2].title} id="service-inputs-title" number="03"/><p>{t(lang,guide.inputsIntro)}</p><ul className="company-input-list">{guide.inputs.map((item,index)=><li key={index}>{t(lang,item)}</li>)}</ul></section>
+    <section className="company-article-section" id="service-boundaries" aria-labelledby="service-boundaries-title"><ArticleTitle lang={lang} title={sections[3].title} id="service-boundaries-title" number="04"/>{guide.boundaries.map((paragraph,index)=><p key={index}>{t(lang,paragraph)}</p>)}</section>
+    <section className="company-article-section" id="service-process" aria-labelledby="service-process-title"><ArticleTitle lang={lang} title={sections[4].title} id="service-process-title" number="05"/><Process lang={lang} steps={guide.steps}/></section>
     {related.length>0&&<section className="company-article-section" aria-labelledby="service-related-title"><h2 id="service-related-title">{local(lang,'أقسام منتجات مرتبطة','Related product categories')}</h2><p>{local(lang,'استعرض الأصناف والمواصفات المتاحة، وأضف ما يلزم إلى طلبك مع توضيح ارتباطه بالخدمة.','Explore the available items and specifications, and include relevant equipment in your enquiry with its intended role in the service.')}</p><nav className="company-category-links" aria-label={local(lang,'منتجات مرتبطة بالخدمة','Products related to this service')}>{related.map(({slug,category})=><a key={slug} href={root+'/shop/category/'+encodeURIComponent(slug)}>{category?local(lang,category.ar,category.en):local(lang,'منتجات مرتبطة بالخدمة','Related products')}<Arrow lang={lang}/></a>)}</nav></section>}
-    <section className="company-article-section" id="service-questions" aria-labelledby="service-questions-title"><h2 id="service-questions-title" tabIndex={-1}>{t(lang,sections[5].title)}</h2><Questions lang={lang} questions={guide.questions}/></section>
+    <section className="company-article-section" id="service-questions" aria-labelledby="service-questions-title"><ArticleTitle lang={lang} title={sections[5].title} id="service-questions-title" number="06"/><Questions lang={lang} questions={guide.questions}/></section>
     <Enquiry lang={lang} service={service.slug}/>
    </article>
   </div>

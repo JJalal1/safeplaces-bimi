@@ -1,0 +1,46 @@
+/* Self-hosted Tajawal from Google Fonts. See /fonts/OFL-Tajawal.txt. */
+@font-face {
+  font-family: "Tajawal";
+  src: url("/fonts/tajawal-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Tajawal";
+  src: url("/fonts/tajawal-500.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Tajawal";
+  src: url("/fonts/tajawal-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --font-brand: "Tajawal", "Segoe UI", Arial, sans-serif;
+}
+
+body,
+html[lang="ar"] body,
+html[lang="en"] body {
+  font-family: var(--font-brand);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* Arabic headings keep their joining and spacing without Latin tracking. */
+html[lang="ar"] :is(h1, h2, h3, h4, h5, h6) {
+  letter-spacing: normal;
+}
