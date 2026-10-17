@@ -35,20 +35,27 @@ jobs:
           node scripts/check-staging-access.mjs
           node scripts/check-preview-gateway.mjs
       - name: Build
+        id: site-build
         run: pnpm run build
       - name: Site integration checks
         run: node scripts/check-site.mjs
       - name: Admin sessions and permissions
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
         run: node scripts/check-admin-auth.mjs
       - name: Request operations and notification reliability
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
         run: node scripts/check-admin-operations.mjs
       - name: Prepare browser verification
+        id: browser-setup
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
         run: |
           npm install --prefix "$RUNNER_TEMP/safeplaces-browser" --no-save --ignore-scripts --no-package-lock --no-audit --no-fund playwright@1.62.1
           node "$RUNNER_TEMP/safeplaces-browser/node_modules/playwright/cli.js" install --with-deps chromium
       - name: Arabic and English pages and persistent guest cart
+        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
         run: SAFEPLACES_PLAYWRIGHT_MODULE="$RUNNER_TEMP/safeplaces-browser/node_modules/playwright" node scripts/check-browser.mjs
       - name: Arabic and English admin workflows on mobile and desktop
+        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
         run: SAFEPLACES_PLAYWRIGHT_MODULE="$RUNNER_TEMP/safeplaces-browser/node_modules/playwright" node scripts/check-admin-browser.mjs
       - name: Save browser evidence and resolved dependency lock
         if: always()

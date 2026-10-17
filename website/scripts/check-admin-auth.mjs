@@ -8,7 +8,7 @@ import {resolve} from 'node:path';
 // temporary local fixtures. No Google callback success or live login is claimed.
 const require=createRequire(import.meta.url);
 const requireWrangler=createRequire(require.resolve('wrangler/package.json'));
-const requireAuth=createRequire(require.resolve('better-auth/package.json'));
+const requireAuth=createRequire(require.resolve('better-auth'));
 const {Miniflare}=requireWrangler('miniflare');
 const {serializeSignedCookie}=await import(requireAuth.resolve('better-call'));
 const origin='https://safeplaces-preview.pages.dev';
