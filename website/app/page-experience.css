@@ -5,6 +5,7 @@
 .page-heading h1 {font-size:clamp(25px,2.6vw,35px);line-height:1.5;margin-bottom:8px;letter-spacing:0}
 .page-heading p {max-width:850px;font-size:15px;line-height:1.9;margin-bottom:0}
 main > .section {padding-block:32px 40px}
+.cart-shopping-layout > .cart-page {width:100%;max-width:none;min-width:0;margin:0}
 .support-request-layout,.support-contact-layout {align-items:start;gap:36px}
 .support-request-layout {grid-template-columns:minmax(0,1.45fr) minmax(280px,.85fr)}
 .support-request-layout > *,.support-contact-layout > *,.support-project-body > * {min-width:0}
@@ -15,6 +16,7 @@ main > .section {padding-block:32px 40px}
 .support-request-layout .form-heading p {font-size:14px;line-height:1.85}
 .support-request-layout .form-grid,.support-contact-layout .form-grid {gap:18px}
 .support-request-layout .customer-auth-account-link {font-size:12px;line-height:1.85;margin-bottom:18px}
+.support-request-layout p.customer-auth-account-link {display:block;color:var(--muted);text-decoration:none}
 .support-request-guide {padding:4px 0 4px 0;border-inline-start:1px solid var(--line);padding-inline-start:28px}
 .support-request-guide > h2 {font-size:21px;line-height:1.65;margin-bottom:10px}
 .support-request-guide p,.support-request-guide li {font-size:14px;line-height:1.9}

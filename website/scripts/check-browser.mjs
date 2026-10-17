@@ -45,6 +45,34 @@ async function visit(target,path){
  await hydrated;await stable(target);
 }
 async function screenshot(target,name){
+ // Exercise native lazy loading at each viewport before capturing the whole page.
+ // A fullPage screenshot alone does not make below-the-fold images load.
+ await target.evaluate(()=>window.scrollTo({top:0,left:0,behavior:'instant'}));
+ for(let step=0;step<80;step++){
+  await stable(target);
+  const images=await target.evaluate(async()=>{
+   const visible=[...document.querySelectorAll('main img')].filter(img=>{
+    const rect=img.getBoundingClientRect();const style=getComputedStyle(img);
+    return style.display!=='none'&&style.visibility!=='hidden'&&rect.width>0&&rect.height>0&&rect.bottom>0&&rect.top<innerHeight&&rect.right>0&&rect.left<innerWidth;
+   });
+   await Promise.all(visible.map(img=>img.complete?undefined:new Promise(resolve=>{
+    const finish=()=>{clearTimeout(timer);img.removeEventListener('load',finish);img.removeEventListener('error',finish);resolve();};
+    const timer=setTimeout(finish,6000);img.addEventListener('load',finish,{once:true});img.addEventListener('error',finish,{once:true});
+    if(img.complete)finish();
+   })));
+   return visible.map(img=>({src:img.currentSrc||img.src,complete:img.complete,naturalWidth:img.naturalWidth}));
+  });
+  const failed=images.filter(img=>!img.complete||img.naturalWidth===0);
+  assert.deepEqual(failed,[],name+' has visible images that did not load: '+JSON.stringify(failed));
+  const advanced=await target.evaluate(()=>{
+   const next=Math.min(Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)-innerHeight,scrollY+innerHeight);
+   if(next<=scrollY+1)return false;
+   window.scrollTo({top:next,behavior:'instant'});return true;
+  });
+  if(!advanced)break;
+  assert.ok(step<79,name+' did not reach the end while preparing screenshots');
+ }
+ await target.evaluate(()=>window.scrollTo({top:0,left:0,behavior:'instant'}));await stable(target);
  const file=join(screenshots,name+'.png');
  await target.screenshot({path:file,fullPage:true,animations:'disabled',timeout:15000});
  report.screenshots.push('screenshots/'+name+'.png');
@@ -169,7 +197,12 @@ try{
  await savedCart(page,{'safety-helmets':6});await until(async()=>await cartRow(page,'fire-extinguishers').count()===0,'Removal must propagate to the other tab');await other.close();
  await visit(page,'/en/checkout');assert.ok(await page.locator('.checkout-grid > form button.primary').isDisabled(),'Demo checkout must stay blocked');
  assert.equal(await page.locator('.checkout-grid input[name="email"]').count(),0,'A demo-only cart should not collect billing details');
+ await page.locator('.order-summary .total-line.final').waitFor({state:'visible'});
  assert.ok(await page.locator('.order-summary .total-line.final').count()===1,'Demo totals must still be reviewable');
+ await layout(page,'/en/checkout',1440);await screenshot(page,'en-checkout-filled-1440');
+ await visit(page,'/ar/checkout');await page.locator('.order-summary .total-line.final').waitFor({state:'visible'});
+ await layout(page,'/ar/checkout',390);await screenshot(page,'ar-checkout-filled-390');
+ await visit(page,'/en/checkout');await layout(page,'/en/checkout',1440);
  await visit(page,'/en/cart');await cartRow(page,'safety-helmets').locator('button.remove-button').click();await savedCart(page,{});
  await page.reload({waitUntil:'domcontentloaded'});await page.locator('main .empty-state').waitFor({state:'visible'});
  report.checks.push({name:'Non-blocking add, rapid additions, quantities, product/back/reload, language switch, two-tab synchronization, removal and demo checkout',status:'passed'});
