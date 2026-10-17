@@ -1,3 +1,4 @@
+import {env} from 'cloudflare:workers';
 import {desc,asc} from 'drizzle-orm';
 import {getDb} from '../db';
 import * as schema from '../db/schema';
@@ -28,6 +29,6 @@ export async function getAdminData(admin:AdminIdentity){
  const settings=fullSettings?await getSettings():can('homepage')
   ?Object.fromEntries(Object.entries(await getSettings()).filter(([key])=>(HOMEPAGE_SETTINGS_KEYS as readonly string[]).includes(key))) as Awaited<ReturnType<typeof getSettings>>
   :{} as Awaited<ReturnType<typeof getSettings>>;
- return {products,orders,quotes,contacts,coupons,content,customers,activity,settings,loadedAt:new Date().toISOString()};
+ return {products,orders,quotes,contacts,coupons,content,customers,activity,settings,capabilities:{attachmentsAvailable:!!env.BUCKET},loadedAt:new Date().toISOString()};
 }
 export type AdminData=Awaited<ReturnType<typeof getAdminData>>;

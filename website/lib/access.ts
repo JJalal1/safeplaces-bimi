@@ -22,7 +22,8 @@ export async function adminUser():Promise<AdminIdentity|null>{
  // Never grant administrators from spoofable Sites identity headers on a public Worker.
  if(bindings.STANDALONE_AUTH_ENABLED==='true'){
   const standalone=getStandaloneAuth();if(!standalone)return null;
-  const session=await standalone.api.getSession({headers:await headers()});
+  // Never let a cached cookie preserve an expired or operator-revoked session.
+  const session=await standalone.api.getSession({headers:await headers(),query:{disableCookieCache:true}});
   const identity=session?.user??null;
   const owner=standaloneAdmin(identity,bindings.STANDALONE_ADMIN_USER_ID,bindings.STANDALONE_ADMIN_EMAIL);
   if(owner)return {...owner,role:'owner',permissions:[...ADMIN_PERMISSIONS]};

@@ -38,12 +38,18 @@ jobs:
         run: pnpm run build
       - name: Site integration checks
         run: node scripts/check-site.mjs
+      - name: Admin sessions and permissions
+        run: node scripts/check-admin-auth.mjs
+      - name: Request operations and notification reliability
+        run: node scripts/check-admin-operations.mjs
       - name: Prepare browser verification
         run: |
           npm install --prefix "$RUNNER_TEMP/safeplaces-browser" --no-save --ignore-scripts --no-package-lock --no-audit --no-fund playwright@1.62.1
           node "$RUNNER_TEMP/safeplaces-browser/node_modules/playwright/cli.js" install --with-deps chromium
       - name: Arabic and English pages and persistent guest cart
         run: SAFEPLACES_PLAYWRIGHT_MODULE="$RUNNER_TEMP/safeplaces-browser/node_modules/playwright" node scripts/check-browser.mjs
+      - name: Arabic and English admin workflows on mobile and desktop
+        run: SAFEPLACES_PLAYWRIGHT_MODULE="$RUNNER_TEMP/safeplaces-browser/node_modules/playwright" node scripts/check-admin-browser.mjs
       - name: Save browser evidence and resolved dependency lock
         if: always()
         uses: actions/upload-artifact@v4

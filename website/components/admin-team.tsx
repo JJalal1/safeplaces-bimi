@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useState,type FormEvent} from 'react';
-import {ShieldCheck,Users,Save,Trash2,Plus,LoaderCircle,RefreshCw} from 'lucide-react';
+import {ShieldCheck,Users,Save,UserRoundX,UserRoundCheck,Plus,LoaderCircle,RefreshCw} from 'lucide-react';
 import {api,errorText} from './store';
 import {local,type Lang} from '../lib/config';
 import {ADMIN_PERMISSIONS,type AdminPermission} from '../lib/admin-permissions';
@@ -53,7 +53,17 @@ export function AdminTeam({lang}:{lang:Lang}){
   setBusy(true);setError('');setNotice('');
   try{
    await api('admin/team/update',{id,permissions:selected});
-   setNotice(local(lang,'تم تعديل الصلاحيات. تسري على طلبات الموظف التالية فورًا.','Permissions updated and enforced on the next request.'));
+   setNotice(local(lang,'تم تعديل الصلاحيات. يسجل الموظف الدخول مجددًا لاستخدام الصلاحيات المحدّثة.','Permissions updated. The staff member signs in again to use the updated permissions.'));
+   await refresh();
+  }catch(err){setError(errorText(err,lang));}finally{setBusy(false);}
+ }
+ async function restore(member:Member){
+  const selected=drafts[member.id]||[];
+  if(busy||!selected.length)return;
+  setBusy(true);setError('');setNotice('');
+  try{
+   await api('admin/team/restore',{id:member.id,permissions:selected});
+   setNotice(local(lang,'تمت إعادة اعتماد الموظف بالصلاحيات المحددة. يمكنه تسجيل الدخول بحسابه المعتمد.','Staff access restored with the selected permissions. They can sign in with the approved account.'));
    await refresh();
   }catch(err){setError(errorText(err,lang));}finally{setBusy(false);}
  }
@@ -62,14 +72,15 @@ export function AdminTeam({lang}:{lang:Lang}){
   setBusy(true);setError('');setNotice('');
   try{
    await api('admin/team/revoke',{id:member.id});
-   setNotice(local(lang,'تم إلغاء الوصول الإداري.','Administrative access revoked.'));
+   setNotice(local(lang,'تم إلغاء الوصول الإداري وإنهاء جلسات الحساب. حُفظ سجل الاعتماد للمراجعة.','Administrative access and account sessions revoked. The approval record is retained for review.'));
    await refresh();
   }catch(err){setError(errorText(err,lang));}finally{setBusy(false);}
  }
  return <div className="console-settings-form">
   <section className="management-card">
    <h3><ShieldCheck size={20}/>{local(lang,'مالك واحد، فريق بصلاحيات محددة','One owner, restricted staff accounts')}</h3>
-   <p>{local(lang,'حسابك هو المالك الرئيسي الوحيد. كل موظف يدخل بحساب Google الخاص به، ولن يحصل على أي صلاحية إلا بعد اعتماده هنا.','Only you are the primary owner. Each staff member signs in with their own Google account and has no administrative access until approved here.')}</p>
+   <p>{local(lang,'حسابك هو المالك الرئيسي الوحيد. يعتمد الموظف هنا بصلاحيات محددة، ثم يسجل الدخول بحساب Google الخاص به.','You are the sole primary owner. Approve each staff member with specific permissions, then they sign in with their own Google account.')}</p>
+   <p>{local(lang,'يرتبط الاعتماد بهوية الحساب عند أول دخول. يمكنك إيقاف الوصول وإعادته للحساب نفسه من قائمة الفريق.','Approval is bound to the account identity at first sign-in. You can revoke and restore access for that same account below.')}</p>
    <p>{local(lang,'أثناء وضع اختبار Google، يجب إضافة بريد الموظف كذلك إلى المستخدمين التجريبيين في Google Cloud.','While Google OAuth remains in Testing, add each staff email to Google Cloud test users too.')}</p>
   </section>
   {error&&<p className="form-error" role="alert">{error}</p>}
@@ -87,16 +98,18 @@ export function AdminTeam({lang}:{lang:Lang}){
    </form>
   </section>
   <section className="management-card">
-   <h3><Users size={19}/>{local(lang,'الأشخاص المعتمدون','Approved staff')}</h3>
+   <h3><Users size={19}/>{local(lang,'فريق الإدارة وسجل الوصول','Management team & access history')}</h3>
+   {!loading&&<p>{local(lang,'حسابات فعّالة: ','Active accounts: ')}{members.filter(member=>member.active).length} · {local(lang,'حسابات موقوفة: ','Revoked accounts: ')}{members.filter(member=>!member.active).length}</p>}
    <button type="button" className="button light small-button" disabled={loading||busy} onClick={()=>void refresh()}><RefreshCw size={15}/>{local(lang,'تحديث','Refresh')}</button>
    {loading?<p>{local(lang,'جارٍ تحميل الأعضاء…','Loading team…')}</p>:members.length===0?<p>{local(lang,'لا يوجد موظفون معتمدون حاليًا.','No staff approved yet.')}</p>:members.map(member=>
     <section key={member.id} className="management-card">
      <h4 dir="ltr">{member.email}</h4>
-     <p>{member.linked?local(lang,'دخل بواسطة Google وتم ربط هويته.','Google identity verified and linked.'):local(lang,'بانتظار أول تسجيل دخول بحساب Google المعتمد.','Awaiting first login with the approved Google account.')}</p>
+     <p><span className={'badge status-'+(member.active?'confirmed':'cancelled')}>{member.active?local(lang,'الوصول فعّال','Access active'):local(lang,'الوصول موقوف','Access revoked')}</span></p>
+     <p>{!member.active?local(lang,'توقفت صلاحيات الإدارة. راجع الصلاحيات أدناه قبل إعادة اعتماد الحساب.','Administration access is revoked. Review the permissions below before restoring this account.'):member.linked?local(lang,'دخل بواسطة Google وتم ربط هويته.','Google identity verified and linked.'):local(lang,'بانتظار أول تسجيل دخول بحساب Google المعتمد.','Awaiting first login with the approved Google account.')}</p>
      <PermissionPicker lang={lang} value={drafts[member.id]||[]} disabled={busy} onChange={value=>setDrafts(previous=>({...previous,[member.id]:value}))}/>
      <div className="editor-savebar">
-      <button type="button" className="button primary" disabled={busy||!(drafts[member.id]||[]).length} onClick={()=>void update(member.id)}><Save size={16}/>{local(lang,'حفظ الصلاحيات','Save permissions')}</button>
-      <button type="button" className="button light" disabled={busy} onClick={()=>void revoke(member)}><Trash2 size={16}/>{local(lang,'إلغاء وصوله','Revoke access')}</button>
+      {member.active?<><button type="button" className="button primary" disabled={busy||!(drafts[member.id]||[]).length||JSON.stringify([...(drafts[member.id]||[])].sort())===JSON.stringify([...member.permissions].sort())} onClick={()=>void update(member.id)}><Save size={16}/>{local(lang,'حفظ الصلاحيات','Save permissions')}</button>
+      <button type="button" className="button light" disabled={busy} onClick={()=>void revoke(member)}><UserRoundX size={16}/>{local(lang,'إيقاف الوصول','Revoke access')}</button></>:<button type="button" className="button primary" disabled={busy||!(drafts[member.id]||[]).length} onClick={()=>void restore(member)}><UserRoundCheck size={16}/>{local(lang,'إعادة الاعتماد بهذه الصلاحيات','Restore with these permissions')}</button>}
      </div>
     </section>)}
   </section>

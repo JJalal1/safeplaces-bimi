@@ -11,18 +11,19 @@ export async function verifiedStaff(identity:VerifiedIdentity|null|undefined):Pr
  const db=getDb();
  const [invitation]=await db.select().from(adminMembers).where(eq(adminMembers.email,customer.email)).limit(1);
  if(!invitation||invitation.active!==1)return null;
+ const identityId=identity.id.toLowerCase();
  // First login requires a *verified* Google session. Atomic NULL-only binding
  // prevents an invitation from silently moving between authenticated users.
  if(!invitation.authUserId){
   await db.update(adminMembers).set({
-   authUserId:identity.id,updatedAt:new Date().toISOString()
-  }).where(and(eq(adminMembers.id,invitation.id),isNull(adminMembers.authUserId),eq(adminMembers.active,1)));
+   authUserId:identityId,updatedAt:new Date().toISOString()
+  }).where(and(eq(adminMembers.id,invitation.id),eq(adminMembers.email,customer.email),isNull(adminMembers.authUserId),eq(adminMembers.active,1)));
  }
  const [stored]=await db.select().from(adminMembers).where(eq(adminMembers.id,invitation.id)).limit(1);
- if(!stored||stored.active!==1||stored.authUserId!==identity.id)return null;
+ if(!stored||stored.active!==1||stored.email!==customer.email||stored.authUserId!==identityId)return null;
  let parsed:unknown;
  try{parsed=JSON.parse(stored.permissions);}catch{return null;}
  const permissions=parseAdminPermissions(parsed);
  if(!permissions.length)return null;
- return {adminId:identity.id,permissions};
+ return {adminId:identityId,permissions};
 }

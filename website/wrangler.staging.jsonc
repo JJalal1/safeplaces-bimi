@@ -20,6 +20,13 @@
     "SITE_DEMO_PRICES": "true",
     "STANDALONE_AUTH_ENABLED": "false",
     "CUSTOMER_AUTH_ENABLED": "false",
-    "ADMIN_BOOTSTRAP_PRIVATE": "false"
+    "ADMIN_BOOTSTRAP_PRIVATE": "false",
+    "EMAIL_NOTIFICATIONS_ENABLED": "false",
+    "BETTER_AUTH_URL": "https://safeplaces-preview.pages.dev"
+  },
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
   }
 }

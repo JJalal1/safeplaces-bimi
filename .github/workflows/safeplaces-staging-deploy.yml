@@ -23,9 +23,40 @@ concurrency:
 jobs:
   validate:
     uses: ./.github/workflows/website-validate.yml
-  deploy-staging:
+  deployment-readiness:
+    name: Check staging schema without applying changes
     needs: validate
     if: ${{ github.ref == 'refs/heads/feature/auth-speed-seo-before-hosting' && (github.event_name == 'push' || inputs.confirm_staging_only == 'safeplaces-staging') }}
+    runs-on: ubuntu-latest
+    environment: staging
+    outputs:
+      ready: ${{ steps.schema.outputs.ready }}
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify readiness guard with local fixtures
+        run: node scripts/check-staging-operations-ready.mjs --self-test
+      - name: Read approved migration evidence from the exact staging database
+        id: schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: node scripts/check-staging-operations-ready.mjs
+      - name: Save staging readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safeplaces-staging-readiness
+          path: website/test-results/staging-operations-readiness.json
+          retention-days: 7
+  deploy-staging:
+    needs: [validate, deployment-readiness]
+    if: ${{ needs.deployment-readiness.outputs.ready == 'true' && github.ref == 'refs/heads/feature/auth-speed-seo-before-hosting' && (github.event_name == 'push' || inputs.confirm_staging_only == 'safeplaces-staging') }}
     runs-on: ubuntu-latest
     environment: staging
     defaults:
@@ -58,6 +89,11 @@ jobs:
       - name: Verify this is a staging-only release
         run: |
           node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("wrangler.staging.jsonc","utf8")); if(c.name!=="safeplaces-staging" || c.workers_dev!==false || c.vars?.SITE_INDEXABLE!=="false" || c.vars?.SITE_DEMO_PRICES!=="true" || c.vars?.STANDALONE_AUTH_ENABLED!=="false" || c.vars?.STAGING_HOSTNAME!=="safeplaces-preview.pages.dev" || c.d1_databases?.[0]?.database_name!=="safeplaces-staging") process.exit(1)'
+      - name: Recheck approved schema and exact built target before deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: node scripts/check-staging-operations-ready.mjs --check-bundle --require-ready
       - name: Deploy staging Worker only
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -92,3 +128,11 @@ jobs:
           if (!denied) throw new Error('Historical Pages host has not been denied by the staging backend');
           console.log('PASS: canonical preview requires Access; historical alternate host cannot reach staging');
           NODE
+      - name: Save final pre-deployment schema verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safeplaces-staging-predeploy-readiness
+          path: website/test-results/staging-operations-readiness.json
+          if-no-files-found: ignore
+          retention-days: 7
