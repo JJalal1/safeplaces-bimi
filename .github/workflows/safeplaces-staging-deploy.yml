@@ -21,7 +21,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    uses: ./.github/workflows/website-validate.yml
   deploy-staging:
+    needs: validate
     if: ${{ github.ref == 'refs/heads/feature/auth-speed-seo-before-hosting' && (github.event_name == 'push' || inputs.confirm_staging_only == 'safeplaces-staging') }}
     runs-on: ubuntu-latest
     environment: staging
@@ -54,7 +57,7 @@ jobs:
           fi
       - name: Verify this is a staging-only release
         run: |
-          node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("wrangler.staging.jsonc","utf8")); if(c.name!=="safeplaces-staging" || c.workers_dev!==false || c.vars?.SITE_INDEXABLE!=="false" || c.vars?.SITE_DEMO_PRICES!=="true" || c.vars?.STANDALONE_AUTH_ENABLED!=="false" || c.d1_databases?.[0]?.database_name!=="safeplaces-staging") process.exit(1)'
+          node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("wrangler.staging.jsonc","utf8")); if(c.name!=="safeplaces-staging" || c.workers_dev!==false || c.vars?.SITE_INDEXABLE!=="false" || c.vars?.SITE_DEMO_PRICES!=="true" || c.vars?.STANDALONE_AUTH_ENABLED!=="false" || c.vars?.STAGING_HOSTNAME!=="safeplaces-preview.pages.dev" || c.d1_databases?.[0]?.database_name!=="safeplaces-staging") process.exit(1)'
       - name: Deploy staging Worker only
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -69,3 +72,23 @@ jobs:
             exit 1
           fi
           pnpm exec wrangler deploy --config dist/server/wrangler.json
+      - name: Verify protected canonical preview and deny a historical alternate host
+        run: |
+          node --input-type=module <<'NODE'
+          const canonical = 'https://safeplaces-preview.pages.dev/ar';
+          const historical = 'https://e92b423e.safeplaces-preview.pages.dev/ar';
+          const response = await fetch(canonical, {redirect:'manual', signal:AbortSignal.timeout(20000)});
+          const location = response.headers.get('location') || '';
+          const accessRedirect = [301,302,303,307,308].includes(response.status) && new URL(location,canonical).hostname.endsWith('.cloudflareaccess.com');
+          if (!accessRedirect && ![401,403].includes(response.status)) throw new Error('Canonical preview does not require Access');
+          await response.body?.cancel();
+          let denied = false;
+          for (let attempt=0; attempt<6; attempt++) {
+            const result = await fetch(historical, {redirect:'manual', signal:AbortSignal.timeout(20000)});
+            const body = await result.text();
+            if (result.status===403 && body.includes('Preview host unavailable') && result.headers.get('x-robots-tag')?.includes('noindex')) { denied=true; break; }
+            if (attempt<5) await new Promise(resolve=>setTimeout(resolve,5000));
+          }
+          if (!denied) throw new Error('Historical Pages host has not been denied by the staging backend');
+          console.log('PASS: canonical preview requires Access; historical alternate host cannot reach staging');
+          NODE

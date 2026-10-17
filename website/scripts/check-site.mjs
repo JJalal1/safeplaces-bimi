@@ -10,8 +10,10 @@ const commerceSource=ts.transpileModule(readFileSync('lib/commerce.ts','utf8'),{
 const {totals,discountFor}=await import('data:text/javascript;base64,'+Buffer.from(commerceSource).toString('base64'));
 const line={id:'test',nameAr:'اختبار',nameEn:'Test',slug:'test',category:'ppe',price:11500,quantity:2};
 assert.deepEqual(totals([line],15,true,2300),{subtotal:20000,discount:2000,vat:2700,total:20700,grossDiscount:2300});
-assert.equal(totals([line],15,false,2300).total,23805);
-for(let price=1;price<1000;price+=7)for(let discount=0;discount<price;discount+=13){const t=totals([{...line,price,quantity:1}],15,true,discount);assert.equal(t.subtotal-t.discount+t.vat,t.total,'All monetary components must balance to the halala');}
+assert.deepEqual(totals([line],15,false,2300),{subtotal:23000,discount:2300,vat:3105,total:23805,grossDiscount:2300});
+assert.deepEqual(totals([line],15,true,50000),{subtotal:20000,discount:20000,vat:0,total:0,grossDiscount:23000},'A full discount cannot leave VAT or a negative balance');
+assert.equal(discountFor({type:'fixed',value:50000,minimum:0,maximum:null,categories:'[]'},[line]),23000,'A fixed coupon cannot exceed eligible item value');
+for(const includes of [true,false])for(let price=1;price<1000;price+=7)for(let discount=0;discount<price;discount+=13){const t=totals([{...line,price,quantity:1}],15,includes,discount);assert.equal(t.subtotal-t.discount+t.vat,t.total,'All monetary components must balance to the halala');}
 assert.equal(discountFor({type:'percentage',value:20,minimum:0,maximum:3000,categories:'["ppe"]'},[line]),3000);
 assert.throws(()=>discountFor({type:'fixed',value:100,minimum:50000,maximum:null,categories:'[]'},[line]),/COUPON_MINIMUM/);
 assert.throws(()=>discountFor({type:'fixed',value:100,minimum:0,maximum:null,categories:'["alarms"]'},[line]),/COUPON_NOT_APPLICABLE/);
@@ -51,8 +53,11 @@ assert.deepEqual(restoreStore('{broken').cart,[],'Malformed saved data must not 
 assert.equal(restoreStore(JSON.stringify({cart:[{...savedItem,quantity:3000}],quote:[]})).cart[0].quantity,999,'Persisted quantities are bounded');
 const stateProviderSource=readFileSync('components/store.tsx','utf8');
 assert.ok(stateProviderSource.includes('queuedChanges.current.push(fn)'),'Changes before hydration must be replayed');
-assert.ok(stateProviderSource.includes('setState(replayStoreActions(restored,pending))'),'Replay early product views on restored basket');
-assert.ok(stateProviderSource.includes('if(!loaded)return;try{localStorage.setItem('),'Persistence must wait for hydration');
+assert.ok(stateProviderSource.includes('const next=replayStoreActions(restored,pending)'),'Replay early product views on restored basket');
+assert.ok(stateProviderSource.includes('if(!hydratedRef.current){queuedChanges.current.push(fn);return;}'),'Persistence must wait for hydration');
+assert.ok(stateProviderSource.includes("window.addEventListener('storage',storageChanged)"),'Guest carts must follow changes from other tabs');
+assert.ok(stateProviderSource.includes("window.addEventListener('pageshow',pageShown)"),'Cached back navigation must restore the latest basket');
+assert.ok(!stateProviderSource.includes('[loaded,state]'),'Wishlist and session responses must not persist a stale cart');
 assert.ok(!stateProviderSource.includes("setState(s=>{const next=fn(s)"),'Never perform a storage write inside React state updater');
 assert.ok(stateProviderSource.includes('if(!ready)return <div className="cart-loading"'),'Do not show an empty cart before restoration');
 assert.ok(readFileSync('components/forms.tsx','utf8').includes('if(!ready)return <div className="cart-loading"'),'Do not show empty cart summary while hydration is pending');
@@ -230,8 +235,13 @@ try{
  await expectJSON('/api/orders',{...quote,items,billing:'',coupon:'',key:uuid()},owner,409);
  await expectJSON('/api/admin/settings',{orderEnabled:true},owner);
  const demoItem=[{id:admin.products[0].id,quantity:1}];
+ const ordersBeforeDemo=(await db.prepare('SELECT COUNT(*) AS count FROM orders').first()).count;
  await expectJSON('/api/checkout/review',{items:demoItem,coupon:''},{},400);
- await expectJSON('/api/orders',{name:quote.name,email:quote.email,phone:quote.phone,items:demoItem,coupon:'',billing:'',key:uuid(),total:1},owner,400);
+ await expectJSON('/api/orders',{name:quote.name,email:quote.email,phone:quote.phone,items:demoItem.map(item=>({...item,price:1,previewOnly:false})),coupon:'',billing:'',key:uuid(),total:1},owner,400);
+ const mixedItems=[...items,...demoItem];
+ await expectJSON('/api/checkout/review',{items:mixedItems,coupon:''},{},400);
+ await expectJSON('/api/orders',{name:quote.name,email:quote.email,phone:quote.phone,items:mixedItems,coupon:'',billing:'',key:uuid()}, {},400);
+ assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM orders').first()).count,ordersBeforeDemo,'Neither forged browser prices nor a mixed demo basket may create any order');
  assert.equal((await db.prepare('SELECT price FROM products WHERE id=?').bind(admin.products[0].id).first()).price,null,'Demo pricing cannot reach stored products');
  await expectJSON('/api/admin/coupons',{code:'TEST10',type:'percentage',value:10,minimum:0,maximum:null,usageLimit:1,startsAt:null,endsAt:null,categories:'[]',active:1},owner);
  const review=await expectJSON('/api/checkout/review',{items,coupon:'TEST10'});assert.equal(review.total,20700);

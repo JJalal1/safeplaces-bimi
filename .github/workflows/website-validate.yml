@@ -1,5 +1,6 @@
 name: Website validation
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'website/**'
@@ -29,10 +30,29 @@ jobs:
         run: node scripts/check-admin-permissions.mjs
       - name: Existing customer auth tests
         run: node scripts/check-customer-auth.mjs
+      - name: Protected staging host and Pages gateway
+        run: |
+          node scripts/check-staging-access.mjs
+          node scripts/check-preview-gateway.mjs
       - name: Build
         run: pnpm run build
       - name: Site integration checks
         run: node scripts/check-site.mjs
+      - name: Prepare browser verification
+        run: |
+          npm install --prefix "$RUNNER_TEMP/safeplaces-browser" --no-save --ignore-scripts --no-package-lock --no-audit --no-fund playwright@1.62.1
+          node "$RUNNER_TEMP/safeplaces-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Arabic and English pages and persistent guest cart
+        run: SAFEPLACES_PLAYWRIGHT_MODULE="$RUNNER_TEMP/safeplaces-browser/node_modules/playwright" node scripts/check-browser.mjs
+      - name: Save browser evidence and resolved dependency lock
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safeplaces-verification
+          path: |
+            website/test-results/
+            website/pnpm-lock.yaml
+          retention-days: 7
       - name: Cloudflare staging build without deployment
         run: pnpm run build:staging
       - name: Validate staging release bundle without deployment
