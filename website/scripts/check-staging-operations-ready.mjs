@@ -123,7 +123,12 @@ async function inspectReadiness({env,hash,config,bundleConfig,fetcher = fetch}) 
       });
       let payload;
       try {payload = await response.json();} catch {block('CLOUDFLARE_READ_FAILED','Cloudflare did not return a valid readiness response. Deployment remains blocked.');}
-      if (!response.ok || !payload.success) block('CLOUDFLARE_READ_FAILED','Cloudflare could not verify staging metadata. Deployment remains blocked; no migration was attempted.');
+      if (!response.ok || !payload.success) {
+        const codes = (Array.isArray(payload.errors) ? payload.errors : []).map(error => String(error.code)).filter(code => /^\d{1,8}$/.test(code));
+        const denied = [401,403].includes(response.status);
+        block(denied ? 'CLOUDFLARE_D1_READ_DENIED' : 'CLOUDFLARE_READ_FAILED',
+          `Cloudflare could not verify staging ${sql ? 'schema evidence' : 'database metadata'} (HTTP ${response.status}${codes.length ? '; provider codes ' + codes.join(', ') : ''}). ${denied ? 'Check the staging environment token and its D1 Read permission for the exact account. ' : ''}Deployment remains blocked; no migration was attempted.`);
+      }
       if (!sql) return payload.result;
       if (!Array.isArray(payload.result) || payload.result.length !== 1 || payload.result[0].success !== true || !Array.isArray(payload.result[0].results)) block('CLOUDFLARE_READ_FAILED','The metadata query result was incomplete. Deployment remains blocked.');
       if (Number(payload.result[0].meta?.changes || 0) !== 0 || Number(payload.result[0].meta?.rows_written || 0) !== 0) block('READ_ONLY_RESULT_REJECTED','The readiness response did not report a read-only query. Deployment remains blocked.');
@@ -173,7 +178,7 @@ async function selfTest(hash,config) {
     {name:'missing recovery evidence',code:'MIGRATION_EVIDENCE_INCOMPLETE',change:data => {data.ledger[0].backup_bookmark = '';}},
     {name:'wrong environment account',code:'STAGING_TARGET_MISMATCH',account:'unrelated-account'},
     {name:'missing credential',code:'CREDENTIALS_UNAVAILABLE',token:''},
-    {name:'unavailable Cloudflare metadata',code:'CLOUDFLARE_READ_FAILED',apiFailure:true}
+    {name:'denied Cloudflare metadata',code:'CLOUDFLARE_D1_READ_DENIED',apiFailure:true}
   ];
   let readCalls = 0;
   for (const test of cases) {

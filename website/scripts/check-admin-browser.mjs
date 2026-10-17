@@ -167,7 +167,9 @@ async function openRequest(target,lang,row){
 }
 async function exerciseRequest(target,lang,row,db){
  const label=row.type==='quotes'?'quote':'contact';
- await openRequest(target,lang,row);await captureBoth(target,lang,label+'-details');
+ await openRequest(target,lang,row);
+ if(row.type==='quotes')assert.ok((await target.locator('.request-facts dd').allTextContents()).includes(lang==='ar'?'الإنذار والكشف المبكر':'Fire alarm & detection'),'Quote requirements must show the localized service name');
+ await captureBoth(target,lang,label+'-details');
  await target.getByRole('tab',{name:words[lang].followup}).click();
  const status=row.type==='quotes'?'review':'reviewed';
  await target.locator('.request-workspace select[name="status"]').selectOption(status);
@@ -176,10 +178,13 @@ async function exerciseRequest(target,lang,row,db){
  const submitted=(await statusRequest).postDataJSON();assert.equal(submitted.expectedStatus,'new','The UI must submit its loaded status for concurrency checking');if(row.type==='quotes')assert.equal(submitted.expectedFile,null,'The UI must submit the loaded proposal state for concurrency checking');
  await target.locator('.request-customer-card .status-'+status).waitFor({state:'visible'});await settleRequest(target);
  assert.equal(await target.locator('.console-editor').count(),1,'Saving status must keep the editor open');
+ assert.equal(await target.locator('.toast').count(),0,'Saving status inside the request editor must not produce a duplicate global toast');
+ assert.ok((await target.locator('.request-feedback').textContent()).includes(lang==='ar'?'حُفظ تحديث الطلب.':'Request update saved.'),'Status save must retain its inline request feedback');
  assert.equal((await db.prepare('SELECT status FROM '+row.type+' WHERE id=?').bind(row.id).first()).status,status,'Status must persist to the disposable database');
  if(row.type==='quotes')assert.ok(await target.locator('.request-workspace input[type="file"]').isDisabled(),'Missing storage must disable administrative PDF upload');
  const note=lang==='ar'?'ملاحظة داخلية للاختبار: راجع المتطلبات واتفق على الخطوة التالية.':'Internal test note: review requirements and agree the next action.';
  await target.locator('#request-panel-followup textarea').fill(note);
+ assert.equal(await target.locator('#request-panel-followup .request-form-actions > span').evaluate(element=>getComputedStyle(element).direction),'ltr','The note counter must keep its current/maximum order in both languages');
  await apiAction(target,'/api/admin/request-note',()=>target.getByRole('button',{name:words[lang].saveNote,exact:true}).click());
  await target.locator('.request-event-body').filter({hasText:note}).waitFor({state:'visible'});await settleRequest(target);
  const notes=(await db.prepare("SELECT body,visibility FROM request_events WHERE request_type=? AND request_id=? AND kind='note'").bind(row.type,row.id).all()).results;
@@ -224,7 +229,9 @@ try{
   await navigate(page,lang,'inbox');assert.equal(await page.locator('.inbox-record').count(),4);await captureBoth(page,lang,'inbox');
   await navigate(page,lang,'readiness');await page.locator('.readiness-card').first().waitFor({state:'visible'});
   assert.ok(await page.locator('.readiness-status-blocked').count()>0,'Missing services must appear as activation required');await captureBoth(page,lang,'readiness');
-  await navigate(page,lang,'homepage');assert.ok(await page.locator('.homepage-image-editor input[type="file"]').isDisabled(),'Missing R2 must disable homepage image uploads');assert.ok(await page.locator('.console-settings-form textarea').first().isEnabled(),'Text editing remains available without R2');await captureBoth(page,lang,'homepage-storage-pending');
+  await navigate(page,lang,'homepage');assert.ok(await page.locator('.homepage-image-editor input[type="file"]').isDisabled(),'Missing R2 must disable homepage image uploads');assert.ok(await page.locator('.console-settings-form textarea').first().isEnabled(),'Text editing remains available without R2');
+  for(const name of ['heroTitle','heroDescription','about'])for(const [suffix,direction] of [['Ar','rtl'],['En','ltr']])assert.equal(await page.locator('textarea[name="'+name+suffix+'"]').evaluate(element=>getComputedStyle(element).direction),direction,name+suffix+' must retain its content language direction in the '+lang+' interface');
+  await captureBoth(page,lang,'homepage-storage-pending');
   for(const row of [rows[lang].quote,rows[lang].contact])await exerciseRequest(page,lang,row,main.db);
  }
  pass('Bilingual overview, inbox, readiness and unavailable image uploads at 390/1440 pixels');

@@ -44,7 +44,7 @@ jobs:
       - name: Read approved migration evidence from the exact staging database
         id: schema
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
         run: node scripts/check-staging-operations-ready.mjs
       - name: Save staging readiness evidence
@@ -91,7 +91,7 @@ jobs:
           node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("wrangler.staging.jsonc","utf8")); if(c.name!=="safeplaces-staging" || c.workers_dev!==false || c.vars?.SITE_INDEXABLE!=="false" || c.vars?.SITE_DEMO_PRICES!=="true" || c.vars?.STANDALONE_AUTH_ENABLED!=="false" || c.vars?.STAGING_HOSTNAME!=="safeplaces-preview.pages.dev" || c.d1_databases?.[0]?.database_name!=="safeplaces-staging") process.exit(1)'
       - name: Recheck approved schema and exact built target before deployment
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
         run: node scripts/check-staging-operations-ready.mjs --check-bundle --require-ready
       - name: Deploy staging Worker only

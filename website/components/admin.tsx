@@ -63,7 +63,7 @@ export function Admin({authorized,bootstrap,signin,signout,initialData,userName,
  useEffect(()=>{setPage(1);setSelected([]);},[search,stateFilter,categoryFilter,modeFilter,paymentFilter,dateFilter,sort,size]);
  async function save(path:string,body:any,closeEditor=true):Promise<boolean>{
   if(busy)return false;setBusy(true);setError('');
-  try{await api('admin/'+path,body);if(closeEditor)setEditor(null);setSelected([]);notify(local(lang,'تم حفظ التغييرات','Changes saved'));await refresh();return true;}catch(e){setError(e instanceof Error&&e.message==='RECORD_CHANGED'?local(lang,'تغيّرت حالة الطلب بواسطة مسؤول آخر. حدّث التفاصيل ثم راجع التعديل قبل حفظه.','Another administrator changed this request. Refresh details and review your change before saving.'):errorText(e,lang));return false;}finally{setBusy(false);}
+  try{await api('admin/'+path,body);if(closeEditor)setEditor(null);setSelected([]);if(path!=='status'||closeEditor)notify(local(lang,'تم حفظ التغييرات','Changes saved'));await refresh();return true;}catch(e){setError(e instanceof Error&&e.message==='RECORD_CHANGED'?local(lang,'تغيّرت حالة الطلب بواسطة مسؤول آخر. حدّث التفاصيل ثم راجع التعديل قبل حفظه.','Another administrator changed this request. Refresh details and review your change before saving.'):errorText(e,lang));return false;}finally{setBusy(false);}
  }
  async function bulk(){if(!selected.length)return;await save('bulk',{type:contentTypes.includes(tab)?'content':tab,ids:selected,action:bulkAction});}
  function edit(type:string,row:any){
