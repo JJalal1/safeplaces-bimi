@@ -72,12 +72,27 @@ assert.ok(storeUxSource.includes("['services','الخدمات','Services']"),'Se
 assert.ok(storeUxSource.includes("['projects','المشاريع','Projects']"),'Projects must remain reachable');
 assert.ok(storeUxSource.includes("['wishlist','المفضلة','Wishlist']"),'Wishlist must remain reachable');
 assert.ok(storeUxSource.includes("['quote','طلب عرض سعر','Request a quote']"),'Quotation flow must remain reachable');
-assert.ok(storeUxSource.includes('className="mobile-header-actions"'),'Language selection and quotation shortcut must remain accessible');
+assert.ok(storeUxSource.includes('className="mobile-header-actions"'),'Mobile language selector must remain accessible');
+assert.ok(!storeUxSource.includes('className="mobile-quote-link"'),'Avoid the cramped quote button next to language on phones');
 assert.ok(mobileToastCss.includes('.marketplace-header .header-tools, .marketplace-header .navigation-bar { display: none !important; }'),'Hide duplicated mobile header navigation');
 assert.ok(mobileToastCss.includes('.page-heading .breadcrumb, .page-heading .eyebrow { display: none; }'),'Keep compact mobile page headings');
 assert.ok(mobileToastCss.includes('.cart-shopping-layout > .cart-page { order: 0;'),'Show cart items before the summary');
 assert.ok(mobileToastCss.includes('.cart-shopping-layout > .cart-summary { order: 1;'),'Show cart summary after products');
 console.log('PASS: unified five-tab mobile navigation, More sheet, compact headings and cart-first layout');
+const companySource=readFileSync('components/company-pages.tsx','utf8');
+const routeSource=readFileSync('app/(site)/[lang]/[[...slug]]/page.tsx','utf8');
+const companyCss=readFileSync('app/company-experience.css','utf8');
+assert.ok(routeSource.includes('body=<HomeOverview lang={l}'),'Use the focused corporate-and-shop homepage');
+assert.ok(routeSource.includes('body=<AboutOverview lang={l}'),'Keep About as a distinct company profile');
+assert.ok(routeSource.includes('<ServicesOverview lang={l}'),'Keep technical services separate from About');
+assert.ok(routeSource.includes('<ServiceOverview lang={l}'),'Render service detail pages with scope and requirements');
+assert.ok(companySource.includes('company-home-about'),'Show a short company introduction on the homepage');
+assert.ok(companySource.includes('company-process'),'Describe quotation and supply workflow without inventing achievements');
+assert.ok(companySource.includes('company-detail-grid'),'Service details should explain scope and required information');
+assert.ok(companyCss.includes('.company-service-grid { display:grid;'),'Replace oversized service cards with content-first compact cards');
+assert.ok(companyCss.includes('padding-top:145px;'),'Reduce the excessively tall mobile hero');
+console.log('PASS: bilingual corporate/shop homepage, distinct About and Services content, compact mobile layouts');
+
 
 
 
@@ -156,6 +171,9 @@ try{
  assert.equal(productSchema.offers,undefined,'Demo prices must never become merchant offers');
  const shopPage=await request('/ar/shop');const shopHtml=await shopPage.text();const shopMain=shopHtml.match(/<main id="main">([\s\S]*?)<\/main>/)[1];assert.match(shopMain,/shopping-filter-trigger/);assert.match(shopMain,/aria-expanded="false"/);assert.doesNotMatch(shopMain,/shop-sidebar|shop-filter-dialog/);
  const filteredPage=await request('/en/shop?category=ppe&max=50');const filteredMain=(await filteredPage.text()).match(/<main id="main">([\s\S]*?)<\/main>/)[1];assert.match(filteredMain,/Safety helmets/);assert.doesNotMatch(filteredMain,/Vests, gloves &amp; safety glasses/);assert.match(filteredMain,/shopping-filter-chips/);
+ const aboutPage=await request('/en/about');const aboutHtml=await aboutPage.text();assert.match(aboutHtml,/Who we serve/);assert.match(aboutHtml,/How we work/);assert.doesNotMatch(aboutHtml,/company-service-grid/,'About should not duplicate the services listing');
+ const servicesPage=await request('/en/services');const servicesHtml=await servicesPage.text();assert.match(servicesHtml,/Questions before requesting a service/);assert.match(servicesHtml,/company-service-grid/);
+ const serviceDetails=await request('/en/services/fire-alarm');const serviceDetailsHtml=await serviceDetails.text();assert.match(serviceDetailsHtml,/What information helps us/);
  const homePage=await request('/en');const homeHtml=await homePage.text();assert.match(homeHtml,/safety-hero/);assert.match(homeHtml,/\/images\/hero.webp/);assert.match(homeHtml,/fetchPriority="high"/i);assert.match(homeHtml,/Shop safety equipment/);assert.match(homeHtml,/Discuss your project/);assert.match(homeHtml,/Equipment and services/);assert.doesNotMatch(homeHtml,/<canvas\b|facility-explorer|facility-renderer|facility-device-menu|Start the 3D experience/,'The homepage must not load the cancelled 3D experience');
  console.log('PASS: 50 Arabic/English pages, RTL/LTR, headings, canonical, hreflang, sitemap, redirects, 404 and demo-price disclosure');
  await expectJSON('/api/admin/data',undefined,{},403);
