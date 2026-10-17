@@ -33,5 +33,12 @@ export async function boundedAuthRequest(request:Request):Promise<Request|null>{
  }finally{reader.releaseLock();}
  const bytes=new Uint8Array(length);let offset=0;
  for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
- return new Request(request,{body:new TextDecoder().decode(bytes)});
+ // Workerd rejects a consumed Request as constructor input even when a new
+ // body is supplied. Rebuild from the URL and preserve the verified bytes.
+ return new Request(request.url,{
+  method:request.method,
+  headers:new Headers(request.headers),
+  redirect:request.redirect,
+  body:bytes
+ });
 }

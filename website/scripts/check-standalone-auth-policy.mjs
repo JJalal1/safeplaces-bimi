@@ -56,4 +56,30 @@ assert.equal(authRequestError(new Request('https://other-preview.pages.dev/api/a
 assert.equal(authRequestError(new Request(origin+'/api/auth/callback/google?state=not-proof',{headers:{'sec-fetch-site':'cross-site'}}),origin),null,'Google GET callback continues to Better Auth state verification');
 assert.equal(await (await boundedAuthRequest(post({},'{"provider":"google"}'))).text(),'{"provider":"google"}');
 assert.equal(await boundedAuthRequest(post({'content-length':'2'},'x'.repeat(AUTH_BODY_LIMIT+1))),null,'Reject the actual oversized body even when Content-Length lies');
+// Node accepts some consumed Request constructor inputs that Workerd rejects.
+// Exercise the stricter boundary without starting an application runtime.
+const NativeRequest=globalThis.Request;
+const payload=JSON.stringify({provider:'google',callbackURL:'/ar/admin',label:'دخول الإدارة'});
+const incoming=new NativeRequest(origin+'/api/auth/sign-in/social?fixture=preserve',{
+ method:'POST',redirect:'manual',
+ headers:{origin,'content-type':'application/json; charset=utf-8',cookie:'fixture.session=opaque','x-request-id':'auth-body-fixture'},
+ body:payload
+});
+let rebuilt;
+try{
+ globalThis.Request=class extends NativeRequest{
+  constructor(input,options){
+   if(input instanceof NativeRequest&&(input.bodyUsed||input.body?.locked))throw new TypeError('Cannot reconstruct a consumed request');
+   super(input,options);
+  }
+ };
+ rebuilt=await boundedAuthRequest(incoming);
+}finally{globalThis.Request=NativeRequest;}
+assert.ok(incoming.bodyUsed,'The input body must be consumed to enforce the byte limit');
+assert.ok(rebuilt instanceof NativeRequest);
+assert.equal(rebuilt.url,incoming.url);
+assert.equal(rebuilt.method,'POST');
+assert.equal(rebuilt.redirect,'manual');
+assert.deepEqual([...rebuilt.headers],[...incoming.headers],'Forward origin, session cookie and request headers unchanged');
+assert.deepEqual(new Uint8Array(await rebuilt.arrayBuffer()),new TextEncoder().encode(payload),'Preserve the complete multibyte JSON body');
 console.log('PASS: canonical auth origin, POST CSRF boundary, Google callback forwarding and streamed request-size limits');

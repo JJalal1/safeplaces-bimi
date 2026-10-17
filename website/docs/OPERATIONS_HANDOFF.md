@@ -39,6 +39,15 @@
 الإعدادات الفعلية تخص Worker `safeplaces-staging`؛ مشروع Pages مجرد بوابة.
 لا تُحفظ الأسرار في المستودع أو ملفات التصدير أو تذاكر المتابعة.
 
+### حماية معاملات الروابط في السجلات
+
+فُعّل `observability.redact_query_string=true` فعليًا على Worker `safeplaces-staging`
+عبر واجهة `script-settings`، وأكدت قراءة لاحقة القيمة. بقيت بقية إعدادات المراقبة والعامل
+مطابقة لما قبل التعديل. لم تُقرأ محتويات سجلات العملاء ولم يُجرَ اختبار Google فعلي.
+إصدار Wrangler المثبّت `4.92.0` لا يعرّف هذا الحقل في مخطط الإعدادات، لذا لم يُضف إلى
+`wrangler.staging.jsonc`. يجب إعادة التحقق من القيمة بعد النشر وقبل تفعيل Google، ثم اختبار
+إخفاء معاملات رابط وهمي دون استخدام رمز دخول حقيقي.
+
 ## تفعيل Google والمالك
 
 1. إعداد OAuth client من نوع Web application في مشروع Google الذي تعتمد عليه المؤسسة.
@@ -139,6 +148,8 @@ Time Travel متاح على قاعدة المعاينة وقد نجحت قراء
 
 ## مراجع التنفيذ
 
+- [Cloudflare Worker script settings](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/settings/methods/edit/)
+- [Wrangler 4.92.0 observability schema source](https://github.com/cloudflare/workers-sdk/blob/wrangler%404.92.0/packages/workers-utils/src/config/environment.ts)
 - [Cloudflare D1 transactions](https://developers.cloudflare.com/d1/worker-api/d1-database/)
 - [Cloudflare Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/)
 - [Cloudflare Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/)
