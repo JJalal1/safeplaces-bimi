@@ -79,7 +79,8 @@ async function ensureEmailSendingDomain({token, fetcher = fetch}) {
     try { payload = await response.json(); }
     catch { return {ok:false, code:'EMAIL_SERVICE_RESPONSE_INVALID'}; }
     if (!response.ok || payload?.success !== true || !Array.isArray(payload.errors) || payload.errors.length !== 0) {
-      return {ok:false, code:response.status === 401 || response.status === 403 ? 'EMAIL_SERVICE_PERMISSION_DENIED' : 'EMAIL_SERVICE_REQUEST_FAILED'};
+      const providerCodes = Array.isArray(payload?.errors) ? payload.errors.map(error => String(error?.code || '')).filter(code => /^\d{1,8}$/.test(code)).slice(0,3) : [];
+      return {ok:false, code:response.status === 401 || response.status === 403 ? 'EMAIL_SERVICE_PERMISSION_DENIED' : 'EMAIL_SERVICE_REQUEST_FAILED', providerCodes};
     }
     return {ok:true, result:payload.result};
   };
@@ -163,7 +164,7 @@ async function protectStagingAuthLogs({mode, env, fetcher = fetch}) {
     if (env.GITHUB_ACTIONS === 'true') {
       const email = await ensureEmailSendingDomain({token, fetcher});
       if (!email.ok) {
-        return {...report, ok:false, code:email.code, message:'OAuth logging remains protected, but the approved Safe Places Email Sending domain could not be verified. Staging email remains disabled.', reads, writes};
+        return {...report, ok:false, code:email.code, message:`OAuth logging remains protected, but the approved Safe Places Email Sending domain could not be verified${email.providerCodes?.length ? ' (provider codes ' + email.providerCodes.join(',') + ')' : ''}. Staging email remains disabled.`, reads, writes};
       }
     }
     return {...report, ok:true, code:'PROTECTED', message:'OAuth query-string redaction and the approved log settings were read back successfully; traces remain disabled. The approved Safe Places Email Sending domain is verified when running in GitHub Actions.', reads, writes};
