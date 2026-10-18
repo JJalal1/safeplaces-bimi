@@ -4,30 +4,14 @@ const emailPattern = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const timestamp = () => new Date().toISOString();
 const envText = (env: OperationsBindings, key: string) => typeof env[key] === 'string' ? String(env[key]).trim() : '';
 
-type CloudflareEmailBinding = {
-  send(message: {
-    to: string | string[];
-    from: string | {email: string; name?: string};
-    replyTo?: string;
-    subject: string;
-    text: string;
-  }): Promise<{messageId?: unknown}>;
-};
-const emailBinding = (env: OperationsBindings) => {
-  const value = env.EMAIL as CloudflareEmailBinding | undefined;
-  return value && typeof value.send === 'function' ? value : null;
-};
-
 /** Enabling outbound mail is an explicit server-side operation, never a CMS setting. */
 export function notificationConfig(env: OperationsBindings) {
   const from = envText(env, 'NOTIFICATION_FROM') || envText(env, 'AUTH_EMAIL_FROM');
   if (env.EMAIL_NOTIFICATIONS_ENABLED !== 'true' || !emailPattern.test(from)) return null;
   const replyTo = envText(env, 'NOTIFICATION_REPLY_TO');
-  const email = emailBinding(env);
-  if (email) return {provider: 'cloudflare' as const, email, from, replyTo: emailPattern.test(replyTo) ? replyTo : undefined};
   const key = envText(env, 'RESEND_API_KEY');
   if (!key || /[\r\n]/.test(key)) return null;
-  return {provider: 'resend' as const, key, from, replyTo: emailPattern.test(replyTo) ? replyTo : undefined};
+  return {key, from, replyTo: emailPattern.test(replyTo) ? replyTo : undefined};
 }
 
 export function eventStatement(env: OperationsBindings, input: {
@@ -87,44 +71,24 @@ export async function processNotificationOutbox(env: OperationsBindings, fetcher
     processed++;
     let acceptedId: string | null = null, failure = 'EMAIL_DELIVERY_FAILED', retry = false;
     try {
-      if (config.provider === 'cloudflare') {
-        const result = await config.email.send({
-          from: {email: job.sender, name: 'Safe Places'},
-          to: job.recipient,
-          ...(config.replyTo ? {replyTo: config.replyTo} : {}),
-          subject: job.subject,
-          text: job.body
-        });
-        if (typeof result?.messageId === 'string' && result.messageId.length < 200) acceptedId = result.messageId;
-        else failure = 'EMAIL_RESPONSE_UNCERTAIN';
+      const response = await fetcher('https://api.resend.com/emails', {method: 'POST', headers: {
+        Authorization: 'Bearer ' + config.key, 'Content-Type': 'application/json', 'Idempotency-Key': job.idempotency_key
+      }, body: JSON.stringify({
+        from: `Safe Places <${job.sender}>`, to: [job.recipient], subject: job.subject, text: job.body,
+        ...(config.replyTo ? {reply_to: config.replyTo} : {})
+      }), signal: AbortSignal.timeout(10000)});
+      if (response.ok) {
+        const result = await response.json() as {id?: unknown};
+        if (typeof result.id === 'string' && result.id.length < 200) acceptedId = result.id;
+        else {failure = 'EMAIL_RESPONSE_UNCERTAIN'; retry = true;}
       } else {
-        const response = await fetcher('https://api.resend.com/emails', {method: 'POST', headers: {
-          Authorization: 'Bearer ' + config.key, 'Content-Type': 'application/json', 'Idempotency-Key': job.idempotency_key
-        }, body: JSON.stringify({
-          from: `Safe Places <${job.sender}>`, to: [job.recipient], subject: job.subject, text: job.body,
-          ...(config.replyTo ? {reply_to: config.replyTo} : {})
-        }), signal: AbortSignal.timeout(10000)});
-        if (response.ok) {
-          const result = await response.json() as {id?: unknown};
-          if (typeof result.id === 'string' && result.id.length < 200) acceptedId = result.id;
-          else {failure = 'EMAIL_RESPONSE_UNCERTAIN'; retry = true;}
-        } else {
-          retry = response.status === 429 || response.status >= 500 || response.status === 409;
-          failure = response.status === 401 || response.status === 403 ? 'EMAIL_PROVIDER_CONFIGURATION' : `EMAIL_PROVIDER_${response.status}`;
-          await response.body?.cancel();
-        }
+        retry = response.status === 429 || response.status >= 500 || response.status === 409;
+        failure = response.status === 401 || response.status === 403 ? 'EMAIL_PROVIDER_CONFIGURATION' : `EMAIL_PROVIDER_${response.status}`;
+        await response.body?.cancel();
       }
-    } catch (error) {
-      if (config.provider === 'cloudflare') {
-        const code = typeof (error as {code?: unknown})?.code === 'string' ? String((error as {code: string}).code) : '';
-        retry = code === 'E_RATE_LIMIT_EXCEEDED';
-        if (['E_SENDER_NOT_VERIFIED','E_SENDER_DOMAIN_NOT_AVAILABLE','E_RECIPIENT_NOT_ALLOWED','E_VALIDATION_ERROR','E_FIELD_MISSING'].includes(code)) failure = 'EMAIL_PROVIDER_CONFIGURATION';
-        else if (code === 'E_RECIPIENT_SUPPRESSED') failure = 'EMAIL_RECIPIENT_SUPPRESSED';
-        else failure = code ? `EMAIL_PROVIDER_${code}` : 'EMAIL_RESPONSE_UNCERTAIN';
-      } else {
-        failure = 'EMAIL_RESPONSE_UNCERTAIN';
-        retry = true;
-      }
+    } catch {
+      failure = 'EMAIL_RESPONSE_UNCERTAIN';
+      retry = true;
     }
     const time = timestamp();
     if (acceptedId) {
