@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
-          OUT="$(pnpm exec wrangler d1 execute safeplaces-production --remote --config wrangler.production.jsonc --command="SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table';" --json)"
+          OUT="$(pnpm exec wrangler d1 execute safeplaces-production --remote --config wrangler.production.jsonc --command="SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';" --json)"
           printf '%s' "$OUT" > /tmp/pre.json
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
