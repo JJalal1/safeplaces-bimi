@@ -218,7 +218,7 @@ try{
  await expectJSON('/api/auth/login',{email:'customer@example.test',password:'Long test passphrase'}, {},503);
  await expectJSON('/api/wishlist',undefined,{},401);
  await expectJSON('/api/orders',{},{},409);
- const guestCheckout=await request('/en/checkout');const guestCheckoutHtml=await guestCheckout.text();assert.match(guestCheckoutHtml,/<main id="main">/);assert.doesNotMatch(guestCheckoutHtml,/Sign in to continue checkout/,'Guests must reach the checkout even with an empty cart');
+ const guestCheckout=await request('/en/checkout');const guestCheckoutHtml=await guestCheckout.text();assert.match(guestCheckoutHtml,/<main\b[^>]*\bid="main"[^>]*>/);assert.doesNotMatch(guestCheckoutHtml,/Sign in to continue checkout/,'Guests must reach the checkout even with an empty cart');
  const quoteInfo=await request('/en/quote');assert.match(await quoteInfo.text(),/does not commit you to a purchase/);
  const demoPage=await request('/en/shop/safety-helmets');const demoHtml=await demoPage.text();
  assert.match(demoHtml,/Demo price for review/);assert.match(demoHtml,/Add to cart/);
