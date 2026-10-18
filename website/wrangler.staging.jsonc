@@ -24,6 +24,12 @@
       "database_id": "d0d80657-6032-40b4-af39-407731d3c972"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "safeplaces-staging-private"
+    }
+  ],
   "vars": {
     "STAGING_HOSTNAME": "safeplaces-preview.pages.dev",
     "SITE_PUBLIC": "true",
