@@ -19,7 +19,7 @@ function playwright(){
 }
 const output=resolve('test-results');const screenshots=join(output,'screenshots');
 mkdirSync(screenshots,{recursive:true});
-const report={startedAt:new Date().toISOString(),pages:[],checks:[],pageErrors:[],assetErrors:[],blockedExternalRequests:[],screenshots:[]};
+const report={startedAt:new Date().toISOString(),pages:[],checks:[],pageErrors:[],assetErrors:[],orderRequestAttempts:[],blockedExternalRequests:[],screenshots:[]};
 const started=Date.now();const blocked=new Set();
 let mf,server,browser,context,page,origin;
 const storageKey='safeplaces-store';
@@ -99,13 +99,101 @@ async function savedCart(target,expected){
 async function displayedQuantity(target,slug,quantity){
  await until(async()=>await cartRow(target,slug).locator('input[type="number"]').inputValue()===String(quantity),'Cart quantity did not update: '+slug);
 }
+async function cartSnapshot(target){return target.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{"cart":[]}').cart,storageKey);}
+async function savedSelection(target,expected){
+ await target.waitForFunction(({key,expected})=>{
+  const cart=JSON.parse(localStorage.getItem(key)||'{"cart":[]}').cart;
+  return cart.length===Object.keys(expected).length&&cart.every(item=>(item.selected!==false)===expected[item.slug]);
+ },{key:storageKey,expected},{timeout:6000});
+ for(const [slug,selected]of Object.entries(expected))await until(async()=>await cartRow(target,slug).locator('input[type="checkbox"]').isChecked()===selected,'Selection did not update: '+slug);
+}
+async function savedBuyNow(target,slug,quantity){
+ await target.waitForFunction(({key,slug,quantity})=>{
+  const item=JSON.parse(localStorage.getItem(key)||'{}').buyNow;
+  return item?.slug===slug&&item.quantity===quantity;
+ },{key:storageKey,slug,quantity},{timeout:6000});
+}
+async function switchShoppingLanguage(target,path){
+ await target.locator('.mobile-menu-toggle').click();
+ const language=target.locator('#mobile-more-panel .mobile-language');
+ assert.equal(await language.getAttribute('href'),path,'The language link must preserve the current purchase intent');
+ await language.click();await target.waitForURL(origin+path);await stable(target);
+}
+async function selectedTotal(target,selectedSlugs){
+ // This fixture has VAT-inclusive prices. Compute the expected amount from
+ // the requested selection, independently of the component's selected flags.
+ await until(async()=>target.evaluate(({key,selectedSlugs})=>{
+  const cart=JSON.parse(localStorage.getItem(key)||'{"cart":[]}').cart;
+  const amount=cart.filter(item=>selectedSlugs.includes(item.slug)).reduce((sum,item)=>sum+(item.price||0)*item.quantity,0);
+  const expected=new Intl.NumberFormat(document.documentElement.lang==='ar'?'ar-SA':'en-SA',{style:'currency',currency:'SAR'}).format(amount/100);
+  return document.querySelector('.cart-summary .total-line.final strong:last-child')?.textContent.trim()===expected&&document.querySelector('.cart-checkout-total > strong')?.textContent.trim()===expected;
+ },{key:storageKey,selectedSlugs}),'Cart total must include exactly the selected items: '+selectedSlugs.join(', '));
+}
+async function demoCheckout(target){
+ const submit=target.locator('.checkout-grid > form button.primary');
+ assert.ok(await submit.isDisabled(),'Demo checkout must stay blocked');
+ assert.equal(await target.locator('.checkout-grid input[name="name"], .checkout-grid input[name="email"], .checkout-grid input[name="phone"], .checkout-grid textarea[name="billing"]').count(),0,'A demo purchase must not collect billing details');
+ assert.equal(await target.locator('.coupon-form input').count(),0,'Demo prices must not collect live coupon input');
+ await target.locator('.order-summary .total-line.final').waitFor({state:'visible'});
+ assert.equal(await target.locator('.order-summary .total-line.final').count(),1,'Demo totals must still be reviewable');
+ const before=report.orderRequestAttempts.length;
+ // Exercise the handler itself: disabled buttons alone are not an order gate.
+ await target.locator('.checkout-grid > form').dispatchEvent('submit');await stable(target);
+ assert.equal(report.orderRequestAttempts.length,before,'Demo form submission must never POST an order');
+}
+async function shoppingLayout(target,path,width){
+ await layout(target,path,width);
+ const chrome=await target.evaluate(()=>{
+  const visible=element=>!!element&&getComputedStyle(element).display!=='none'&&getComputedStyle(element).visibility!=='hidden'&&element.getClientRects().length>0;
+  const details=selector=>{
+   const element=document.querySelector(selector);
+   return visible(element)?{rect:element.getBoundingClientRect().toJSON(),position:getComputedStyle(element).position}:null;
+  };
+  const controls=[...document.querySelectorAll('.product-purchase-bar button, .product-purchase-bar a, .cart-checkout-bar button, .cart-checkout-bar a, .cart-checkout-bar input, .mobile-shopping-nav a, .site-header .header-inner a, .site-header .header-inner button')].filter(visible).map(element=>({tag:element.tagName,className:String(element.className),rect:element.getBoundingClientRect().toJSON()}));
+  const nav=document.querySelector('.mobile-shopping-nav');
+  return {nav:details('.mobile-shopping-nav'),purchase:details('.product-purchase-bar'),checkout:details('.cart-checkout-bar'),controls,navLinks:[...nav.querySelectorAll('a')].map(a=>({href:a.getAttribute('href'),icons:a.querySelectorAll('svg').length})),headerAccounts:[...document.querySelectorAll('.site-header a')].filter(a=>visible(a)&&a.getAttribute('href')==='/'+document.documentElement.lang+'/account').map(a=>({icons:a.querySelectorAll('svg').length})),height:innerHeight};
+ });
+ const lang=path.split('/')[1];const root='/'+lang;
+ assert.deepEqual(chrome.navLinks.map(link=>link.href),[root,root+'/shop',root+'/cart',root+'/account'],'Shopping navigation must expose four real destinations');
+ assert.ok(chrome.navLinks.every(link=>link.icons===1),'Every shopping destination must have an icon');
+ assert.ok(chrome.headerAccounts.length>0&&chrome.headerAccounts.every(link=>link.icons===1),'The header needs a visible account icon at '+width+'px');
+ for(const control of chrome.controls)assert.ok(control.rect.left>=-1&&control.rect.right<=width+1,'Shopping control extends outside the viewport: '+JSON.stringify(control));
+ if(width<800){
+  const product=/\/shop\/[^/?]+$/.test(path);
+  const bar=product?chrome.purchase:chrome.checkout;
+  if(product)assert.equal(chrome.nav,null,'The product purchase bar must have the mobile bottom edge to itself');
+  else assert.ok(chrome.nav&&chrome.nav.rect.bottom<=chrome.height+1,'Cart/account navigation must remain visible');
+  if(bar){
+   assert.equal(bar.position,'fixed','The mobile purchase/review action must stay available while scrolling');
+   assert.ok(bar.rect.top>=0&&bar.rect.bottom<=chrome.height+1,'The fixed purchase/review bar must fit the viewport');
+   if(chrome.nav)assert.ok(bar.rect.bottom<=chrome.nav.rect.top+1,'The cart review bar must not overlap bottom navigation');
+   for(const control of chrome.controls.filter(control=>control.rect.top>=bar.rect.top&&control.rect.bottom<=bar.rect.bottom+1))assert.ok(control.rect.top>=0&&control.rect.bottom<=chrome.height+1,'A purchase control is clipped vertically');
+  }
+ }
+}
+async function shoppingScreenshots(target,route,label){
+ for(const lang of ['ar','en']){
+  const path='/'+lang+'/'+route;await visit(target,path);
+  for(const width of [390,1440]){
+   await shoppingLayout(target,path,width);await screenshot(target,lang+'-'+label+'-'+width);
+   if(width===390){const name=lang+'-'+label+'-390-viewport';await target.screenshot({path:join(screenshots,name+'.png'),fullPage:false,animations:'disabled'});report.screenshots.push('screenshots/'+name+'.png');}
+  }
+ }
+}
 async function addProduct(target,quantity=1){
  const actions=target.locator('main .product-actions:not(.small)').first();
  await actions.locator('input[type="number"]').fill(String(quantity));
- const url=target.url();await actions.locator('button.primary').click();
+ const url=target.url();await actions.locator('button.add-to-cart').click();
  await target.locator('.toast').waitFor({state:'visible'});
  assert.equal(target.url(),url,'Add to cart must keep the customer on the product page');
  assert.equal(await target.locator('.cart-drawer').count(),0,'Add to cart must not open a blocking drawer');
+ await stable(target);
+ const feedback=await target.evaluate(()=>{
+  const toast=document.querySelector('.toast').getBoundingClientRect().toJSON();
+  const bars=[...document.querySelectorAll('.product-purchase-bar, .mobile-shopping-nav')].filter(element=>getComputedStyle(element).position==='fixed'&&getComputedStyle(element).display!=='none'&&element.getClientRects().length).map(element=>element.getBoundingClientRect().toJSON());
+  return {toast,bars};
+ });
+ for(const bar of feedback.bars)assert.ok(feedback.toast.bottom<=bar.top+1,'Cart feedback must appear above the fixed shopping controls');
 }
 
 try{
@@ -125,6 +213,7 @@ try{
  }
  const setSetting=(key,value)=>db.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(key,JSON.stringify(value)).run();
  await setSetting('orderEnabled',false);
+ await setSetting('pricesIncludeVat',true);await setSetting('vatRate',15);
  // A small static-file front end avoids relying on a different Miniflare assets API.
  const assetRoots=[resolve('dist/client'),resolve('public')];
  server=createServer(async(request,response)=>{
@@ -148,6 +237,7 @@ try{
  browser=await playwright().chromium.launch({headless:true});
  context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});
  context.setDefaultTimeout(6000);
+ context.on('request',request=>{const url=new URL(request.url());if(url.pathname==='/api/orders'&&request.method()==='POST')report.orderRequestAttempts.push({path:url.pathname,method:request.method()});});
  await context.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin===origin||['data:','blob:'].includes(url.protocol))return route.continue();blocked.add(url.href);return route.abort('blockedbyclient');});
  context.on('page',target=>{
   target.on('pageerror',error=>report.pageErrors.push({url:target.url(),message:error.message}));
@@ -174,7 +264,7 @@ try{
  console.log('PASS: '+paths.length*2+' bilingual route visits and '+report.pages.length+' viewport checks');
 
  await page.setViewportSize({width:390,height:844});await visit(page,'/ar/shop/safety-helmets');
- const menu=page.locator('.mobile-shopping-nav button[aria-controls="mobile-more-panel"]');
+ const menu=page.locator('.mobile-menu-toggle[aria-controls="mobile-more-panel"]');
  await menu.click();await page.locator('#mobile-more-panel').waitFor({state:'visible'});
  assert.ok(await page.evaluate(()=>document.querySelector('#mobile-more-panel').contains(document.activeElement)),'Opening the company menu must move focus into it');
  await page.screenshot({path:join(screenshots,'ar-company-menu-390.png'),fullPage:false,animations:'disabled'});
@@ -182,47 +272,114 @@ try{
  await page.keyboard.press('Shift+Tab');assert.ok(await page.evaluate(()=>document.querySelector('#mobile-more-panel').contains(document.activeElement)),'Menu focus must stay in the dialog');
  await page.keyboard.press('Escape');await page.locator('#mobile-more-panel').waitFor({state:'detached'});
  assert.ok(await menu.evaluate(element=>document.activeElement===element),'Closing the company menu must restore focus');
+ await shoppingScreenshots(page,'shop/safety-helmets','product-purchase');
+ await page.setViewportSize({width:390,height:844});await visit(page,'/ar/shop/safety-helmets');
  await addProduct(page);await savedCart(page,{'safety-helmets':1});
- await page.locator('main .product-actions:not(.small) button.primary').first().dblclick();await savedCart(page,{'safety-helmets':3});
+ await page.locator('main .product-actions:not(.small) button.add-to-cart').first().dblclick();await savedCart(page,{'safety-helmets':3});
  await visit(page,'/ar/shop/fire-extinguishers');await addProduct(page,2);await savedCart(page,{'safety-helmets':3,'fire-extinguishers':2});
  await visit(page,'/ar/cart');await cartRow(page,'safety-helmets').locator('input[type="number"]').fill('4');await savedCart(page,{'safety-helmets':4,'fire-extinguishers':2});
- await layout(page,'/ar/cart',390);await screenshot(page,'ar-cart-filled-390');
+ await savedSelection(page,{'safety-helmets':true,'fire-extinguishers':true});await selectedTotal(page,['safety-helmets','fire-extinguishers']);
+ await shoppingScreenshots(page,'cart','cart-filled');
+
+ await cartRow(page,'fire-extinguishers').locator('input[type="checkbox"]').uncheck();
+ await savedSelection(page,{'safety-helmets':true,'fire-extinguishers':false});await selectedTotal(page,['safety-helmets']);
+ await until(()=>page.locator('.cart-select-all input[type="checkbox"]').first().evaluate(element=>element.indeterminate),'Select all must express a partial selection');
+ await shoppingScreenshots(page,'cart','cart-selected');
+ const selectAll=page.locator('.cart-select-all input[type="checkbox"]').first();
+ await selectAll.check();await savedSelection(page,{'safety-helmets':true,'fire-extinguishers':true});await selectedTotal(page,['safety-helmets','fire-extinguishers']);
+ await selectAll.uncheck();await savedSelection(page,{'safety-helmets':false,'fire-extinguishers':false});await selectedTotal(page,[]);
+ assert.ok(await page.locator('.cart-summary-checkout').isDisabled(),'Checkout must be disabled with no selected items');
+ assert.ok(await page.locator('.cart-checkout-action').isDisabled(),'Mobile checkout must be disabled with no selected items');
+ assert.ok(await page.locator('.remove-selected').isDisabled(),'An empty selection cannot remove other items');
+ await cartRow(page,'safety-helmets').locator('input[type="checkbox"]').check();await savedSelection(page,{'safety-helmets':true,'fire-extinguishers':false});
+ const selectedBasket=await cartSnapshot(page);
+ await page.locator('.cart-summary-checkout').click();await page.waitForURL('**/en/checkout');
+ await displayedQuantity(page,'safety-helmets',4);assert.equal(await cartRow(page,'fire-extinguishers').count(),0,'Checkout must omit an unselected item');
+ await demoCheckout(page);assert.deepEqual(await cartSnapshot(page),selectedBasket,'Reviewing a selection must preserve the rest of the basket');
+
+ await page.setViewportSize({width:390,height:844});await visit(page,'/ar/cart');
  await cartRow(page,'safety-helmets').locator('a.line-name').click();await page.waitForURL('**/ar/shop/safety-helmets');
  await page.goBack({waitUntil:'domcontentloaded'});await displayedQuantity(page,'safety-helmets',4);await displayedQuantity(page,'fire-extinguishers',2);
- await page.reload({waitUntil:'domcontentloaded'});await displayedQuantity(page,'safety-helmets',4);await displayedQuantity(page,'fire-extinguishers',2);
- await page.locator('.mobile-language').click();await page.waitForURL('**/en/cart');await displayedQuantity(page,'safety-helmets',4);
- await layout(page,'/en/cart',1440);await screenshot(page,'en-cart-filled-1440');
- const other=await context.newPage();await visit(other,'/en/shop/safety-helmets');
+ await savedSelection(page,{'safety-helmets':true,'fire-extinguishers':false});
+ await page.reload({waitUntil:'domcontentloaded'});await displayedQuantity(page,'safety-helmets',4);await displayedQuantity(page,'fire-extinguishers',2);await savedSelection(page,{'safety-helmets':true,'fire-extinguishers':false});
+ await switchShoppingLanguage(page,'/en/cart');await displayedQuantity(page,'safety-helmets',4);
+ await savedSelection(page,{'safety-helmets':true,'fire-extinguishers':false});await selectedTotal(page,['safety-helmets']);
+ const other=await context.newPage();await visit(other,'/en/cart');
+ await savedSelection(other,{'safety-helmets':true,'fire-extinguishers':false});
+ await cartRow(page,'fire-extinguishers').locator('input[type="checkbox"]').check();await savedSelection(other,{'safety-helmets':true,'fire-extinguishers':true});
+ await cartRow(other,'safety-helmets').locator('input[type="checkbox"]').uncheck();await savedSelection(page,{'safety-helmets':false,'fire-extinguishers':true});
+ await cartRow(page,'fire-extinguishers').locator('input[type="checkbox"]').uncheck();await savedSelection(other,{'safety-helmets':false,'fire-extinguishers':false});
  await cartRow(page,'safety-helmets').locator('input[type="number"]').fill('5');await savedCart(page,{'safety-helmets':5,'fire-extinguishers':2});
+ await visit(other,'/en/shop/safety-helmets');
  await addProduct(other);await savedCart(other,{'safety-helmets':6,'fire-extinguishers':2});await displayedQuantity(page,'safety-helmets',6);
- await visit(other,'/en/cart');await cartRow(other,'fire-extinguishers').locator('button.remove-button').click();
- await savedCart(page,{'safety-helmets':6});await until(async()=>await cartRow(page,'fire-extinguishers').count()===0,'Removal must propagate to the other tab');await other.close();
- await visit(page,'/en/checkout');assert.ok(await page.locator('.checkout-grid > form button.primary').isDisabled(),'Demo checkout must stay blocked');
- assert.equal(await page.locator('.checkout-grid input[name="email"]').count(),0,'A demo-only cart should not collect billing details');
- await page.locator('.order-summary .total-line.final').waitFor({state:'visible'});
- assert.ok(await page.locator('.order-summary .total-line.final').count()===1,'Demo totals must still be reviewable');
+ await savedSelection(page,{'safety-helmets':true,'fire-extinguishers':false});
+ await visit(other,'/en/cart');await other.locator('.remove-selected').click();
+ await savedCart(page,{'fire-extinguishers':2});await savedSelection(page,{'fire-extinguishers':false});
+ await until(async()=>await cartRow(page,'safety-helmets').count()===0,'Removing selected items must propagate to another tab');
+ await cartRow(other,'fire-extinguishers').locator('button.remove-button').click();await savedCart(page,{});
+ await until(async()=>await cartRow(page,'fire-extinguishers').count()===0,'Removing one item must propagate to another tab');await other.close();
+ report.checks.push({name:'Select one/all/none, exact selected totals and checkout, selection persistence across product/back/reload/language/tabs, and selected-only removal',status:'passed'});
+
+ await visit(page,'/en/shop/safety-helmets');await addProduct(page);await savedCart(page,{'safety-helmets':1});
+ await visit(page,'/en/checkout');await demoCheckout(page);
  await layout(page,'/en/checkout',1440);await screenshot(page,'en-checkout-filled-1440');
- await visit(page,'/ar/checkout');await page.locator('.order-summary .total-line.final').waitFor({state:'visible'});
+ await visit(page,'/ar/checkout');await demoCheckout(page);
  await layout(page,'/ar/checkout',390);await screenshot(page,'ar-checkout-filled-390');
- await visit(page,'/en/checkout');await layout(page,'/en/checkout',1440);
+
+ const basketBeforeBuyNow=await cartSnapshot(page);
+ await visit(page,'/ar/shop/safety-helmets');
+ const buyActions=page.locator('main .product-actions:not(.small)').first();
+ await buyActions.locator('input[type="number"]').fill('3');await buyActions.locator('button.buy-now').click();await page.waitForURL('**/ar/checkout?intent=buy-now');
+ await savedBuyNow(page,'safety-helmets',3);await displayedQuantity(page,'safety-helmets',3);await demoCheckout(page);
+ assert.equal(await page.locator('.checkout-grid .cart-line').count(),1,'Buy now must show only the chosen product');
+ assert.deepEqual(await cartSnapshot(page),basketBeforeBuyNow,'Buy now must not add to or replace the existing basket');
+ await page.goBack({waitUntil:'domcontentloaded'});await page.waitForURL('**/ar/shop/safety-helmets');
+ const returnedBuyActions=page.locator('main .product-actions:not(.small)').first();
+ await until(async()=>!(await returnedBuyActions.locator('button.buy-now').isDisabled()),'Returning from checkout must make Buy now available again');
+ assert.deepEqual(await cartSnapshot(page),basketBeforeBuyNow,'Returning to the product must preserve the existing basket');
+ await returnedBuyActions.locator('input[type="number"]').fill('3');await returnedBuyActions.locator('button.buy-now').click();await page.waitForURL('**/ar/checkout?intent=buy-now');
+ await savedBuyNow(page,'safety-helmets',3);await displayedQuantity(page,'safety-helmets',3);
+ assert.deepEqual(await cartSnapshot(page),basketBeforeBuyNow,'Buying again after Back must leave basket quantities and selection unchanged');
+ await cartRow(page,'safety-helmets').locator('input[type="number"]').fill('4');await savedBuyNow(page,'safety-helmets',4);
+ assert.deepEqual(await cartSnapshot(page),basketBeforeBuyNow,'Editing a Buy now quantity must not edit the basket');
+ await page.reload({waitUntil:'domcontentloaded'});await displayedQuantity(page,'safety-helmets',4);await savedBuyNow(page,'safety-helmets',4);
+ await switchShoppingLanguage(page,'/en/checkout?intent=buy-now');await displayedQuantity(page,'safety-helmets',4);
+ assert.deepEqual(await cartSnapshot(page),basketBeforeBuyNow,'Switching language must preserve the independent purchase and basket');
+ await shoppingScreenshots(page,'checkout?intent=buy-now','checkout-buy-now');await demoCheckout(page);
+ await page.locator('.header-tool.bag').click();await page.waitForURL('**/en/cart');await displayedQuantity(page,'safety-helmets',1);
+ await savedSelection(page,{'safety-helmets':true});assert.deepEqual(await cartSnapshot(page),basketBeforeBuyNow,'Returning to the basket must restore its original quantity and selection');
+ await page.goBack({waitUntil:'domcontentloaded'});await displayedQuantity(page,'safety-helmets',4);await demoCheckout(page);
+ assert.equal(new URL(page.url()).searchParams.get('intent'),'buy-now','Back navigation must keep the independent purchase intent');
+ // Prove the demo guard independently of the general order switch. This flag
+ // belongs only to the disposable database, and no order request is permitted.
+ await setSetting('orderEnabled',true);await visit(page,'/en/checkout?intent=buy-now');await demoCheckout(page);await setSetting('orderEnabled',false);
+ report.checks.push({name:'Buy now uses the exact chosen quantity, survives reload/language/back navigation, permits isolated quantity edits, and leaves the saved basket unchanged',status:'passed'});
+
  await visit(page,'/en/cart');await cartRow(page,'safety-helmets').locator('button.remove-button').click();await savedCart(page,{});
  await page.reload({waitUntil:'domcontentloaded'});await page.locator('main .empty-state').waitFor({state:'visible'});
- report.checks.push({name:'Non-blocking add, rapid additions, quantities, product/back/reload, language switch, two-tab synchronization, removal and demo checkout',status:'passed'});
- console.log('PASS: persistent guest cart and protected demo checkout');
+ report.checks.push({name:'Non-blocking add, rapid additions, quantities, icon navigation, mobile fixed-bar geometry and protected demo checkout without billing or order requests',status:'passed'});
+ console.log('PASS: selected guest cart, independent Buy now and protected demo checkout');
 
  // Exercise the fallback with the browser Storage API actually refusing writes.
  await visit(page,'/en/shop/safety-helmets');
  await page.evaluate(()=>{const original=Storage.prototype.setItem;window.restoreCartWrites=()=>{Storage.prototype.setItem=original;delete window.restoreCartWrites;};Storage.prototype.setItem=function(key,value){if(key==='safeplaces-store')throw new DOMException('Test storage failure','QuotaExceededError');return original.call(this,key,value);};});
  await addProduct(page);await addProduct(page);
  await until(async()=>await page.locator('.header-tool.bag b').textContent()==='2','The in-memory cart must survive failed writes');
+ const storageFailureURL=page.url();await page.locator('main .product-actions:not(.small) input[type="number"]').fill('7');await page.locator('main .product-actions:not(.small) button.buy-now').click();
+ await page.locator('.toast').waitFor({state:'visible'});await stable(page);
+ assert.equal(page.url(),storageFailureURL,'Buy now must not navigate when its independent purchase cannot be saved');
+ assert.equal(await page.locator('.header-tool.bag b').textContent(),'2','A failed Buy now must preserve in-memory cart quantities');
  await page.evaluate(()=>window.restoreCartWrites());await addProduct(page);await savedCart(page,{'safety-helmets':3});
  await visit(page,'/en/cart');await cartRow(page,'safety-helmets').locator('button.remove-button').click();await savedCart(page,{});
- report.checks.push({name:'Failed storage writes preserve rapid additions and recover without losing quantities',status:'passed'});
+ report.checks.push({name:'Failed storage writes preserve rapid additions, prevent a lost Buy now navigation, and recover without losing quantities',status:'passed'});
 
  // Only the disposable test database receives an approved price/order flag.
  // No order is submitted: hold real local review responses to test stale totals.
- await db.prepare("UPDATE products SET kind='direct',price=11500 WHERE slug='safety-helmets'").run();await setSetting('orderEnabled',true);
+ await db.prepare("UPDATE products SET kind='direct',price=11500 WHERE slug='safety-helmets'").run();
+ await db.prepare("UPDATE products SET kind='direct',price=5750 WHERE slug='fire-extinguishers'").run();await setSetting('orderEnabled',true);
  await visit(page,'/en/shop/safety-helmets');await addProduct(page);
+ await visit(page,'/en/shop/fire-extinguishers');await addProduct(page,2);await visit(page,'/en/cart');
+ await cartRow(page,'fire-extinguishers').locator('input[type="checkbox"]').uncheck();await savedSelection(page,{'safety-helmets':true,'fire-extinguishers':false});
  const held=[];
  await page.route('**/api/checkout/review',async route=>{
   const response=await route.fetch();let release;const wait=new Promise(resolve=>{release=resolve;});
@@ -231,6 +388,8 @@ try{
  });
  const release=async(index)=>{held[index].release();await until(()=>held[index].delivered,'Review response did not reach the browser');await stable(page);};
  await visit(page,'/en/checkout');await until(()=>held.length===1,'Initial checkout review was not requested');
+ assert.deepEqual(held[0].body.items,[{id:'catalog-safety-helmets',quantity:1}],'The server must review exact selected product IDs and quantities, without unselected items or client-supplied prices');
+ assert.equal(await cartRow(page,'fire-extinguishers').count(),0,'Live local checkout must omit unselected products');
  const submit=page.locator('.checkout-grid > form button.primary');const total=page.locator('.order-summary .total-line.final');
  assert.ok(await submit.isDisabled());await release(0);await until(async()=>!(await submit.isDisabled()),'Reviewed local cart should be eligible for submission');
  await cartRow(page,'safety-helmets').locator('input[type="number"]').fill('2');await until(()=>held.length===2,'Quantity update did not request review');
@@ -245,6 +404,7 @@ try{
  report.checks.push({name:'Changed quantity/coupon invalidates totals immediately and late review responses cannot enable stale checkout',status:'passed'});
  console.log('PASS: checkout review timing, late-response isolation and coupon rejection');
 
+ assert.equal(report.orderRequestAttempts.length,0,'The browser check must never POST an order');
  assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM orders').first()).count,0,'The browser check must never create an order');
  assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM files').first()).count,0,'R2-unavailable preview must not claim to save files');
  assert.equal(report.pageErrors.length,0,JSON.stringify(report.pageErrors));assert.equal(report.assetErrors.length,0,JSON.stringify(report.assetErrors));

@@ -22,19 +22,21 @@ console.log('PASS: monetary totals, VAT rounding and coupon eligibility');
 // The standard Add to cart button must be non-blocking: no forced cart drawer
 // or navigation. Only an explicitly chosen Buy now action can start checkout.
 const storeUxSource=readFileSync('components/store.tsx','utf8');
-const addStart=storeUxSource.indexOf(" const add=(p:Product");
-const addEnd=storeUxSource.indexOf(" const remove=",addStart);
-assert.ok(addStart>=0&&addEnd>addStart,'Cart action must be present in StoreProvider');
-const addAction=storeUxSource.slice(addStart,addEnd);
-assert.doesNotMatch(addAction,/setCartOpen\\(true\\)/,'Adding an item must not open a blocking drawer');
-assert.doesNotMatch(addAction,/window\\.location/,'Adding an item must not navigate away');
+const storeSyntax=ts.createSourceFile('components/store.tsx',storeUxSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const findStoreNode=predicate=>{let found;const walk=node=>{if(found)return;if(predicate(node)){found=node;return;}ts.forEachChild(node,walk);};walk(storeSyntax);return found;};
+const addDeclaration=findStoreNode(node=>ts.isVariableDeclaration(node)&&node.name.getText(storeSyntax)==='add'&&node.initializer);
+assert.ok(addDeclaration,'Cart action must be present in StoreProvider');
+const addAction=addDeclaration.initializer.getText(storeSyntax);
+assert.doesNotMatch(addAction,/setCartOpen\(true\)/,'Adding an item must not open a blocking drawer');
+assert.doesNotMatch(addAction,/window\.location/,'Adding an item must not navigate away');
 assert.ok(addAction.includes("if(type==='cart'&&feedback)announce("),'Cart additions should trigger unobtrusive feedback');
 assert.ok(storeUxSource.includes("toast.target==='cart'?'cart':'quote'"),'Cart notification must offer an optional View cart link');
 assert.ok(storeUxSource.includes("cartCount=state.cart.reduce((sum,item)=>sum+item.quantity,0)"),'Header quantity badge must reflect cart additions');
-assert.ok(storeUxSource.includes("!small&&!quoted&&!product.previewOnly&&<button"),'Do not offer Buy now for demo prices');
+assert.ok(storeUxSource.includes('add-to-cart')&&storeUxSource.includes('buy-now'),'Product pages must expose separate Add to cart and Buy now controls');
 const mobileToastCss=readFileSync('app/marketplace.css','utf8');
-assert.ok(mobileToastCss.includes('bottom: calc(73px + env(safe-area-inset-bottom))'),'Confirmation must be visible above the mobile bottom bar');
-console.log('PASS: non-blocking mobile add-to-cart confirmation, optional cart access, and demo checkout safety');
+// Browser coverage verifies the actual toast/purchase/navigation rectangles,
+// demo Buy now guard, and an order-free demo submission, not a CSS spelling.
+console.log('PASS: non-blocking add-to-cart confirmation, optional cart access, and distinct purchase actions');
 
 const persistenceSource=ts.transpileModule(readFileSync('lib/cart-persistence.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {CART_STORAGE_KEY,restoreStore,serializeStore,replayStoreActions}=await import('data:text/javascript;base64,'+Buffer.from(persistenceSource).toString('base64'));
@@ -44,6 +46,8 @@ const originalSaved=JSON.stringify({cart:[savedItem],quote:[{...savedItem,id:'qu
 const fresh=restoreStore(originalSaved);
 assert.equal(fresh.cart[0].quantity,2,'Previously saved guest carts must survive an upgrade');
 assert.equal(fresh.quote.length,1,'Previously saved quotation requests must survive an upgrade');
+assert.equal(fresh.cart[0].selected,true,'Previously saved cart items default to selected');
+assert.equal(fresh.buyNow,null,'A pre-upgrade basket must not create a Buy now intent');
 const viewed=replayStoreActions(fresh,[s=>({...s,recent:['catalog-fire-extinguishers',...s.recent]})]);
 assert.deepEqual(viewed.cart,fresh.cart,'Visiting a product must not clear the restored basket');
 const returned=restoreStore(serializeStore(viewed));
@@ -51,6 +55,17 @@ assert.deepEqual(returned.cart,fresh.cart,'Cart contents and quantities survive 
 assert.deepEqual(restoreStore(serializeStore({...returned,cart:[...returned.cart,{...savedItem,id:'another',quantity:3}]})).cart.map(i=>i.quantity),[2,3],'Multiple items survive remount');
 assert.deepEqual(restoreStore('{broken').cart,[],'Malformed saved data must not crash rendering');
 assert.equal(restoreStore(JSON.stringify({cart:[{...savedItem,quantity:3000}],quote:[]})).cart[0].quantity,999,'Persisted quantities are bounded');
+const independentPurchase=restoreStore(JSON.stringify({cart:[{...savedItem,selected:false,quantity:5},{...savedItem,id:'other',slug:'other',selected:true,quantity:3}],quote:fresh.quote,buyNow:{...savedItem,quantity:2},recent:[]}));
+assert.deepEqual(independentPurchase.cart.map(item=>({id:item.id,quantity:item.quantity,selected:item.selected})),[{id:savedItem.id,quantity:5,selected:false},{id:'other',quantity:3,selected:true}],'Selection must persist independently for each item');
+assert.equal(independentPurchase.buyNow.quantity,2,'Buy now retains its exact quantity even when that product is already in the basket');
+assert.deepEqual(restoreStore(serializeStore(independentPurchase)),independentPurchase,'Selection and the separate purchase survive storage round trips');
+const afterBuyNowEdit=restoreStore(serializeStore({...independentPurchase,buyNow:{...independentPurchase.buyNow,quantity:7}}));
+assert.deepEqual(afterBuyNowEdit.cart,independentPurchase.cart,'Persisting a separate purchase must not edit basket quantities or selection');
+assert.deepEqual(afterBuyNowEdit.quote,independentPurchase.quote,'Buy now must not edit saved quotations');
+assert.equal(restoreStore(JSON.stringify({cart:[{...savedItem,selected:'false'}]})).cart[0].selected,true,'Only the boolean false can deselect a restored item');
+for(const buyNow of [[],{},false,'invalid',{...savedItem,id:''},{...savedItem,price:-1},{...savedItem,price:'1'}])assert.equal(restoreStore(JSON.stringify({cart:[savedItem],buyNow})).buyNow,null,'Malformed standalone purchase data must be discarded without losing the basket');
+assert.equal(restoreStore(JSON.stringify({buyNow:{...savedItem,quantity:3000}})).buyNow.quantity,999,'Standalone purchase quantities remain bounded');
+assert.equal(restoreStore(JSON.stringify({cart:[savedItem,{...savedItem,selected:false}]})).cart.length,1,'Duplicate saved product IDs must not become separate selected lines');
 const stateProviderSource=readFileSync('components/store.tsx','utf8');
 assert.ok(stateProviderSource.includes('queuedChanges.current.push(fn)'),'Changes before hydration must be replayed');
 assert.ok(stateProviderSource.includes('const next=replayStoreActions(restored,pending)'),'Replay early product views on restored basket');
@@ -60,30 +75,39 @@ assert.ok(stateProviderSource.includes("window.addEventListener('pageshow',pageS
 assert.ok(!stateProviderSource.includes('[loaded,state]'),'Wishlist and session responses must not persist a stale cart');
 assert.ok(!stateProviderSource.includes("setState(s=>{const next=fn(s)"),'Never perform a storage write inside React state updater');
 assert.ok(stateProviderSource.includes('if(!ready)return <div className="cart-loading"'),'Do not show an empty cart before restoration');
-assert.ok(readFileSync('components/forms.tsx','utf8').includes('if(!ready)return <div className="cart-loading"'),'Do not show empty cart summary while hydration is pending');
-assert.ok(readFileSync('components/forms.tsx','utf8').includes("money(sum.vat,lang)"),'Cart summary must show VAT calculated with shared totals');
-console.log('PASS: guest basket survives product navigation, storage migration, queued hydration actions and VAT summary');
+const formsUxSource=readFileSync('components/forms.tsx','utf8');
+const formsSyntax=ts.createSourceFile('components/forms.tsx',formsUxSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+for(const name of ['Checkout','CartPage']){
+ const component=formsSyntax.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text===name);
+ assert.ok(component?.body,name+' must remain available');
+ const branches=component.body.statements.filter(ts.isIfStatement);
+ const pending=branches.findIndex(branch=>branch.expression.getText(formsSyntax)==='!ready');
+ const empty=branches.findIndex(branch=>['!checkoutItems.length','!state.cart.length'].includes(branch.expression.getText(formsSyntax)));
+ assert.ok(pending>=0&&empty>pending&&branches[pending].thenStatement.getText(formsSyntax).includes('cart-loading'),name+' must show restoration before an empty basket');
+}
+assert.ok(formsUxSource.includes("money(sum.vat,lang)"),'Cart summary must show VAT calculated with shared totals');
+console.log('PASS: guest basket and selection survive upgrades, malformed input and queued hydration while Buy now remains independent');
 
 
-const mobileNavStart=storeUxSource.indexOf(' <nav className="mobile-shopping-nav"');
-const mobileNavEnd=storeUxSource.indexOf('</nav>',mobileNavStart);
-assert.ok(mobileNavStart>0&&mobileNavEnd>mobileNavStart,'Bottom navigation must be present');
-const mobileNav=storeUxSource.slice(mobileNavStart,mobileNavEnd);
-assert.equal((mobileNav.match(/<a\b/g)||[]).length,4,'Keep four primary destinations plus one More control');
-assert.equal((mobileNav.match(/<button\b/g)||[]).length,1,'Use a single More action for secondary pages');
-assert.ok(mobileNav.includes('aria-controls="mobile-more-panel"'),'More needs an accessible panel');
+const mobileNavNode=findStoreNode(node=>ts.isJsxElement(node)&&node.openingElement.tagName.getText(storeSyntax)==='nav'&&node.openingElement.attributes.properties.some(attribute=>ts.isJsxAttribute(attribute)&&attribute.name.getText(storeSyntax)==='className'&&attribute.initializer?.getText(storeSyntax).includes('mobile-shopping-nav')));
+assert.ok(mobileNavNode,'Bottom navigation must be present');
+const mobileNav=mobileNavNode.getText(storeSyntax);
+assert.equal((mobileNav.match(/<a\b/g)||[]).length,4,'Keep exactly Home, Shop, Cart and Account in the shopping navigation');
+assert.equal((mobileNav.match(/<button\b/g)||[]).length,0,'Secondary pages must not crowd the four shopping destinations');
+assert.ok(storeUxSource.includes('mobile-menu-toggle')&&storeUxSource.includes('aria-controls="mobile-more-panel"'),'The header company menu needs an accessible panel');
 assert.ok(storeUxSource.includes('role="dialog" aria-modal="true"'),'More must have accessible dialog semantics');
 assert.ok(storeUxSource.includes("['services','الخدمات','Services']"),'Services must remain reachable');
 assert.ok(storeUxSource.includes("['projects','المشاريع','Projects']"),'Projects must remain reachable');
 assert.ok(storeUxSource.includes("['wishlist','المفضلة','Wishlist']"),'Wishlist must remain reachable');
 assert.ok(storeUxSource.includes("['quote','طلب عرض سعر','Request a quote']"),'Quotation flow must remain reachable');
-assert.ok(storeUxSource.includes('className="mobile-header-actions"'),'Mobile language selector must remain accessible');
+assert.ok(storeUxSource.includes('className="mobile-menu-utilities"')&&storeUxSource.includes('className="mobile-language"'),'The header company menu must retain the mobile language selector');
 assert.ok(!storeUxSource.includes('className="mobile-quote-link"'),'Avoid the cramped quote button next to language on phones');
-assert.ok(mobileToastCss.includes('.marketplace-header .header-tools, .marketplace-header .navigation-bar { display: none !important; }'),'Hide duplicated mobile header navigation');
+// Rendered checks verify account access and the four mobile destinations at
+// their actual breakpoints; the desktop navigation can use a different layout.
 assert.ok(mobileToastCss.includes('.page-heading .breadcrumb, .page-heading .eyebrow { display: none; }'),'Keep compact mobile page headings');
 assert.ok(mobileToastCss.includes('.cart-shopping-layout > .cart-page { order: 0;'),'Show cart items before the summary');
 assert.ok(mobileToastCss.includes('.cart-shopping-layout > .cart-summary { order: 1;'),'Show cart summary after products');
-console.log('PASS: unified five-tab mobile navigation, More sheet, compact headings and cart-first layout');
+console.log('PASS: four shopping destinations, header company menu, compact headings and cart-first layout');
 const companySource=readFileSync('components/company-pages.tsx','utf8');
 const routeSource=readFileSync('app/(site)/[lang]/[[...slug]]/page.tsx','utf8');
 const companyCss=readFileSync('app/company-experience.css','utf8');
