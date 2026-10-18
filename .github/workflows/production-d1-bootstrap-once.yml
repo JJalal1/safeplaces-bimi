@@ -35,7 +35,7 @@ jobs:
 
       - name: Confirm exact empty production database
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
         run: |
           set -euo pipefail
@@ -52,13 +52,16 @@ jobs:
 
       - name: Apply reviewed production schema
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_EDIT_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
-        run: pnpm exec wrangler d1 execute safeplaces-production --remote --config wrangler.production.jsonc --file=deploy/production-bootstrap.sql
+        run: |
+          set -euo pipefail
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::CLOUDFLARE_D1_EDIT_TOKEN is required for the one-time production bootstrap."; exit 1; fi
+          pnpm exec wrangler d1 execute safeplaces-production --remote --config wrangler.production.jsonc --file=deploy/production-bootstrap.sql
 
       - name: Verify required production tables
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
         run: |
           set -euo pipefail
