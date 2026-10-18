@@ -1,8 +1,10 @@
 import {betterAuth} from 'better-auth';
+import {APIError,isAPIError} from 'better-auth/api';
 import {drizzleAdapter} from '@better-auth/drizzle-adapter';
 import {getDb} from '../db';
 import {authUser,authSession,authAccount,authVerification} from '../db/auth-schema';
 import {authBindings,enabledProviders,readyAuthConfig} from './auth-settings';
+import {authLogger,createAuthErrorHandler} from './auth-log-policy';
 
 /**
  * Google-only launch. Password signup, reset and other social providers can
@@ -18,6 +20,8 @@ export function getStandaloneAuth(){
   baseURL:ready.baseURL,
   basePath:'/api/auth',
   secret:ready.secret,
+  logger:authLogger,
+  onAPIError:{onError:createAuthErrorHandler(isAPIError,()=>new APIError('INTERNAL_SERVER_ERROR'))},
   database:drizzleAdapter(getDb(),{
    provider:'sqlite',
    schema:{user:authUser,session:authSession,account:authAccount,verification:authVerification}

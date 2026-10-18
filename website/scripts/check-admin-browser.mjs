@@ -7,7 +7,7 @@ import {dirname,extname,join,resolve,sep} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {fileURLToPath} from 'node:url';
 
-// CI-only browser exercise of the built administration UI. Every record and
+// CI-only browser exercise of the built administration and sign-in UI. Every record and
 // request belongs to disposable local Miniflare instances. Mail is disabled,
 // worker egress is denied, and Playwright blocks all non-local requests.
 // No checkout, cart test, live identity, or real provider credential is used.
@@ -98,10 +98,14 @@ async function initializeDatabase(db){
  }
  await db.prepare("INSERT INTO settings (key,value) VALUES ('site-owner',?),('catalog-ready','true'),('orderEnabled','false')").bind(ownerId).run();
 }
-async function startInstance(Miniflare,modules,publicMode){
+async function startInstance(Miniflare,modules,publicMode,googleConfigured=false){
+ assert.ok(!googleConfigured||publicMode,'The configured Google fixture must use public hosting policy');
  const instance={mf:null,server:null,origin:null,db:null};instances.push(instance);
- instance.mf=new Miniflare({name:'safeplaces-admin-browser-'+(publicMode?'public':'private'),modulesRoot:resolve('dist/server'),modules,compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'admin-browser-'+randomUUID()},
-  bindings:{SITE_PUBLIC:publicMode?'true':'false',SITE_INDEXABLE:'false',SITE_DEMO_PRICES:'true',STANDALONE_AUTH_ENABLED:'false',CUSTOMER_AUTH_ENABLED:'false',ADMIN_BOOTSTRAP_PRIVATE:'false',EMAIL_NOTIFICATIONS_ENABLED:'false'},
+ instance.mf=new Miniflare({name:'safeplaces-admin-browser-'+(googleConfigured?'google-ready':publicMode?'public':'private'),modulesRoot:resolve('dist/server'),modules,compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'admin-browser-'+randomUUID()},
+  bindings:{SITE_PUBLIC:publicMode?'true':'false',SITE_INDEXABLE:'false',SITE_DEMO_PRICES:'true',STANDALONE_AUTH_ENABLED:googleConfigured?'true':'false',CUSTOMER_AUTH_ENABLED:'false',ADMIN_BOOTSTRAP_PRIVATE:'false',EMAIL_NOTIFICATIONS_ENABLED:'false',
+   // Presentation-only fixture: no Google action is clicked and both worker
+   // and browser egress remain blocked. These are synthetic, unusable values.
+   ...(googleConfigured?{BETTER_AUTH_URL:'https://safeplaces-login-fixture.example.test',BETTER_AUTH_SECRET:'local-browser-fixture-'+randomUUID(),GOOGLE_CLIENT_ID:'local-browser-google-client',GOOGLE_CLIENT_SECRET:'local-browser-google-secret'}:{})},
   // A missing R2 binding is deliberate. Uploads must be visibly unavailable.
   outboundService:async request=>{report.blockedWorkerRequests.push({url:request.url,method:request.method});return new Response('External requests are disabled in the admin browser suite',{status:502});},
   port:0,host:'127.0.0.1'});
@@ -247,6 +251,34 @@ try{
   await captureBoth(page,lang,'public-auth-pending');
  }
  pass('Public Arabic/English entry rejects native identity and honestly shows pending Google setup');
+ await context.close();
+ const loginInstance=await startInstance(Miniflare,modules,true,true);context=await makeContext();page=await context.newPage();
+ for(const lang of ['ar','en']){
+  const path='/'+lang+'/account/login?return_to='+encodeURIComponent('/'+lang+'/account');
+  await visit(page,loginInstance,path);
+  const google=page.getByRole('button',{name:lang==='ar'?'المتابعة باستخدام Google':'Continue with Google',exact:true});
+  await google.waitFor({state:'visible'});assert.ok(await google.isEnabled(),'Configured Google sign-in must be available');
+  assert.equal(await page.locator('.site-header, .mobile-shopping-nav').count(),0,'The focused login page must not show site search or the shopping navigation');
+  assert.equal(await page.locator('main input, .customer-auth-switch').count(),0,'Google-only sign-in must not advertise password or other unconfigured sign-in methods');
+  assert.equal(await page.locator('.customer-social-login button').count(),1,'Only the configured Google provider is offered');
+  assert.equal(await page.locator('.customer-login-back').getAttribute('href'),'/'+lang,'Back link must return to the current-language site');
+  const otherLang=lang==='ar'?'en':'ar';
+  const languageHref=new URL(await page.locator('.customer-login-language').getAttribute('href'),loginInstance.origin);
+  assert.equal(languageHref.pathname,'/'+otherLang+'/account/login');assert.equal(languageHref.searchParams.get('return_to'),'/'+otherLang+'/account','Language switch must retain a localized account destination');
+  assert.equal(await page.locator('.customer-login-help').getAttribute('href'),'/'+lang+'/contact');
+  assert.deepEqual(await page.locator('.customer-login-policy a').evaluateAll(links=>links.map(link=>link.getAttribute('href'))),['/'+lang+'/terms','/'+lang+'/privacy']);
+  const logo=page.locator('.customer-login-brand img');assert.equal(await logo.getAttribute('src'),'/images/safeplaces-logo.webp','Login must use the existing Safe Places logo');
+  await logo.evaluate(img=>img.decode());
+  assert.equal(await page.locator('main [role="alert"]').count(),0,'A fresh sign-in page must not carry an old error');
+  await captureBoth(page,lang,'login-google');
+  await visit(page,loginInstance,path+'&error=invalid_code');await page.locator('main [role="alert"]').waitFor({state:'visible'});
+  assert.ok((await page.locator('main [role="alert"]').textContent()).trim().length>0,'A callback failure must explain the next step');
+  assert.ok(await google.isEnabled(),'A callback failure must leave Google sign-in available');
+  await captureBoth(page,lang,'login-google-error');
+ }
+ const loginCounts=await loginInstance.db.prepare('SELECT (SELECT COUNT(*) FROM auth_user) AS users,(SELECT COUNT(*) FROM auth_session) AS sessions,(SELECT COUNT(*) FROM auth_account) AS accounts').first();
+ assert.deepEqual(loginCounts,{users:0,sessions:0,accounts:0},'Login visual checks must not create identities or sessions');
+ pass('Configured Google login, branded focused layout, working navigation and callback error at Arabic/English 390/1440 pixels');
  assert.deepEqual(report.pageErrors,[],'Browser JavaScript errors');assert.deepEqual(report.assetErrors,[],'Required asset errors');assert.deepEqual(report.apiErrors,[],'Unexpected administration API errors');assert.deepEqual(report.blockedWorkerRequests,[],'Disabled mail and native fixtures must make no worker network calls');
  report.status='passed';console.log('PASS: admin browser suite, '+report.pages.length+' viewport checks and '+report.screenshots.length+' screenshots; no email sends or cart tests');
 }catch(error){

@@ -31,10 +31,10 @@ async function handle(request:Request){
    .bind(key,(minute+1)*60000).first<{count:number}>();
   if(!counter||counter.count>(write?30:180))return failure('RATE_LIMIT',429,{'Retry-After':String(60-Math.floor(Date.now()/1000)%60)});
   return protect(await auth.handler(bounded));
- }catch(error){
+ }catch{
   // Auth errors must not expose OAuth credentials, verification records or
   // raw upstream responses in the browser or application logs.
-  console.error('Safe Places authentication failed',error instanceof Error?error.name:'Unknown error');
+  console.error('Safe Places auth diagnostic authentication/handler_unavailable');
   return failure('AUTH_UNAVAILABLE',503);
  }
 }

@@ -1,18 +1,69 @@
 import assert from 'node:assert/strict';
-import {randomBytes,randomUUID} from 'node:crypto';
+import {createHash,generateKeyPairSync,randomBytes,randomUUID,sign} from 'node:crypto';
 import {readFileSync,readdirSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
+import ts from 'typescript';
+import {APIError,isAPIError} from 'better-auth/api';
+import gateway from '../pages-preview/_worker.js';
 
 // All identities, OAuth client values and session secrets in this check are
-// temporary local fixtures. No Google callback success or live login is claimed.
+// temporary local fixtures. The provider exchange below is intercepted in
+// Miniflare; it neither contacts Google nor proves a real Google login.
+const loggerCode=ts.transpileModule(readFileSync('lib/auth-log-policy.ts','utf8'),{
+ compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}
+}).outputText;
+const {authLogger,createAuthErrorHandler}=await import('data:text/javascript;base64,'+Buffer.from(loggerCode).toString('base64'));
+const sensitive='DO_NOT_LOG_OAUTH_FIXTURE_CODE_STATE_SECRET_EMAIL_OR_URL';
+const diagnosticMessages=[],originalWarn=console.warn,originalError=console.error;
+try{
+ console.warn=console.error=(...args)=>diagnosticMessages.push(args);
+ authLogger.log('error','Failed to parse state',Object.assign(new Error('State mismatch: State not persisted correctly'),{details:{state:sensitive},cause:new Error(sensitive)}));
+ authLogger.log('error','',{error:'invalid_client',error_description:sensitive,request:{url:sensitive,body:sensitive}});
+ authLogger.log('warn',sensitive,{access_token:sensitive,user:{email:sensitive}});
+ authLogger.log('error','',{error:sensitive});
+ authLogger.log('error','Failed to parse state',Object.defineProperty({},'message',{get(){throw new Error(sensitive);}}));
+ authLogger.log('info',sensitive,{code:sensitive});
+}finally{console.warn=originalWarn;console.error=originalError;}
+assert.deepEqual(diagnosticMessages,[
+ ['Safe Places auth diagnostic oauth_state/state_cookie_rejected'],
+ ['Safe Places auth diagnostic oauth_token/invalid_client'],
+ ['Safe Places auth diagnostic authentication/unclassified_failure'],
+ ['Safe Places auth diagnostic oauth_token/exchange_failed'],
+ ['Safe Places auth diagnostic oauth_state/state_rejected']
+]);
+assert.ok(!JSON.stringify(diagnosticMessages).includes(sensitive));
+console.log('PASS: auth logger emits fixed categories only; state, secrets, provider bodies, arbitrary messages and getters are not logged');
+
 const require=createRequire(import.meta.url);
 const requireWrangler=createRequire(require.resolve('wrangler/package.json'));
 const requireAuth=createRequire(require.resolve('better-auth'));
 const {Miniflare}=requireWrangler('miniflare');
-const {serializeSignedCookie}=requireAuth('better-call');
+const {createEndpoint,createRouter,serializeSignedCookie}=requireAuth('better-call');
+const safeAuthError=createAuthErrorHandler(isAPIError,()=>new APIError('INTERNAL_SERVER_ERROR'));
+const unexpectedError=Object.assign(new Error(sensitive),{query:sensitive,parameters:[sensitive],cause:{client_secret:sensitive}});
+const expectedError=new APIError('FORBIDDEN',{code:'LOCAL_FIXTURE_DENIED',message:'Forbidden fixture'});
+const expectedBody={code:'LOCAL_FIXTURE_DENIED',message:'Forbidden fixture'};
+const errorRouter=createRouter({
+ unexpected:createEndpoint('/unexpected',{method:'GET'},async()=>{throw unexpectedError;}),
+ expected:createEndpoint('/expected',{method:'GET'},async()=>{throw expectedError;})
+},{openapi:{disabled:true},onError:safeAuthError});
+const boundaryLogs=[];
+try{
+ console.warn=console.error=(...args)=>boundaryLogs.push(args);
+ assert.equal(safeAuthError(expectedError),undefined,'Expected APIError values must pass back to the library unchanged');
+ const expectedResponse=await errorRouter.handler(new Request('https://auth-error-fixture.example/expected'));
+ assert.equal(expectedResponse.status,403);assert.deepEqual(await expectedResponse.json(),expectedBody);
+ const unexpectedResponse=await errorRouter.handler(new Request('https://auth-error-fixture.example/unexpected'));
+ assert.equal(unexpectedResponse.status,500);assert.equal(await unexpectedResponse.text(),'');
+}finally{console.warn=originalWarn;console.error=originalError;}
+assert.deepEqual(boundaryLogs,[['Safe Places auth diagnostic authentication/unexpected_error']],'Better Call must not log its raw unexpected-error fallback');
+assert.ok(!JSON.stringify(boundaryLogs).includes(sensitive));
+console.log('PASS: expected auth API statuses preserved; unexpected exceptions return a sanitized 500 without either library logging the raw exception');
 const origin='https://safeplaces-preview.pages.dev';
 const secret=randomBytes(48).toString('base64url');
+const googleClientId='safeplaces-local-regression.apps.googleusercontent.com';
+const googleClientSecret='local-regression-only-never-valid-at-google';
 const people={
  owner:{id:randomUUID(),email:'owner@safeplaces-auth-test.example',verified:1},
  staff:{id:randomUUID(),email:'staff@safeplaces-auth-test.example',verified:1},
@@ -22,6 +73,14 @@ const people={
 const serverRoot=resolve('dist/server');
 const modulePaths=['index.js',...readdirSync(serverRoot,{recursive:true}).filter(path=>path.endsWith('.js')&&path!=='index.js')];
 let outboundCalls=0;
+const tokenFixtures=new Map(),mockFailures=[];
+const {privateKey:fixtureSigningKey}=generateKeyPairSync('rsa',{modulusLength:2048});
+function fixtureIdToken(identity){
+ const now=Math.floor(Date.now()/1000);
+ const payload={iss:'https://accounts.google.com',aud:googleClientId,sub:identity.subject,email:identity.email,email_verified:true,name:'Local callback customer',iat:now,exp:now+3600};
+ const encoded=Buffer.from(JSON.stringify({alg:'RS256',typ:'JWT',kid:'local-auth-regression'})).toString('base64url')+'.'+Buffer.from(JSON.stringify(payload)).toString('base64url');
+ return encoded+'.'+sign('RSA-SHA256',Buffer.from(encoded),fixtureSigningKey).toString('base64url');
+}
 const mf=new Miniflare({
  name:'safeplaces-auth-regression',modulesRoot:serverRoot,
  modules:modulePaths.map(path=>({type:'ESModule',path:resolve(serverRoot,path)})),
@@ -31,11 +90,23 @@ const mf=new Miniflare({
   SITE_PUBLIC:'true',SITE_INDEXABLE:'false',SITE_DEMO_PRICES:'true',
   ADMIN_BOOTSTRAP_PRIVATE:'true',STANDALONE_AUTH_ENABLED:'true',
   BETTER_AUTH_SECRET:secret,BETTER_AUTH_URL:origin,
-  GOOGLE_CLIENT_ID:'safeplaces-local-regression.apps.googleusercontent.com',
-  GOOGLE_CLIENT_SECRET:'local-regression-only-never-valid-at-google',
+  GOOGLE_CLIENT_ID:googleClientId,GOOGLE_CLIENT_SECRET:googleClientSecret,
   STANDALONE_ADMIN_USER_ID:people.owner.id,STANDALONE_ADMIN_EMAIL:people.owner.email
  },
- outboundService:()=>{outboundCalls++;return new Response('External calls disabled in local authentication regression checks',{status:503});},
+ outboundService:async request=>{
+  outboundCalls++;
+  const deny=code=>{mockFailures.push(code);return Response.json({error:'invalid_request'},{status:400});};
+  if(request.url!=='https://oauth2.googleapis.com/token'||request.method!=='POST')return deny('unexpected_external_request');
+  const body=new URLSearchParams(await request.text()),fixture=tokenFixtures.get(body.get('code'));
+  if(!fixture||fixture.used)return deny('unregistered_or_replayed_code');
+  if(body.get('grant_type')!=='authorization_code'||body.get('redirect_uri')!==origin+'/api/auth/callback/google')return deny('invalid_exchange_target');
+  if(body.get('client_id')!==googleClientId||body.get('client_secret')!==googleClientSecret)return deny('incorrect_fixture_credentials');
+  const verifier=body.get('code_verifier')||'';
+  if(!verifier||createHash('sha256').update(verifier).digest('base64url')!==fixture.challenge)return deny('pkce_verifier_mismatch');
+  fixture.used=true;
+  if(fixture.error)return Response.json({error:fixture.error,error_description:sensitive},{status:401});
+  return Response.json({access_token:'local-access-token-'+randomUUID(),token_type:'Bearer',expires_in:3600,scope:'openid email profile',id_token:fixtureIdToken(fixture.identity)});
+ },
  port:0,host:'127.0.0.1'
 });
 
@@ -56,11 +127,14 @@ try{
   return signed.split(';',1)[0];
  }
  const cookies={owner:await session(people.owner),staff:await session(people.staff),customer:await session(people.customer),unverified:await session(people.unverified)};
- const send=(path,body,cookie='',headers={})=>mf.dispatchFetch(origin+path,{
+ const send=(path,body,cookie='',headers={})=>gateway.fetch(new Request(origin+path,{
   method:body===undefined?'GET':'POST',redirect:'manual',
   headers:{...(cookie?{Cookie:cookie}:{}),...(body===undefined?{}:{Origin:origin,'Content-Type':'application/json'}),...headers},
   ...(body===undefined?{}:{body:JSON.stringify(body)})
- });
+ }),{STAGING:{fetch:async request=>mf.dispatchFetch(request.url,{
+  method:request.method,headers:Object.fromEntries(request.headers),redirect:request.redirect,
+  ...(!['GET','HEAD'].includes(request.method)?{body:await request.arrayBuffer()}:{})
+ })}});
  async function json(path,body,cookie='',status=200,headers={}){
   const response=await send(path,body,cookie,headers),raw=await response.text();
   assert.equal(response.status,status,path+': '+raw.slice(0,400));
@@ -163,7 +237,102 @@ try{
  assert.equal((await json('/api/session',undefined,cookies.owner)).admin,true,'CSRF did not revoke the owner session');
  await json('/api/auth/sign-out',{},cookies.owner);
  await json('/api/admin/data',undefined,cookies.owner,403);
- assert.equal(outboundCalls,0,'Local auth regression must never call Google, send email or use any external service');
+ assert.equal(outboundCalls,0,'Session and administrative checks must not request any provider exchange');
  console.log('PASS: Google-only routes, OAuth origin/PKCE/state controls, secure cookies and actual sign-out revocation');
+
+ // Exercise the complete application/gateway callback path. Only synthetic
+ // authorization codes explicitly registered here can reach the local mock.
+ const callbackIdentity={subject:'local-callback-'+randomUUID(),email:'callback-customer@safeplaces-auth-test.example'};
+ const counts=()=>db.prepare('SELECT (SELECT COUNT(*) FROM auth_user) AS users,(SELECT COUNT(*) FROM auth_session) AS sessions,(SELECT COUNT(*) FROM auth_account) AS accounts').first();
+ const initialCounts=await counts();
+ async function beginFlow(error){
+  const response=await send('/api/auth/sign-in/social',{
+   provider:'google',callbackURL:'/ar/account',newUserCallbackURL:'/ar/account',
+   errorCallbackURL:'/ar/account/login?return_to=%2Far%2Faccount&reason=account',disableRedirect:true
+  });
+  assert.equal(response.status,200,'The application must initiate the synthetic OAuth flow');
+  const url=new URL((await response.json()).url);
+  assert.equal(url.origin,'https://accounts.google.com');
+  assert.equal(url.searchParams.get('redirect_uri'),origin+'/api/auth/callback/google');
+  assert.equal(url.searchParams.get('client_id'),googleClientId);
+  assert.equal(url.searchParams.get('code_challenge_method'),'S256');
+  const state=url.searchParams.get('state'),challenge=url.searchParams.get('code_challenge');
+  assert.ok(state&&challenge,'Fresh OAuth state and PKCE challenge are required');
+  const stateCookieHeaders=response.headers.getSetCookie().filter(value=>value.startsWith('__Secure-better-auth.state='));
+  assert.equal(stateCookieHeaders.length,1,'The Pages gateway must preserve the OAuth state cookie');
+  const stateCookie=stateCookieHeaders[0];
+  assert.match(stateCookie,/HttpOnly/i);assert.match(stateCookie,/Secure/i);assert.match(stateCookie,/SameSite=Lax/i);
+  assert.doesNotMatch(stateCookie,/Domain=/i);
+  const code='local-callback-code-'+randomUUID();
+  tokenFixtures.set(code,{challenge,identity:callbackIdentity,error,used:false});
+  return {state,code,cookie:stateCookie.split(';',1)[0]};
+ }
+ const callbackPath=flow=>'/api/auth/callback/google?'+new URLSearchParams({state:flow.state,code:flow.code});
+ const flowRecord=flow=>db.prepare('SELECT id,value,expires_at FROM auth_verification WHERE identifier=?').bind('auth-state:'+flow.state).first();
+ function callbackLocation(response){
+  assert.ok([302,303].includes(response.status),'OAuth completion must produce a redirect');
+  assert.match(response.headers.get('cache-control')||'',/no-store/);
+  assert.equal(response.headers.get('referrer-policy'),'no-referrer');
+  assert.ok(response.headers.get('location'),'An OAuth redirect destination is required');
+  const url=new URL(response.headers.get('location'),origin);
+  assert.equal(url.origin,origin,'Every callback result remains on the protected canonical host');
+  return url;
+ }
+ async function denyCallback(flow,cookie,expectedError,expectedCounts,expectedCalls){
+  const response=await send(callbackPath(flow),undefined,cookie);
+  const url=callbackLocation(response);
+  assert.equal(url.searchParams.get('error'),expectedError);
+  assert.ok(!response.headers.getSetCookie().some(value=>value.startsWith('__Secure-better-auth.session_token=')&&!/Max-Age=0/i.test(value)),'A denied callback must not issue a login cookie');
+  assert.deepEqual(await counts(),expectedCounts,'A denied callback must not create a user, account or session');
+  assert.equal(outboundCalls,expectedCalls,'A failed state check must not exchange an authorization code');
+  await response.body?.cancel();
+  return url;
+ }
+
+ const validFlow=await beginFlow();
+ await denyCallback(validFlow,'','state_mismatch',initialCounts,0);
+ assert.ok(await flowRecord(validFlow),'A missing browser cookie must not consume a valid pending flow');
+ const differentBrowserFlow=await beginFlow();
+ await denyCallback(validFlow,differentBrowserFlow.cookie,'state_mismatch',initialCounts,0);
+ assert.ok(await flowRecord(validFlow),'A mismatched browser cookie must not consume a valid pending flow');
+ const success=await send(callbackPath(validFlow),undefined,validFlow.cookie);
+ assert.equal(callbackLocation(success).pathname,'/ar/account');
+ const sessionHeaders=success.headers.getSetCookie().filter(value=>value.startsWith('__Secure-better-auth.session_token='));
+ assert.equal(sessionHeaders.length,1,'The successful callback preserves its session cookie through the Pages gateway');
+ assert.match(sessionHeaders[0],/HttpOnly/i);assert.match(sessionHeaders[0],/Secure/i);assert.match(sessionHeaders[0],/SameSite=Lax/i);
+ assert.doesNotMatch(sessionHeaders[0],/Domain=/i);
+ const callbackCookie=sessionHeaders[0].split(';',1)[0];
+ await success.body?.cancel();
+ assert.equal(outboundCalls,1,'Exactly one local token exchange completed');
+ assert.equal(await flowRecord(validFlow),null,'A completed flow is consumed');
+ const createdUser=await db.prepare('SELECT id,email,email_verified FROM auth_user WHERE email=?').bind(callbackIdentity.email).first();
+ assert.ok(createdUser);assert.equal(createdUser.email_verified,1);
+ const createdAccount=await db.prepare('SELECT provider_id,account_id,user_id FROM auth_account WHERE user_id=?').bind(createdUser.id).first();
+ assert.deepEqual(createdAccount,{provider_id:'google',account_id:callbackIdentity.subject,user_id:createdUser.id});
+ const loggedIn=await json('/api/session',undefined,callbackCookie);
+ assert.equal(loggedIn.user.provider,'standalone');assert.equal(loggedIn.user.userId,'customer:'+createdUser.id);
+ assert.equal(loggedIn.user.email,callbackIdentity.email);assert.equal(loggedIn.admin,false,'Google signup alone must never grant administration access');
+ await json('/api/admin/data',undefined,callbackCookie,403);
+ const callbackSession=await json('/api/auth/get-session',undefined,callbackCookie);
+ assert.equal(callbackSession.user.id,createdUser.id,'The callback must create a real signed Better Auth DB session');
+ const afterSuccess=await counts();
+ assert.deepEqual(afterSuccess,{users:initialCounts.users+1,sessions:initialCounts.sessions+1,accounts:initialCounts.accounts+1});
+ console.log('PASS: synthetic Google callback through Pages gateway, PKCE exchange, persisted verified identity, secure session and ordinary-user permissions');
+
+ await denyCallback(validFlow,validFlow.cookie,'state_mismatch',afterSuccess,1);
+ const expiredFlow=await beginFlow(),expiredRecord=await flowRecord(expiredFlow);
+ assert.ok(expiredRecord);
+ const expiredValue=JSON.parse(expiredRecord.value);expiredValue.expiresAt=Date.now()-60000;
+ await db.prepare('UPDATE auth_verification SET value=?,expires_at=? WHERE id=?').bind(JSON.stringify(expiredValue),expiredValue.expiresAt,expiredRecord.id).run();
+ await denyCallback(expiredFlow,expiredFlow.cookie,'state_mismatch',afterSuccess,1);
+ const invalidClientFlow=await beginFlow('invalid_client');
+ const invalidClientResult=await denyCallback(invalidClientFlow,invalidClientFlow.cookie,'invalid_code',afterSuccess,2);
+ assert.equal(invalidClientResult.pathname,'/ar/account/login');
+ assert.equal(invalidClientResult.searchParams.get('return_to'),'/ar/account');
+ assert.equal(invalidClientResult.searchParams.get('error_description'),null,'Raw Google diagnostics must not be exposed by the callback redirect');
+ assert.equal(await flowRecord(invalidClientFlow),null,'Client authentication failed after successful state verification');
+ assert.deepEqual(mockFailures,[],'Every intercepted exchange must use the exact fixture target, credentials and PKCE verifier');
+ assert.equal([...tokenFixtures.values()].filter(fixture=>fixture.used).length,2);
+ console.log('PASS: missing/mismatched cookies, expired state and replay denied; invalid_client remains a token-exchange error; all provider requests intercepted locally');
  console.log('PASS: authentication and administrative security regression completed with local fixtures only');
 }finally{await mf.dispose();}
