@@ -7,6 +7,8 @@ const accountId = 'b67109c9489a46ae25fb36370c4ba880';
 const workerName = 'safeplaces-staging';
 const apiRoot = 'https://api.cloudflare.com/client/v4';
 const workerPath = `/accounts/${accountId}/workers/scripts/${workerName}`;
+const zoneId = '6c990a516bf39bdaa9e6c2fcbd083aa7';
+const sendingDomain = 'safeplaces.sa';
 const requiredSecrets = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'BETTER_AUTH_SECRET'];
 
 class ProtectionBlock extends Error {
@@ -57,6 +59,46 @@ function disabledVerified(settings) {
   const observation = settings?.observability;
   return observation?.enabled === false && observation.logs?.enabled === false
     && observation.logs.invocation_logs === false && observation.traces?.enabled === false;
+}
+
+async function ensureEmailSendingDomain({token, fetcher = fetch}) {
+  const call = async (method, path, body) => {
+    let response;
+    try {
+      response = await fetcher(apiRoot + path, {
+        method,
+        headers:{Authorization:`Bearer ${token}`, Accept:'application/json', ...(body ? {'Content-Type':'application/json'} : {})},
+        ...(body ? {body:JSON.stringify(body)} : {}),
+        redirect:'error',
+        signal:AbortSignal.timeout(20000),
+      });
+    } catch {
+      return {ok:false, code:'EMAIL_SERVICE_UNAVAILABLE'};
+    }
+    let payload;
+    try { payload = await response.json(); }
+    catch { return {ok:false, code:'EMAIL_SERVICE_RESPONSE_INVALID'}; }
+    if (!response.ok || payload?.success !== true || !Array.isArray(payload.errors) || payload.errors.length !== 0) {
+      return {ok:false, code:response.status === 401 || response.status === 403 ? 'EMAIL_SERVICE_PERMISSION_DENIED' : 'EMAIL_SERVICE_REQUEST_FAILED'};
+    }
+    return {ok:true, result:payload.result};
+  };
+  const path = `/zones/${zoneId}/email/sending/subdomains`;
+  let listed = await call('GET', path);
+  if (!listed.ok) return listed;
+  const rows = Array.isArray(listed.result) ? listed.result : [];
+  let domain = rows.find(item => object(item) && item.name === sendingDomain);
+  if (!domain) {
+    const created = await call('POST', path, {name:sendingDomain});
+    if (!created.ok) return created;
+    listed = await call('GET', path);
+    if (!listed.ok) return listed;
+    domain = (Array.isArray(listed.result) ? listed.result : []).find(item => object(item) && item.name === sendingDomain);
+  }
+  if (!object(domain) || typeof domain.id !== 'string' || !domain.id) return {ok:false, code:'EMAIL_SERVICE_DOMAIN_UNVERIFIED'};
+  const status = await call('GET', `${path}/${domain.id}/dns/status`);
+  if (!status.ok) return status;
+  return {ok:true, code:'EMAIL_SERVICE_READY', domainId:domain.id, status:status.result};
 }
 
 async function protectStagingAuthLogs({mode, env, fetcher = fetch}) {
@@ -118,7 +160,13 @@ async function protectStagingAuthLogs({mode, env, fetcher = fetch}) {
     // of the request body. Do not split redaction and enablement into two calls.
     await request('PATCH', 'script-settings', {observability:protectedObservability(settings.observability)});
     if (!protectionVerified(await readSettings())) block('PROTECTION_NOT_VERIFIED', 'The remote logging settings did not confirm OAuth query-string protection.');
-    return {...report, ok:true, code:'PROTECTED', message:'OAuth query-string redaction and the approved log settings were read back successfully; traces remain disabled.', reads, writes};
+    if (env.GITHUB_ACTIONS === 'true') {
+      const email = await ensureEmailSendingDomain({token, fetcher});
+      if (!email.ok) {
+        return {...report, ok:false, code:email.code, message:'OAuth logging remains protected, but the approved Safe Places Email Sending domain could not be verified. Staging email remains disabled.', reads, writes};
+      }
+    }
+    return {...report, ok:true, code:'PROTECTED', message:'OAuth query-string redaction and the approved log settings were read back successfully; traces remain disabled. The approved Safe Places Email Sending domain is verified when running in GitHub Actions.', reads, writes};
   } catch (error) {
     const code = error instanceof ProtectionBlock ? error.code : 'PROTECTION_UNAVAILABLE';
     let message = error instanceof ProtectionBlock ? error.message : 'The staging logging protection check could not complete.';
