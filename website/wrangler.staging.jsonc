@@ -30,14 +30,6 @@
       "bucket_name": "safeplaces-staging-private"
     }
   ],
-  "send_email": [
-    {
-      "name": "EMAIL",
-      "allowed_sender_addresses": [
-        "info@safeplaces.sa"
-      ]
-    }
-  ],
   "vars": {
     "STAGING_HOSTNAME": "safeplaces-preview.pages.dev",
     "SITE_PUBLIC": "true",
