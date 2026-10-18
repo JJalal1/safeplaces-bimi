@@ -1,0 +1,75 @@
+name: Bootstrap Safe Places production D1 once
+
+on:
+  push:
+    branches:
+      - feature/auth-speed-seo-before-hosting
+    paths:
+      - '.github/workflows/production-d1-bootstrap-once.yml'
+      - 'website/deploy/production-bootstrap.sql'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safeplaces-production-d1-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.25.0'
+      - name: Install Wrangler only
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Confirm exact empty production database
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          OUT="$(pnpm exec wrangler d1 execute safeplaces-production --remote --config wrangler.production.jsonc --command="SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table';" --json)"
+          printf '%s' "$OUT" > /tmp/pre.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const payload=JSON.parse(fs.readFileSync('/tmp/pre.json','utf8'));
+          const row=payload?.[0]?.results?.[0];
+          if (!row || Number(row.table_count)!==0) throw new Error('Production D1 is not empty; bootstrap stopped.');
+          console.log('PASS: exact production D1 is empty.');
+          NODE
+
+      - name: Apply reviewed production schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: pnpm exec wrangler d1 execute safeplaces-production --remote --config wrangler.production.jsonc --file=deploy/production-bootstrap.sql
+
+      - name: Verify required production tables
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: |
+          set -euo pipefail
+          OUT="$(pnpm exec wrangler d1 execute safeplaces-production --remote --config wrangler.production.jsonc --command="SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;" --json)"
+          printf '%s' "$OUT" > /tmp/post.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const payload=JSON.parse(fs.readFileSync('/tmp/post.json','utf8'));
+          const names=new Set((payload?.[0]?.results||[]).map(x=>x.name));
+          const required=['orders','quotes','contacts','products','content','customers','files','auth_user','admin_members','request_events','request_drafts','notification_outbox'];
+          const missing=required.filter(name=>!names.has(name));
+          if (missing.length) throw new Error('Missing production tables: '+missing.join(', '));
+          console.log('PASS: production D1 schema contains all required tables.');
+          NODE
