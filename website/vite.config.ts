@@ -16,9 +16,16 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const managedLinux = readExecutionProfile() === "managed-linux";
 // Explicit opt-in: the default build remains the existing private Sites preview.
 const standaloneStaging = process.env.SAFEPLACES_STAGING_BUILD === "1";
-const stagingBindings = standaloneStaging
+const standaloneProduction = process.env.SAFEPLACES_PRODUCTION_BUILD === "1";
+if (standaloneStaging && standaloneProduction) {
+  throw new Error("Choose staging or production standalone build, not both.");
+}
+const standaloneBuild = standaloneStaging || standaloneProduction;
+const standaloneBindings = standaloneStaging
   ? JSON.parse(readFileSync(new URL("./wrangler.staging.jsonc", import.meta.url), "utf8"))
-  : null;
+  : standaloneProduction
+    ? JSON.parse(readFileSync(new URL("./wrangler.production.jsonc", import.meta.url), "utf8"))
+    : null;
 
 const localBindingConfig = {
   main: "./build/sites-worker.ts",
@@ -68,13 +75,13 @@ export default defineConfig(async ({ command }) => {
     },
     plugins: [
       vinext(),
-      ...(!standaloneStaging ? [sites({ mockAuth: !managedLinux }), connectorPreview()] : []),
+      ...(!standaloneBuild ? [sites({ mockAuth: !managedLinux }), connectorPreview()] : []),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
         config: {
-          ...(stagingBindings ? { ...stagingBindings, main: "./build/sites-worker.ts" } : localBindingConfig),
-          ...(command === "serve" && !standaloneStaging
+          ...(standaloneBindings ? { ...standaloneBindings, main: "./build/sites-worker.ts" } : localBindingConfig),
+          ...(command === "serve" && !standaloneBuild
             ? {
                 services: [
                   {
@@ -86,7 +93,7 @@ export default defineConfig(async ({ command }) => {
               }
             : {}),
         },
-        ...(command === "serve" && !standaloneStaging
+        ...(command === "serve" && !standaloneBuild
           ? {
               auxiliaryWorkers: [
                 {
