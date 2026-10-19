@@ -70,7 +70,7 @@ export function StoreProvider({lang,children}:{lang:Lang;children:ReactNode}){
  const announce=(message:string,target:'cart'|'quote'|null=null)=>setToast({message,target});
  useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(null),3500);return()=>clearTimeout(timer);},[toast]);
  useDialog(cartOpen,'.cart-drawer',()=>setCartOpen(false));
- const add=(p:Product,type:'cart'|'quote',quantity=1,feedback=true)=>{const amount=boundedQuantity(quantity);update(s=>{const found=s[type].find(i=>i.id===p.id);const row=productLine(p,amount);return {...s,[type]:found?s[type].map(i=>i.id===p.id?{...row,quantity:Math.min(i.quantity+amount,999)}:i):[...s[type],row]};});if(type==='cart'&&feedback)announce(local(lang,'تمت إضافة المنتج إلى السلة','Item added to cart'),'cart');else if(type==='quote')announce(local(lang,'أُضيف المنتج إلى طلب عرض السعر','Added to your quote request'),'quote');};
+ const add=(p:Product,_type:'cart'|'quote',quantity=1,feedback=true)=>{const amount=boundedQuantity(quantity);update(s=>{const found=s.quote.find(i=>i.id===p.id);const row={...productLine(p,amount),price:null,previewOnly:false};return {...s,quote:found?s.quote.map(i=>i.id===p.id?{...row,quantity:Math.min(i.quantity+amount,999)}:i):[...s.quote,row]};});if(feedback)announce(local(lang,'أُضيف المنتج إلى طلب عرض السعر','Added to your quote request'),'quote');};
  const remove=(id:string,type:'cart'|'quote')=>update(s=>({...s,[type]:s[type].filter(i=>i.id!==id)}));
  const quantity=(id:string,q:number,type:'cart'|'quote')=>update(s=>({...s,[type]:s[type].map(i=>i.id===id?{...i,quantity:boundedQuantity(q)}:i)}));
  const selectCartItem=(id:string,selected:boolean)=>update(s=>({...s,cart:s.cart.map(i=>i.id===id?{...i,selected}:i)}));
@@ -79,13 +79,13 @@ export function StoreProvider({lang,children}:{lang:Lang;children:ReactNode}){
  const removeCartItems=(ids:string[])=>{const selected=new Set(ids);update(s=>({...s,cart:s.cart.filter(i=>!selected.has(i.id))}));};
  // A direct-purchase intent is independent of the basket, including existing quantities.
  // Only leave the product page after persistence succeeds; failed writes remain retryable.
- const startBuyNow=(p:Product,amount:number)=>{if(p.kind==='quote'||p.price===null)return false;return update(s=>({...s,buyNow:productLine(p,amount)}))===true;};
+ const startBuyNow=(_p:Product,_amount:number)=>false;
  const setBuyNowQuantity=(q:number)=>update(s=>({...s,buyNow:s.buyNow?{...s.buyNow,quantity:boundedQuantity(q)}:null}));
  const clearBuyNow=(expected?:Item)=>update(s=>!expected||JSON.stringify(s.buyNow)===JSON.stringify(expected)?{...s,buyNow:null}:s);
  const wish=(id:string)=>{if(wishBusy.current.has(id))return;wishBusy.current.add(id);wishVersion.current++;wishQueue.current=wishQueue.current.then(async()=>{try{const session=await api('session?scope=customer');setUser(session.user);if(!session.user){sessionStorage.setItem('safeplaces-save-after-login',id);window.location.assign(customerLoginPath(lang,window.location.pathname+window.location.search,'wishlist'));return;}const result=await api('wishlist',{id,action:currentState.current.wish.includes(id)?'remove':'add'});applyWishlist(result.ids);}catch(error){announce(errorText(error,lang));}finally{wishBusy.current.delete(id);}});};
  const clear=(type:'cart'|'quote')=>update(s=>({...s,[type]:[]}));
  const view=useCallback((id:string)=>update(s=>s.recent[0]===id?s:{...s,recent:[id,...s.recent.filter(x=>x!==id)].slice(0,8)}),[update]);
- return <Context.Provider value={{lang,state,user,ready:loaded,add,remove,quantity,selectCartItem,selectAllCartItems,removeSelectedCartItems,removeCartItems,startBuyNow,setBuyNowQuantity,clearBuyNow,wish,clear,view,openCart:()=>setCartOpen(true),notify:(message:string)=>announce(message)}}>{children}{toast&&<div className="toast" role="status"><Check size={18}/><span>{toast.message}</span>{toast.target&&<a href={'/'+lang+'/'+(toast.target==='cart'?'cart':'quote')}>{toast.target==='cart'?local(lang,'عرض السلة','View cart'):local(lang,'مراجعة الطلب','Review request')}</a>}</div>}{cartOpen&&<div className="drawer-backdrop" onClick={()=>setCartOpen(false)}><aside className="cart-drawer" role="dialog" aria-modal="true" aria-label={local(lang,'سلة المشتريات','Shopping cart')} onClick={e=>e.stopPropagation()}><div className="drawer-heading"><h2>{local(lang,'سلة المشتريات','Your cart')}</h2><button className="icon-button" aria-label={local(lang,'إغلاق','Close')} onClick={()=>setCartOpen(false)}><X/></button></div><CartLines compact/>{!!state.cart.length&&<div className="drawer-bottom"><div className="drawer-subtotal"><span>{local(lang,'إجمالي المنتجات','Items total')}</span><strong>{money(state.cart.reduce((sum,item)=>sum+(item.price||0)*item.quantity,0),lang)}</strong></div>{state.cart.some(i=>i.previewOnly)&&<p className="demo-price-label">{local(lang,'أسعار تجريبية؛ إتمام الشراء معطل','Demo prices; ordering is disabled')}</p>}<a className="button primary" href={'/'+lang+'/cart'} onClick={()=>setCartOpen(false)}>{local(lang,'مراجعة السلة','Review cart')}</a><a className="button light" href={'/'+lang+'/checkout'} onClick={()=>setCartOpen(false)}>{local(lang,'إتمام الطلب','Checkout')}</a></div>}</aside></div>}</Context.Provider>;
+ return <Context.Provider value={{lang,state,user,ready:loaded,add,remove,quantity,selectCartItem,selectAllCartItems,removeSelectedCartItems,removeCartItems,startBuyNow,setBuyNowQuantity,clearBuyNow,wish,clear,view,openCart:()=>setCartOpen(true),notify:(message:string)=>announce(message)}}>{children}{toast&&<div className="toast" role="status"><Check size={18}/><span>{toast.message}</span>{toast.target&&<a href={'/'+lang+'/'+(toast.target==='cart'?'cart':'quote')}>{toast.target==='cart'?local(lang,'عرض السلة','View cart'):local(lang,'مراجعة الطلب','Review request')}</a>}</div>}{cartOpen&&<div className="drawer-backdrop" onClick={()=>setCartOpen(false)}><aside className="cart-drawer" role="dialog" aria-modal="true" aria-label={local(lang,'طلب عرض سعر','Quote request')} onClick={e=>e.stopPropagation()}><div className="drawer-heading"><h2>{local(lang,'قائمة طلب العرض','Your quote list')}</h2><button className="icon-button" aria-label={local(lang,'إغلاق','Close')} onClick={()=>setCartOpen(false)}><X/></button></div><CartLines type="quote" compact/>{!!state.quote.length&&<div className="drawer-bottom"><a className="button primary" href={'/'+lang+'/quote'} onClick={()=>setCartOpen(false)}>{local(lang,'إكمال طلب عرض السعر','Complete quote request')}</a></div>}</aside></div>}</Context.Provider>;
 }
 export function Header({path,phone,products,categories,query='',preview=false,checkoutIntent=false}:{path:string;phone:string;products:Product[];categories:{slug:string;ar:string;en:string}[];query?:string;preview?:boolean;checkoutIntent?:boolean}){
  const {lang,state}=useStore();const [menu,setMenu]=useState(false),[departments,setDepartments]=useState(false),[moreOpen,setMoreOpen]=useState(false),[searchOpen,setSearchOpen]=useState(!!query);
@@ -94,11 +94,11 @@ export function Header({path,phone,products,categories,query='',preview=false,ch
  useEffect(()=>{if(searchOpen)headerRef.current?.querySelector<HTMLInputElement>('.market-search input')?.focus();},[searchOpen]);
  useEffect(()=>{const phones=window.matchMedia('(max-width:650px)');const resized=()=>{if(!phones.matches)setMoreOpen(false);};phones.addEventListener('change',resized);return()=>phones.removeEventListener('change',resized);},[]);
  useDialog(moreOpen,'.mobile-more-sheet',()=>setMoreOpen(false));
- const root='/'+lang,cartCount=state.cart.reduce((sum,item)=>sum+item.quantity,0);
+ const root='/'+lang,cartCount=state.quote.reduce((sum,item)=>sum+item.quantity,0);
  const productDetail=path.startsWith('shop/')&&!path.startsWith('shop/category/')&&path.split('/').length===2;
- const cartActive=path==='cart'||path==='checkout',accountActive=path==='account'||path.startsWith('account/');
- const languagePath='/'+(lang==='ar'?'en':'ar')+(path?'/'+path:'')+(path==='checkout'&&checkoutIntent?'?intent=buy-now':'');
- const backPath=path==='checkout'?(checkoutIntent?(state.buyNow?root+'/shop/'+state.buyNow.slug:root+'/shop'):root+'/cart'):(productDetail||path==='cart'?root+'/shop':root);
+ const cartActive=path==='quote',accountActive=path==='account'||path.startsWith('account/');
+ const languagePath='/'+(lang==='ar'?'en':'ar')+(path?'/'+path:'');
+ const backPath=productDetail||path==='quote'?root+'/shop':root;
  const entries=[['','الرئيسية','Home'],['shop','تسوق المنتجات','Shop'],['services','خدماتنا','Services'],['about','من نحن','About us'],['projects','المشاريع','Projects'],['contact','تواصل معنا','Contact']];
  return <><div className="topbar"><div className="container"><span>{local(lang,'معدات السلامة والحماية من الحريق · الخبر، السعودية','Safety & fire protection equipment · Al Khobar, Saudi Arabia')}</span><div className="topbar-links"><a href={'tel:'+phone} dir="ltr">{phone}</a><a href={languagePath} className="language">{lang==='ar'?'English':'العربية'}</a></div></div></div>
  <header ref={headerRef} className={'site-header marketplace-header'+(searchOpen?' is-search-open':'')}>
@@ -110,7 +110,7 @@ export function Header({path,phone,products,categories,query='',preview=false,ch
     <button type="button" className="icon-button mobile-search-toggle" aria-label={searchOpen?local(lang,'إغلاق البحث','Close search'):local(lang,'البحث في المنتجات','Search products')} aria-expanded={searchOpen} aria-controls="store-header-search" onClick={()=>setSearchOpen(!searchOpen)}>{searchOpen?<X size={23}/>:<Search size={23}/>}</button>
     <a className={'header-tool account-link'+(accountActive?' active':'')} href={root+'/account'} aria-label={local(lang,'حسابي','Account')} aria-current={accountActive?'page':undefined}><UserRound size={23}/><span>{local(lang,'حسابي','Account')}</span></a>
     <a className="header-tool header-wishlist" href={root+'/wishlist'}><Heart size={23}/><span>{local(lang,'المفضلة','Saved')}</span></a>
-    <a className={'header-tool bag'+(cartActive?' active':'')} href={root+'/cart'} aria-label={local(lang,'السلة','Cart')+(cartCount?' ('+cartCount+')':'')} aria-current={path==='cart'?'page':undefined}><ShoppingBag size={23}/>{cartCount>0&&<b>{cartCount}</b>}<span>{local(lang,'السلة','Cart')}</span></a>
+    <a className={'header-tool bag'+(cartActive?' active':'')} href={root+'/quote'} aria-label={local(lang,'قائمة طلب العرض','Quote list')+(cartCount?' ('+cartCount+')':'')} aria-current={path==='quote'?'page':undefined}><ShoppingBag size={23}/>{cartCount>0&&<b>{cartCount}</b>}<span>{local(lang,'طلب عرض','Quote list')}</span></a>
     <button type="button" className="icon-button menu-toggle" aria-label={local(lang,'القائمة','Menu')} aria-expanded={menu} onClick={()=>{setMenu(!menu);setDepartments(false);}}>{menu?<X/>:<Menu/>}</button>
    </div>
   </div>
@@ -119,7 +119,7 @@ export function Header({path,phone,products,categories,query='',preview=false,ch
  <nav className={'mobile-shopping-nav'+(productDetail?' on-product':'')} aria-label={local(lang,'التنقل الرئيسي','Primary navigation')}>
   <a className={!path?'active':''} aria-current={!path?'page':undefined} href={root}><Home size={22}/>{local(lang,'الرئيسية','Home')}</a>
   <a className={path.startsWith('shop')?'active':''} aria-current={path.startsWith('shop')?'page':undefined} href={root+'/shop'}><Store size={22}/>{local(lang,'التسوق','Shop')}</a>
-  <a className={cartActive?'active':''} aria-current={path==='cart'?'page':undefined} href={root+'/cart'}><ShoppingBag size={22}/>{local(lang,'السلة','Cart')}{cartCount>0&&<b>{cartCount}</b>}</a>
+  <a className={cartActive?'active':''} aria-current={path==='quote'?'page':undefined} href={root+'/quote'}><ShoppingBag size={22}/>{local(lang,'طلب عرض','Quote')}{cartCount>0&&<b>{cartCount}</b>}</a>
   <a className={accountActive?'active':''} aria-current={accountActive?'page':undefined} href={root+'/account'}><UserRound size={22}/>{local(lang,'حسابي','Account')}</a>
  </nav>
  {moreOpen&&<div className="mobile-more-backdrop" onClick={()=>setMoreOpen(false)}>
@@ -135,26 +135,12 @@ export function Header({path,phone,products,categories,query='',preview=false,ch
  </div>}</>;
 }
 export function ProductActions({product,small=false,showWish=true}:{product:Product;small?:boolean;showWish?:boolean}){
- const {lang,add,wish,state,startBuyNow,notify,ready}=useStore();const [quantity,setQuantity]=useState(1),[startingPurchase,setStartingPurchase]=useState(false);
- useEffect(()=>{
-  if(small)return;
-  const restorePurchaseAction=(event:PageTransitionEvent)=>{if(event.persisted)setStartingPurchase(false);};
-  window.addEventListener('pageshow',restorePurchaseAction);
-  return()=>window.removeEventListener('pageshow',restorePurchaseAction);
- },[small]);
- const quoted=product.kind==='quote'||product.price===null,saved=state.wish.includes(product.id);
+ const {lang,add,wish,state}=useStore();const [quantity,setQuantity]=useState(1);
+ const saved=state.wish.includes(product.id);
  const wishButton=showWish&&<button type="button" className={'icon-button wish-button '+(saved?'saved':'')} aria-label={saved?local(lang,'إزالة من المفضلة','Remove from wishlist'):local(lang,'حفظ في المفضلة','Save to wishlist')} aria-pressed={saved} onClick={()=>wish(product.id)}><Heart size={20}/></button>;
- const addButton=<button type="button" className={'button '+(quoted?'primary request-quote':small?'primary add-to-cart':'light add-to-cart')} onClick={()=>add(product,quoted?'quote':'cart',small?1:quantity)}>{quoted?local(lang,'طلب عرض سعر','Request a quote'):local(lang,'إضافة إلى السلة','Add to cart')}{quoted?(lang==='ar'?<ArrowLeft size={16}/>:<ArrowRight size={16}/>):<ShoppingBag size={17}/>}</button>;
- if(small)return <div className={'product-actions small'+(quoted?' quoted':'')}>{addButton}{wishButton}</div>;
- const buyNow=()=>{if(!ready||startingPurchase)return;if(startBuyNow(product,quantity)){setStartingPurchase(true);window.location.assign('/'+lang+'/checkout?intent=buy-now');}else notify(local(lang,'تعذر حفظ اختيارك في هذا المتصفح. أتح التخزين ثم حاول مرة أخرى.','Your selection could not be saved in this browser. Allow storage and try again.'));};
- return <div className={'product-actions product-purchase-actions'+(quoted?' quoted':'')}>
-  {(!quoted||showWish)&&<div className="product-choice-row">{!quoted&&<div className="product-quantity-choice"><span>{local(lang,'الكمية','Quantity')}</span><Quantity value={quantity} onChange={q=>setQuantity(boundedQuantity(q))}/></div>}{wishButton}</div>}
-  <div className="product-purchase-bar" role="group" aria-label={local(lang,'خيارات طلب المنتج','Product order options')}>
-   {addButton}
-   {!quoted&&<button type="button" className="button primary buy-now" disabled={!ready||startingPurchase} onClick={buyNow}>{startingPurchase?local(lang,'جارٍ فتح الطلب…','Opening checkout…'):local(lang,'اشترِ الآن','Buy now')}</button>}
-  </div>
-  {product.kind==='both'&&<button type="button" className="button light bulk-quote" onClick={()=>add(product,'quote',quantity)}>{local(lang,'عرض سعر للكميات','Bulk quotation')}{lang==='ar'?<ArrowLeft size={16}/>:<ArrowRight size={16}/>}</button>}
- </div>;
+ const addButton=<button type="button" className="button primary request-quote" onClick={()=>add(product,'quote',small?1:quantity)}>{local(lang,'إضافة لطلب عرض سعر','Add to quote request')}{lang==='ar'?<ArrowLeft size={16}/>:<ArrowRight size={16}/>}</button>;
+ if(small)return <div className="product-actions small quoted">{addButton}{wishButton}</div>;
+ return <div className="product-actions product-purchase-actions quoted"><div className="product-choice-row"><div className="product-quantity-choice"><span>{local(lang,'الكمية المطلوبة','Required quantity')}</span><Quantity value={quantity} onChange={q=>setQuantity(boundedQuantity(q))}/></div>{wishButton}</div><div className="product-purchase-bar" role="group" aria-label={local(lang,'خيارات طلب عرض السعر','Quotation options')}>{addButton}<a className="button light review-quote" href={'/'+lang+'/quote'}>{local(lang,'مراجعة طلب العرض','Review quote list')}</a></div></div>;
 }
 export function ProductGallery({product}:{product:Product&{gallery?:string}}){const {lang}=useStore();const images=[product.image||referencePhotoSrc(product),...JSON.parse(product.gallery||'[]')].filter(Boolean) as string[];const [selected,setSelected]=useState(0);const [zoom,setZoom]=useState(false);useDialog(zoom,'.image-zoom',()=>setZoom(false));return <div className="product-gallery">{images.length?<button className="gallery-main" aria-label={local(lang,'تكبير الصورة','Enlarge image')} onClick={()=>setZoom(true)}><img src={images[selected]} alt={productName(product,lang)} width="600" height="500"/></button>:<><ProductPhoto product={product} lang={lang}/></>}{!product.image&&<span className="illustration-label">{local(lang,'صورة توضيحية — تُعتمد الصور والمواصفات النهائية قبل البيع','Reference image — final imagery and specifications to be confirmed')}</span>}{images.length>1&&<div className="gallery-thumbnails">{images.map((src,i)=><button key={src} onClick={()=>setSelected(i)} aria-label={local(lang,'الصورة '+(i+1),'Image '+(i+1))} className={i===selected?'selected':''}><img src={src} alt="" width="70" height="70"/></button>)}</div>}{zoom&&<div className="image-zoom" role="dialog" aria-modal="true" aria-label={local(lang,'عرض صورة المنتج','Product image viewer')} onClick={()=>setZoom(false)}><button className="icon-button" aria-label={local(lang,'إغلاق','Close')}><X/></button><img src={images[selected]} alt={productName(product,lang)}/></div>}</div>;}
 export function RecentRecorder({id}:{id:string}){const {view}=useStore();useEffect(()=>view(id),[id,view]);return null;}
@@ -166,7 +152,7 @@ export function CartLines({compact=false,type='cart',items,selectable=false,onQu
  return <div className={'cart-lines '+(compact?'compact':'')+(selectable?' selectable':'')}>{rows.map(i=><div className={'cart-line'+(selectable?(i.selected===false?' is-unselected':' is-selected'):'')} key={i.id}>
   {selectable&&<label className="cart-item-select"><input type="checkbox" checked={i.selected!==false} onChange={e=>selectCartItem(i.id,e.target.checked)}/><span className="sr-only">{local(lang,'تحديد '+i.nameAr,'Select '+i.nameEn)}</span></label>}
   <a className="cart-thumb" href={'/'+lang+'/shop/'+i.slug}>{i.image?<img src={i.image} alt="" width="96" height="96" loading="lazy"/>:<ProductPhoto product={i} lang={lang}/>}</a>
-  <div className="cart-item-content"><a className="line-name" href={'/'+lang+'/shop/'+i.slug}>{lang==='ar'?i.nameAr:i.nameEn}</a><small className="cart-item-price"><strong>{i.price===null?local(lang,'طلب تسعير','Quote request'):money(i.price,lang)}</strong>{i.previewOnly&&<span className="demo-price-label">{local(lang,'سعر تجريبي','Demo price')}</span>}</small><div className="cart-item-controls"><Quantity value={i.quantity} onChange={q=>onQuantity?onQuantity(i.id,q):quantity(i.id,q,type)}/></div></div>
+  <div className="cart-item-content"><a className="line-name" href={'/'+lang+'/shop/'+i.slug}>{lang==='ar'?i.nameAr:i.nameEn}</a><small className="cart-item-price"><strong>{local(lang,'طلب عرض سعر','Request a quotation')}</strong>{type==='cart'&&i.previewOnly&&<span className="demo-price-label">{local(lang,'سعر تجريبي','Demo price')}</span>}</small><div className="cart-item-controls"><Quantity value={i.quantity} onChange={q=>onQuantity?onQuantity(i.id,q):quantity(i.id,q,type)}/></div></div>
   <button type="button" className="icon-button remove-button" aria-label={local(lang,'حذف المنتج','Remove item')} onClick={()=>onRemove?onRemove(i.id):remove(i.id,type)}><Trash2 size={18}/></button>
  </div>)}</div>;
 }

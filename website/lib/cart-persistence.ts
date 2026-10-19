@@ -33,7 +33,14 @@ export function restoreStore(raw:string|null):StoredState{
  try{
   const data=JSON.parse(raw) as Record<string,unknown>|null;
   if(!data||typeof data!=='object')return emptyStore();
-  return {cart:readLines(data.cart),quote:readLines(data.quote),wish:[],buyNow:readLines([data.buyNow])[0]||null,
+  // Migrate legacy baskets and direct-purchase intent to price-free requests.
+  const quote:StoredItem[]=[];const indices=new Map<string,number>();
+  for(const original of [...readLines(data.quote),...readLines(data.cart),...readLines([data.buyNow])]){
+   const row={...original,price:null,previewOnly:false,selected:true};const position=indices.get(row.id);
+   if(position===undefined){indices.set(row.id,quote.length);quote.push(row);}
+   else quote[position]={...quote[position],quantity:Math.min(999,quote[position].quantity+row.quantity)};
+  }
+  return {cart:[],quote,wish:[],buyNow:null,
    recent:Array.isArray(data.recent)?data.recent.filter((v):v is string=>typeof v==='string'&&v.length<=180).slice(0,8):[]};
  }catch{return emptyStore();}
 }

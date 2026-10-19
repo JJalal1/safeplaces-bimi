@@ -7,12 +7,12 @@ import {useStore,ProductActions} from './store';
 import {ProductPhoto,Arrow} from './visuals';
 type Category={slug:string;ar:string;en:string};
 
-export function ProductPrice({product,lang}:{product:Product;lang:Lang}){
- return <div className="price-block"><div className="product-price"><strong>{product.price===null?local(lang,'حسب المشروع','Project quotation'):money(product.price,lang)}</strong>{product.oldPrice&&product.price!==null&&product.oldPrice>product.price&&!product.previewOnly?<del>{money(product.oldPrice,lang)}</del>:null}</div>{product.previewOnly&&<small className="demo-price-label">{local(lang,'سعر تجريبي للمعاينة','Demo price for review')}</small>}</div>;
+export function ProductPrice({product:_product,lang}:{product:Product;lang:Lang}){
+ return <div className="price-block"><div className="product-price"><strong>{local(lang,'طلب عرض سعر','Request a quotation')}</strong></div></div>;
 }
 export function ProductCard({p,lang,categoryList=[]}:{p:Product;lang:Lang;categoryList?:Category[]}){
  const {state,wish}=useStore();const saved=state.wish.includes(p.id),category=categoryList.find(c=>c.slug===p.category);
- return <article className="product-card market-product-card"><div className="product-image-wrap"><a className="product-image" href={'/'+lang+'/shop/'+p.slug}><ProductPhoto product={p} lang={lang} caption/></a><button className={'card-save '+(saved?'saved':'')} aria-label={local(lang,saved?'إزالة من المفضلة':'أضف إلى المفضلة',saved?'Remove from wishlist':'Save to wishlist')} aria-pressed={saved} onClick={()=>wish(p.id)}><Heart size={19}/></button>{p.kind==='quote'&&<span className="product-type">{local(lang,'للأنظمة والمشاريع','Project enquiries')}</span>}</div><div className="product-card-body"><small>{category?local(lang,category.ar,category.en):local(lang,'معدات السلامة','Safety equipment')}</small><a href={'/'+lang+'/shop/'+p.slug}><h3>{productName(p,lang)}</h3></a><ProductPrice product={p} lang={lang}/><ProductActions product={p} small showWish={false}/></div></article>;
+ return <article className="product-card market-product-card"><div className="product-image-wrap"><a className="product-image" href={'/'+lang+'/shop/'+p.slug}><ProductPhoto product={p} lang={lang} caption/></a><button className={'card-save '+(saved?'saved':'')} aria-label={local(lang,saved?'إزالة من المفضلة':'أضف إلى المفضلة',saved?'Remove from wishlist':'Save to wishlist')} aria-pressed={saved} onClick={()=>wish(p.id)}><Heart size={19}/></button>{p.kind==='quote'&&<span className="product-type">{local(lang,'طلب عرض سعر','Quote only')}</span>}</div><div className="product-card-body"><small>{category?local(lang,category.ar,category.en):local(lang,'معدات السلامة','Safety equipment')}</small><a href={'/'+lang+'/shop/'+p.slug}><h3>{productName(p,lang)}</h3></a><ProductPrice product={p} lang={lang}/><ProductActions product={p} small showWish={false}/></div></article>;
 }
 export function ProductRail({products,lang,title,subtitle,categories=[],href}:{products:Product[];lang:Lang;title:string;subtitle?:string;categories?:Category[];href?:string}){
  const ref=useRef<HTMLDivElement>(null),id=useId();if(!products.length)return null;

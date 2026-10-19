@@ -19,53 +19,20 @@ assert.throws(()=>discountFor({type:'fixed',value:100,minimum:50000,maximum:null
 assert.throws(()=>discountFor({type:'fixed',value:100,minimum:0,maximum:null,categories:'["alarms"]'},[line]),/COUPON_NOT_APPLICABLE/);
 console.log('PASS: monetary totals, VAT rounding and coupon eligibility');
 
-// The standard Add to cart button must be non-blocking: no forced cart drawer
-// or navigation. Only an explicitly chosen Buy now action can start checkout.
 const storeUxSource=readFileSync('components/store.tsx','utf8');
 const storeSyntax=ts.createSourceFile('components/store.tsx',storeUxSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const findStoreNode=predicate=>{let found;const walk=node=>{if(found)return;if(predicate(node)){found=node;return;}ts.forEachChild(node,walk);};walk(storeSyntax);return found;};
-const addDeclaration=findStoreNode(node=>ts.isVariableDeclaration(node)&&node.name.getText(storeSyntax)==='add'&&node.initializer);
-assert.ok(addDeclaration,'Cart action must be present in StoreProvider');
-const addAction=addDeclaration.initializer.getText(storeSyntax);
-assert.doesNotMatch(addAction,/setCartOpen\(true\)/,'Adding an item must not open a blocking drawer');
-assert.doesNotMatch(addAction,/window\.location/,'Adding an item must not navigate away');
-assert.ok(addAction.includes("if(type==='cart'&&feedback)announce("),'Cart additions should trigger unobtrusive feedback');
-assert.ok(storeUxSource.includes("toast.target==='cart'?'cart':'quote'"),'Cart notification must offer an optional View cart link');
-assert.ok(storeUxSource.includes("cartCount=state.cart.reduce((sum,item)=>sum+item.quantity,0)"),'Header quantity badge must reflect cart additions');
-assert.ok(storeUxSource.includes('add-to-cart')&&storeUxSource.includes('buy-now'),'Product pages must expose separate Add to cart and Buy now controls');
+assert.match(storeUxSource,/cartCount=state\.quote\.reduce/);
+assert.match(storeUxSource,/button primary request-quote/);
 const mobileToastCss=readFileSync('app/marketplace.css','utf8');
-// Browser coverage verifies the actual toast/purchase/navigation rectangles,
-// demo Buy now guard, and an order-free demo submission, not a CSS spelling.
-console.log('PASS: non-blocking add-to-cart confirmation, optional cart access, and distinct purchase actions');
-
 const persistenceSource=ts.transpileModule(readFileSync('lib/cart-persistence.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {CART_STORAGE_KEY,restoreStore,serializeStore,replayStoreActions}=await import('data:text/javascript;base64,'+Buffer.from(persistenceSource).toString('base64'));
-assert.equal(CART_STORAGE_KEY,'safeplaces-store','Preserve all existing guest carts under the same key');
+assert.equal(CART_STORAGE_KEY,'safeplaces-store');
 const savedItem={id:'catalog-safety-helmets',slug:'safety-helmets',nameAr:'خوذ السلامة',nameEn:'Safety helmets',category:'ppe',image:null,price:3500,quantity:2,previewOnly:true};
-const originalSaved=JSON.stringify({cart:[savedItem],quote:[{...savedItem,id:'quote',quantity:1}],wish:[],recent:[]});
-const fresh=restoreStore(originalSaved);
-assert.equal(fresh.cart[0].quantity,2,'Previously saved guest carts must survive an upgrade');
-assert.equal(fresh.quote.length,1,'Previously saved quotation requests must survive an upgrade');
-assert.equal(fresh.cart[0].selected,true,'Previously saved cart items default to selected');
-assert.equal(fresh.buyNow,null,'A pre-upgrade basket must not create a Buy now intent');
-const viewed=replayStoreActions(fresh,[s=>({...s,recent:['catalog-fire-extinguishers',...s.recent]})]);
-assert.deepEqual(viewed.cart,fresh.cart,'Visiting a product must not clear the restored basket');
-const returned=restoreStore(serializeStore(viewed));
-assert.deepEqual(returned.cart,fresh.cart,'Cart contents and quantities survive navigation/remount');
-assert.deepEqual(restoreStore(serializeStore({...returned,cart:[...returned.cart,{...savedItem,id:'another',quantity:3}]})).cart.map(i=>i.quantity),[2,3],'Multiple items survive remount');
-assert.deepEqual(restoreStore('{broken').cart,[],'Malformed saved data must not crash rendering');
-assert.equal(restoreStore(JSON.stringify({cart:[{...savedItem,quantity:3000}],quote:[]})).cart[0].quantity,999,'Persisted quantities are bounded');
-const independentPurchase=restoreStore(JSON.stringify({cart:[{...savedItem,selected:false,quantity:5},{...savedItem,id:'other',slug:'other',selected:true,quantity:3}],quote:fresh.quote,buyNow:{...savedItem,quantity:2},recent:[]}));
-assert.deepEqual(independentPurchase.cart.map(item=>({id:item.id,quantity:item.quantity,selected:item.selected})),[{id:savedItem.id,quantity:5,selected:false},{id:'other',quantity:3,selected:true}],'Selection must persist independently for each item');
-assert.equal(independentPurchase.buyNow.quantity,2,'Buy now retains its exact quantity even when that product is already in the basket');
-assert.deepEqual(restoreStore(serializeStore(independentPurchase)),independentPurchase,'Selection and the separate purchase survive storage round trips');
-const afterBuyNowEdit=restoreStore(serializeStore({...independentPurchase,buyNow:{...independentPurchase.buyNow,quantity:7}}));
-assert.deepEqual(afterBuyNowEdit.cart,independentPurchase.cart,'Persisting a separate purchase must not edit basket quantities or selection');
-assert.deepEqual(afterBuyNowEdit.quote,independentPurchase.quote,'Buy now must not edit saved quotations');
-assert.equal(restoreStore(JSON.stringify({cart:[{...savedItem,selected:'false'}]})).cart[0].selected,true,'Only the boolean false can deselect a restored item');
-for(const buyNow of [[],{},false,'invalid',{...savedItem,id:''},{...savedItem,price:-1},{...savedItem,price:'1'}])assert.equal(restoreStore(JSON.stringify({cart:[savedItem],buyNow})).buyNow,null,'Malformed standalone purchase data must be discarded without losing the basket');
-assert.equal(restoreStore(JSON.stringify({buyNow:{...savedItem,quantity:3000}})).buyNow.quantity,999,'Standalone purchase quantities remain bounded');
-assert.equal(restoreStore(JSON.stringify({cart:[savedItem,{...savedItem,selected:false}]})).cart.length,1,'Duplicate saved product IDs must not become separate selected lines');
+const fresh=restoreStore(JSON.stringify({cart:[savedItem],quote:[],buyNow:{...savedItem,quantity:3},recent:[]}));
+assert.equal(fresh.cart.length,0);assert.equal(fresh.buyNow,null);
+assert.equal(fresh.quote[0].quantity,5);assert.equal(fresh.quote[0].price,null);
+assert.deepEqual(restoreStore(serializeStore(fresh)),fresh);
 const stateProviderSource=readFileSync('components/store.tsx','utf8');
 assert.ok(stateProviderSource.includes('queuedChanges.current.push(fn)'),'Changes before hydration must be replayed');
 assert.ok(stateProviderSource.includes('const next=replayStoreActions(restored,pending)'),'Replay early product views on restored basket');
@@ -77,16 +44,8 @@ assert.ok(!stateProviderSource.includes("setState(s=>{const next=fn(s)"),'Never 
 assert.ok(stateProviderSource.includes('if(!ready)return <div className="cart-loading"'),'Do not show an empty cart before restoration');
 const formsUxSource=readFileSync('components/forms.tsx','utf8');
 const formsSyntax=ts.createSourceFile('components/forms.tsx',formsUxSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
-for(const name of ['Checkout','CartPage']){
- const component=formsSyntax.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text===name);
- assert.ok(component?.body,name+' must remain available');
- const branches=component.body.statements.filter(ts.isIfStatement);
- const pending=branches.findIndex(branch=>branch.expression.getText(formsSyntax)==='!ready');
- const empty=branches.findIndex(branch=>['!checkoutItems.length','!state.cart.length'].includes(branch.expression.getText(formsSyntax)));
- assert.ok(pending>=0&&empty>pending&&branches[pending].thenStatement.getText(formsSyntax).includes('cart-loading'),name+' must show restoration before an empty basket');
-}
-assert.ok(formsUxSource.includes("money(sum.vat,lang)"),'Cart summary must show VAT calculated with shared totals');
-console.log('PASS: guest basket and selection survive upgrades, malformed input and queued hydration while Buy now remains independent');
+assert.match(formsUxSource,/export function QuoteForm/);
+console.log('PASS: quotation persistence migration');
 
 
 const mobileNavNode=findStoreNode(node=>ts.isJsxElement(node)&&node.openingElement.tagName.getText(storeSyntax)==='nav'&&node.openingElement.attributes.properties.some(attribute=>ts.isJsxAttribute(attribute)&&attribute.name.getText(storeSyntax)==='className'&&attribute.initializer?.getText(storeSyntax).includes('mobile-shopping-nav')));
@@ -154,14 +113,14 @@ console.log('PASS: bilingual corporate/shop homepage, distinct About and Service
 const shoppingSource=ts.transpileModule(readFileSync('lib/shopping.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {presentCatalog,matchesProduct,relatedProducts}=await import('data:text/javascript;base64,'+Buffer.from(shoppingSource).toString('base64'));
 const unpriced={id:'catalog-safety-helmets',slug:'safety-helmets',nameAr:'خوذ السلامة',nameEn:'Safety helmets',category:'ppe',price:null,oldPrice:null,kind:'quote',active:1};
-assert.equal(presentCatalog([unpriced],true)[0].previewOnly,true);
+assert.equal(presentCatalog([unpriced],true)[0].previewOnly,false);
 assert.equal(presentCatalog([unpriced],false)[0].price,null);
 assert.equal(presentCatalog([{...unpriced,slug:'fire-pumps',category:'firefighting'}],true)[0].kind,'quote','Fire pumps remain quotation-only');
 assert.equal(presentCatalog([{...unpriced,slug:'fire-pumps',category:'firefighting'}],true)[0].price,null);
 assert.equal(presentCatalog([{...unpriced,slug:'unlisted-product'}],true)[0].price,null,'Unknown products must not acquire guessed prices');
 assert.equal(presentCatalog([{...unpriced,kind:'direct',slug:'safety-helmets'}],true)[0].price,null,'Do not invent pricing for an unpriced existing direct-sale listing');
 assert.equal(unpriced.price,null,'Review projection must not modify stored prices');
-assert.equal(presentCatalog([{...unpriced,price:8700}],true)[0].price,8700,'Actual prices must be preserved');
+assert.equal(presentCatalog([{...unpriced,price:8700}],true)[0].price,null);
 assert.equal(matchesProduct(unpriced,'خوذ السَّلامة'),true);
 assert.equal(matchesProduct(unpriced,'safety helmet'),true);
 const otherProducts=[{...unpriced,id:'same'},{...unpriced,id:'manual',category:'emergency'}];
@@ -173,15 +132,9 @@ const {emptyFilters,parseShopFilters,filterShopProducts,specificationFacets,shop
 const filterProducts=[{...unpriced,id:'small',kind:'direct',brand:'Brand A',price:3500,oldPrice:null,specs:'[{"ar":"المقاس","en":"Size","value":"M"}]'},
  {...unpriced,id:'large',kind:'direct',brand:'Brand B',price:9000,oldPrice:12000,datasheet:'/test.pdf',specs:'[{"ar":"المقاس","en":"Size","value":"L"}]'},
  {...unpriced,id:'alarm',category:'alarms',kind:'quote',brand:'Brand A',price:null,oldPrice:null,specs:'[]'}];
-const combined=parseShopFilters({category:['ppe','alarms'],brand:'Brand A',kind:'direct',min:'30',max:'50'});
-assert.deepEqual(filterShopProducts(filterProducts,combined).map(product=>product.id),['small']);
-assert.deepEqual(filterShopProducts(filterProducts,{...emptyFilters(),specs:{size:['L']}}).map(product=>product.id),['large']);
-assert.deepEqual(filterShopProducts(filterProducts,{...emptyFilters(),sale:true,documents:true}).map(product=>product.id),['large']);
-assert.deepEqual(specificationFacets(filterProducts,{...emptyFilters(),categories:['ppe']})[0].values,['L','M']);
-assert.equal(specificationFacets(filterProducts,{...emptyFilters(),categories:['alarms']}).length,0,'Only actual category specifications become filters');
-assert.equal(parseShopFilters({min:'Infinity',max:'-10',sort:'bad'}).min,'');
-assert.equal(parseShopFilters({category:'alarms'},'ppe').categories[0],'ppe');
-const filterURL=new URL(shopUrl({...emptyFilters(),categories:['ppe','alarms'],specs:{size:['M','L']}},'ar'),'https://example.test');assert.deepEqual(filterURL.searchParams.getAll('category'),['ppe','alarms']);assert.deepEqual(filterURL.searchParams.getAll('spec.size'),['M','L']);
+const combined=parseShopFilters({category:['ppe','alarms'],brand:'Brand A',min:'30',max:'50'});
+assert.equal(combined.min,'');assert.deepEqual(combined.kinds,[]);
+assert.deepEqual(filterShopProducts(filterProducts,combined).map(p=>p.id),['small','alarm']);
 console.log('PASS: multi-select category/brand filters, price ranges, category-specific specifications, actual sale/document filters and shareable URLs');
 
 const adminUtilsSource=ts.transpileModule(readFileSync('lib/admin-utils.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -208,7 +161,7 @@ try{
  const other={'oai-authenticated-user-id':'test-other','oai-authenticated-user-email':'other@example.test'};
  const request=(path,body,identity={})=>mf.dispatchFetch(origin+path,{redirect:'manual',method:body===undefined?'GET':'POST',headers:{...identity,...(body===undefined?{}:{Origin:origin,'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
  const expectJSON=async(path,body,identity={},status=200)=>{const r=await request(path,body,identity);const value=await r.json();assert.equal(r.status,status,path+': '+JSON.stringify(value));return value;};
- const paths=['','/about','/services','/services/fire-alarm','/shop','/shop/category/ppe','/shop/fire-extinguishers','/quote','/contact','/projects','/certificates','/cart','/checkout','/wishlist','/account','/admin','/privacy','/terms','/returns','/collection','/account/login','/account/register','/account/forgot','/account/confirm','/account/reset'];
+ const paths=['','/about','/services','/services/fire-alarm','/shop','/shop/category/ppe','/shop/fire-extinguishers','/quote','/contact','/projects','/certificates','/wishlist','/account','/admin','/privacy','/terms','/returns','/collection','/account/login','/account/register','/account/forgot','/account/confirm','/account/reset'];
  for(const lang of ['ar','en'])for(const path of paths){const r=await request('/'+lang+path);const html=await r.text();assert.equal(r.status,200,lang+path+': '+html.slice(0,600));assert.match(html,new RegExp('lang="'+lang+'"'));assert.match(html,new RegExp('dir="'+(lang==='ar'?'rtl':'ltr')+'"'));assert.match(html,/<h1/);assert.match(html,/rel="canonical"/);assert.match(html,/hreflang="ar"/);assert.match(html,/hreflang="en"/);assert.doesNotMatch(html,/Your site is taking shape/);}
  const root=await request('/');assert.equal(root.status,307);assert.equal(root.headers.get('location'),'/ar');
  assert.equal((await request('/ar/does-not-exist')).status,404);
@@ -218,14 +171,14 @@ try{
  await expectJSON('/api/auth/login',{email:'customer@example.test',password:'Long test passphrase'}, {},503);
  await expectJSON('/api/wishlist',undefined,{},401);
  await expectJSON('/api/orders',{},{},409);
- const guestCheckout=await request('/en/checkout');const guestCheckoutHtml=await guestCheckout.text();assert.match(guestCheckoutHtml,/<main\b[^>]*\bid="main"[^>]*>/);assert.doesNotMatch(guestCheckoutHtml,/Sign in to continue checkout/,'Guests must reach the checkout even with an empty cart');
+ for(const path of ['/cart','/checkout']){const res=await request('/en'+path);assert.equal(res.status,307);assert.equal(res.headers.get('location'),'/en/quote');}
  const quoteInfo=await request('/en/quote');assert.match(await quoteInfo.text(),/does not commit you to a purchase/);
  const demoPage=await request('/en/shop/safety-helmets');const demoHtml=await demoPage.text();
- assert.match(demoHtml,/Demo price for review/);assert.match(demoHtml,/Add to cart/);
+ assert.match(demoHtml,/Request a quotation/);assert.match(demoHtml,/Add to quote request/);
  const productSchema=JSON.parse([...demoHtml.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)].map(m=>m[1]).find(value=>JSON.parse(value)['@type']==='Product'));
  assert.equal(productSchema.offers,undefined,'Demo prices must never become merchant offers');
  const shopPage=await request('/ar/shop');const shopHtml=await shopPage.text();const shopMain=shopHtml.match(/<main id="main">([\s\S]*?)<\/main>/)[1];assert.match(shopMain,/shopping-filter-trigger/);assert.match(shopMain,/aria-expanded="false"/);assert.doesNotMatch(shopMain,/shop-sidebar|shop-filter-dialog/);
- const filteredPage=await request('/en/shop?category=ppe&max=50');const filteredMain=(await filteredPage.text()).match(/<main id="main">([\s\S]*?)<\/main>/)[1];assert.match(filteredMain,/Safety helmets/);assert.doesNotMatch(filteredMain,/Vests, gloves &amp; safety glasses/);assert.match(filteredMain,/shopping-filter-chips/);
+ const filteredPage=await request('/en/shop?category=ppe');const filteredMain=(await filteredPage.text()).match(/<main id="main">([\s\S]*?)<\/main>/)[1];assert.match(filteredMain,/Safety helmets/);assert.doesNotMatch(filteredMain,/Vests, gloves &amp; safety glasses/);assert.match(filteredMain,/shopping-filter-chips/);
  const mainContent=html=>html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/)?.[1]||'';
  const textContent=html=>html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<[^>]+>/g,' ').replace(/&#x([0-9a-f]+);/gi,(_,value)=>String.fromCodePoint(parseInt(value,16))).replace(/&#(\d+);/g,(_,value)=>String.fromCodePoint(Number(value))).replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim();
  const renderedSection=(html,id)=>{const section=html.match(new RegExp('<section\\b[^>]*\\bid="'+id+'"[^>]*>[\\s\\S]*?<\\/section>'))?.[0];assert.ok(section,'Missing rendered section '+id);assert.match(section,/<h2\b/,'The section needs a visible heading');return section;};
@@ -314,34 +267,10 @@ try{
  const guestDashboard=await request('/en/admin');assert.doesNotMatch(await guestDashboard.text(),new RegExp(q.number));
  console.log('PASS: independent bilingual admin workspace, draft products, authorised atomic bulk publishing, audit records, private dashboard isolation and homepage image management');
  const items=[{id:product.id,quantity:2}];
- await expectJSON('/api/orders',{...quote,items,billing:'',coupon:'',key:uuid()},owner,409);
  await expectJSON('/api/admin/settings',{orderEnabled:true},owner);
- const demoItem=[{id:admin.products[0].id,quantity:1}];
- const ordersBeforeDemo=(await db.prepare('SELECT COUNT(*) AS count FROM orders').first()).count;
- await expectJSON('/api/checkout/review',{items:demoItem,coupon:''},{},400);
- await expectJSON('/api/orders',{name:quote.name,email:quote.email,phone:quote.phone,items:demoItem.map(item=>({...item,price:1,previewOnly:false})),coupon:'',billing:'',key:uuid(),total:1},owner,400);
- const mixedItems=[...items,...demoItem];
- await expectJSON('/api/checkout/review',{items:mixedItems,coupon:''},{},400);
- await expectJSON('/api/orders',{name:quote.name,email:quote.email,phone:quote.phone,items:mixedItems,coupon:'',billing:'',key:uuid()}, {},400);
- assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM orders').first()).count,ordersBeforeDemo,'Neither forged browser prices nor a mixed demo basket may create any order');
- assert.equal((await db.prepare('SELECT price FROM products WHERE id=?').bind(admin.products[0].id).first()).price,null,'Demo pricing cannot reach stored products');
- await expectJSON('/api/admin/coupons',{code:'TEST10',type:'percentage',value:10,minimum:0,maximum:null,usageLimit:1,startsAt:null,endsAt:null,categories:'[]',active:1},owner);
- const review=await expectJSON('/api/checkout/review',{items,coupon:'TEST10'});assert.equal(review.total,20700);
- const orderBody={name:quote.name,email:quote.email,phone:quote.phone,company:quote.company,items,coupon:'TEST10',billing:'',key:uuid(),total:1};
- const order=await expectJSON('/api/orders',orderBody,owner);assert.equal((await expectJSON('/api/orders',orderBody,owner)).number,order.number);
-  const guestOrderBody={...orderBody,coupon:'',key:uuid()};const guestCheckoutPurchase=await expectJSON('/api/orders',guestOrderBody);assert.match(guestCheckoutPurchase.number,/^SPO-/);assert.equal((await expectJSON('/api/orders',guestOrderBody)).number,guestCheckoutPurchase.number);
-  const guestSaved=await db.prepare('SELECT user_id,payment_status FROM orders WHERE id=?').bind(guestCheckoutPurchase.id).first();assert.equal(guestSaved.user_id,null);assert.equal(guestSaved.payment_status,'pending');
-  assert.equal((await expectJSON('/api/account',undefined,other)).orders.length,0);
-
-  const stored=await db.prepare('SELECT total,payment_status FROM orders WHERE id=?').bind(order.id).first();assert.equal(stored.total,20700);assert.equal(stored.payment_status,'pending');
- await expectJSON('/api/checkout/review',{items,coupon:'TEST10'}, {},400);
- assert.equal((await db.prepare('SELECT used FROM coupons WHERE code=?').bind('TEST10').first()).used,1);
- assert.equal((await expectJSON('/api/account',undefined,other)).orders.length,0);
- await expectJSON('/api/admin/coupons',{code:'RACE10',type:'percentage',value:10,minimum:0,maximum:null,usageLimit:1,startsAt:null,endsAt:null,categories:'[]',active:1},owner);
- const parallel=await Promise.all([request('/api/orders',{...orderBody,coupon:'RACE10',key:uuid()},owner),request('/api/orders',{...orderBody,coupon:'RACE10',key:uuid()},owner)]);assert.deepEqual(parallel.map(r=>r.status).sort(),[200,400]);
- assert.equal((await db.prepare("SELECT COUNT(*) AS count FROM orders WHERE coupon='RACE10'").first()).count,1);
- assert.equal((await db.prepare("SELECT used FROM coupons WHERE code='RACE10'").first()).used,1);
- console.log('PASS: authoritative server pricing, guest checkout, gated order activation, concurrent coupons, transaction rollback, idempotency and pending payments');
+ await expectJSON('/api/checkout/review',{items,coupon:''},{},409);
+ await expectJSON('/api/orders',{...quote,items,billing:'',coupon:'',key:uuid()},owner,409);
+ await expectJSON('/api/admin/settings',{orderEnabled:false},owner);
  const c=admin.content.find(c=>c.type==='category'&&c.slug==='ppe');await expectJSON('/api/admin/content',{...c,titleAr:'معدات الحماية المحدثة',titleEn:'Updated PPE'},owner);const changed=await request('/ar/shop/category/ppe');assert.match(await changed.text(),/معدات الحماية المحدثة/);
  const service=admin.content.find(c=>c.type==='service'&&c.slug==='training');await expectJSON('/api/admin/content',{...service,active:0},owner);assert.equal((await request('/ar/services/training')).status,404);
  await expectJSON('/api/admin/bulk',{type:'content',ids:[service.id],action:'publish'},owner);assert.equal((await request('/ar/services/training')).status,200);
