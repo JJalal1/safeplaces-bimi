@@ -70,7 +70,7 @@ console.log('PASS: four shopping destinations, header company menu, compact head
 const companySource=readFileSync('components/company-pages.tsx','utf8');
 const routeSource=readFileSync('app/(site)/[lang]/[[...slug]]/page.tsx','utf8');
 const companyCss=readFileSync('app/company-experience.css','utf8');
-assert.ok(routeSource.includes('body=<HomeOverview lang={l}'),'Use the focused corporate-and-shop homepage');
+assert.ok(routeSource.includes('<HomeOverview lang={l}')&&routeSource.includes('guide={homeSeo}'),'Homepage must keep the corporate overview and visible search-intent guidance');
 assert.ok(routeSource.includes('body=<AboutOverview lang={l}'),'Keep About as a distinct company profile');
 assert.ok(routeSource.includes('<ServicesOverview lang={l}'),'Keep technical services separate from About');
 assert.ok(routeSource.includes('<ServiceOverview lang={l}'),'Render service detail pages with scope and requirements');
