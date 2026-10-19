@@ -23,7 +23,7 @@
     "SITE_PUBLIC": "false",
     "SITE_INDEXABLE": "false",
     "SITE_DEMO_PRICES": "true",
-    "STANDALONE_AUTH_ENABLED": "false",
+    "STANDALONE_AUTH_ENABLED": "true",
     "CUSTOMER_AUTH_ENABLED": "false",
     "ADMIN_BOOTSTRAP_PRIVATE": "false",
     "EMAIL_NOTIFICATIONS_ENABLED": "false",
