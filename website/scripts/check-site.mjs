@@ -19,32 +19,6 @@ assert.throws(()=>discountFor({type:'fixed',value:100,minimum:50000,maximum:null
 assert.throws(()=>discountFor({type:'fixed',value:100,minimum:0,maximum:null,categories:'["alarms"]'},[line]),/COUPON_NOT_APPLICABLE/);
 console.log('PASS: monetary totals, VAT rounding and coupon eligibility');
 
-// Validate the production-only email smoke mechanism without network or real secrets.
-const smokeCompiled=ts.transpileModule(readFileSync('lib/resend-smoke-test.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
-const {runResendSmokeTestOnce}=await import('data:text/javascript;base64,'+Buffer.from(smokeCompiled).toString('base64'));
-let smokeState='armed',smokeCalls=0;
-const fakeDB={prepare(sql){return{bind(...args){return{
- async first(){assert.match(sql,/UPDATE settings SET value='attempted'/);if(smokeState!=='armed')return null;smokeState='attempted';return {key:args[0]};},
- async run(){assert.match(sql,/UPDATE settings SET value=\?/);if(smokeState==='attempted')smokeState=args[0];return {success:true};}
-};}}}};
-const fakeEnv={DB:fakeDB,SITE_PUBLIC:'false',SITE_INDEXABLE:'false',EMAIL_NOTIFICATIONS_ENABLED:'false',NOTIFICATION_FROM:'info@safeplaces.sa',NOTIFICATION_REPLY_TO:'info@safeplaces.sa',RESEND_API_KEY:'re_dummy-test'};
-const fakeSend=async(url,options)=>{smokeCalls++;assert.equal(url,'https://api.resend.com/emails');const sent=JSON.parse(options.body);assert.deepEqual(sent.to,['info@safeplaces.sa']);assert.equal(sent.from,'Safe Places <info@safeplaces.sa>');assert.ok(options.headers['Idempotency-Key']);return new Response(JSON.stringify({id:'12345678-abcd-1234-abcd-123456789012'}),{status:200});};
-await runResendSmokeTestOnce({...fakeEnv,SITE_PUBLIC:'true'},fakeSend);
-await runResendSmokeTestOnce({...fakeEnv,EMAIL_NOTIFICATIONS_ENABLED:'true'},fakeSend);
-await runResendSmokeTestOnce({...fakeEnv,NOTIFICATION_FROM:'other@example.com'},fakeSend);
-assert.equal(smokeCalls,0,'Production guards must prohibit sending');
-await runResendSmokeTestOnce(fakeEnv,fakeSend);
-assert.equal(smokeCalls,1,'A single isolated test message was requested');
-assert.equal(smokeState,'accepted:12345678-abcd-1234-abcd-123456789012');
-await runResendSmokeTestOnce(fakeEnv,fakeSend);
-assert.equal(smokeCalls,1,'Re-running cron must not repeat the message');
-smokeState='armed';
-await runResendSmokeTestOnce({...fakeEnv,RESEND_API_KEY:''},fakeSend);
-assert.equal(smokeState,'armed','Unavailable credentials must not consume the attempt');
-assert.equal(smokeCalls,1);
-console.log('PASS: one-time Resend smoke check, fixed recipient and production safety guards');
-
-
 const storeUxSource=readFileSync('components/store.tsx','utf8');
 const storeSyntax=ts.createSourceFile('components/store.tsx',storeUxSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const findStoreNode=predicate=>{let found;const walk=node=>{if(found)return;if(predicate(node)){found=node;return;}ts.forEachChild(node,walk);};walk(storeSyntax);return found;};

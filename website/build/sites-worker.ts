@@ -3,15 +3,11 @@ import { runWithConnectorBinding } from "../lib/connector-context";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 import { stagingHostResponse } from "../lib/staging-access";
 import { runOperationalMaintenance } from "../lib/notifications";
-import { runResendSmokeTestOnce } from "../lib/resend-smoke-test";
 import type { OperationsBindings } from "../lib/operations-types";
 
 export default {
   async scheduled(_controller: ScheduledController, env: Cloudflare.Env, ctx: ExecutionContext) {
-    if (env.DB) {
-      ctx.waitUntil(runResendSmokeTestOnce(env as unknown as OperationsBindings));
-      ctx.waitUntil(runOperationalMaintenance(env as unknown as OperationsBindings));
-    }
+    if (env.DB) ctx.waitUntil(runOperationalMaintenance(env as unknown as OperationsBindings));
   },
   async fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext<{ CONNECTORS?: ConnectorBinding }>) {
     const denied = stagingHostResponse(request, env as unknown as Record<string, unknown>);
