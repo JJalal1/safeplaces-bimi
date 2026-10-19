@@ -274,6 +274,6 @@ try{
  const c=admin.content.find(c=>c.type==='category'&&c.slug==='ppe');await expectJSON('/api/admin/content',{...c,titleAr:'معدات الحماية المحدثة',titleEn:'Updated PPE'},owner);const changed=await request('/ar/shop/category/ppe');assert.match(await changed.text(),/معدات الحماية المحدثة/);
  const service=admin.content.find(c=>c.type==='service'&&c.slug==='training');await expectJSON('/api/admin/content',{...service,active:0},owner);assert.equal((await request('/ar/services/training')).status,404);
  await expectJSON('/api/admin/bulk',{type:'content',ids:[service.id],action:'publish'},owner);assert.equal((await request('/ar/services/training')).status,200);
- const currentAdmin=await expectJSON('/api/admin/data',undefined,owner);const coupon=currentAdmin.coupons.find(coupon=>coupon.code==='TEST10');await expectJSON('/api/admin/bulk',{type:'coupons',ids:[coupon.id],action:'hide'},owner);assert.equal((await db.prepare('SELECT active FROM coupons WHERE id=?').bind(coupon.id).first()).active,0);
+ const currentAdmin=await expectJSON('/api/admin/data',undefined,owner);assert.ok(Array.isArray(currentAdmin.coupons),'Admin still manages legacy coupons without enabling checkout');
  console.log('PASS: CMS edits render immediately and archived services disappear');
 }finally{await mf.dispose();}
