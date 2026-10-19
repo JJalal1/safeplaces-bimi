@@ -29,6 +29,7 @@
     "EMAIL_NOTIFICATIONS_ENABLED": "false",
     "NOTIFICATION_FROM": "info@safeplaces.sa",
     "NOTIFICATION_REPLY_TO": "info@safeplaces.sa",
-    "BETTER_AUTH_URL": "https://safeplaces.sa"
+    "BETTER_AUTH_URL": "https://safeplaces.sa",
+    "GOOGLE_CLIENT_ID": "1065235547111-41hr2mvfp3191sdvbd8c1ma306jkcb78.apps.googleusercontent.com"
   }
 }
