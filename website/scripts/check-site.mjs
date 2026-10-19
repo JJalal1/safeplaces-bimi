@@ -19,6 +19,28 @@ assert.throws(()=>discountFor({type:'fixed',value:100,minimum:50000,maximum:null
 assert.throws(()=>discountFor({type:'fixed',value:100,minimum:0,maximum:null,categories:'["alarms"]'},[line]),/COUPON_NOT_APPLICABLE/);
 console.log('PASS: monetary totals, VAT rounding and coupon eligibility');
 
+// Production is fail-closed even if DNS and Worker routes are attached early.
+// Do not inadvertently block the separate local/staging preview.
+const gateCompiled=ts.transpileModule(readFileSync('lib/production-launch-gate.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const {productionLaunchGate}=await import('data:text/javascript;base64,'+Buffer.from(gateCompiled).toString('base64'));
+const rootRequest=new Request('https://safeplaces.sa/ar/shop/fire-pumps');
+const privateEnv={PRODUCTION_LAUNCH_LOCKED:'true',SITE_PUBLIC:'false'};
+const privateResponse=productionLaunchGate(rootRequest,privateEnv);
+assert.equal(privateResponse?.status,503);
+assert.equal(privateResponse?.headers.get('X-Robots-Tag'),'noindex, nofollow');
+assert.equal(privateResponse?.headers.get('Cache-Control'),'private, no-store');
+assert.equal(productionLaunchGate(rootRequest,{...privateEnv,PRODUCTION_LAUNCH_LOCKED:'false'})?.status,503,'A public flag is also required');
+assert.equal(productionLaunchGate(rootRequest,{...privateEnv,PRODUCTION_LAUNCH_LOCKED:'unknown',SITE_PUBLIC:'true'})?.status,503,'Unknown lock values must fail closed');
+assert.equal(productionLaunchGate(rootRequest,{...privateEnv,SITE_PUBLIC:'true'})?.status,503,'The hard lock must always override the public flag');
+assert.equal(productionLaunchGate(rootRequest,{SITE_PUBLIC:'false'}),null,'Do not lock the private staging preview');
+const openEnv={PRODUCTION_LAUNCH_LOCKED:'false',SITE_PUBLIC:'true'};
+assert.equal(productionLaunchGate(rootRequest,openEnv),null,'Public production may serve its apex');
+const wwwResponse=productionLaunchGate(new Request('http://www.safeplaces.sa/en/shop/fire-pumps?src=google'),openEnv);
+assert.equal(wwwResponse?.status,308);
+assert.equal(wwwResponse?.headers.get('location'),'https://safeplaces.sa/en/shop/fire-pumps?src=google');
+console.log('PASS: production hard ingress lock, fail-closed release flags and canonical www redirect');
+
+
 const storeUxSource=readFileSync('components/store.tsx','utf8');
 const storeSyntax=ts.createSourceFile('components/store.tsx',storeUxSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const findStoreNode=predicate=>{let found;const walk=node=>{if(found)return;if(predicate(node)){found=node;return;}ts.forEachChild(node,walk);};walk(storeSyntax);return found;};

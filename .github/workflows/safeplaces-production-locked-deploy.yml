@@ -52,6 +52,7 @@ jobs:
             const c=JSON.parse(readFileSync(path,'utf8'));
             assert.equal(c.name,'safeplaces-production');
             assert.equal(c.vars?.SITE_PUBLIC,'false');
+            assert.equal(c.vars?.PRODUCTION_LAUNCH_LOCKED,'true');
             assert.equal(c.vars?.SITE_INDEXABLE,'false');
             assert.equal(c.vars?.STANDALONE_AUTH_ENABLED,'true');
             assert.equal(c.vars?.EMAIL_NOTIFICATIONS_ENABLED,'false');

@@ -21,6 +21,7 @@
   }],
   "vars": {
     "SITE_PUBLIC": "false",
+    "PRODUCTION_LAUNCH_LOCKED": "true",
     "SITE_INDEXABLE": "false",
     "SITE_DEMO_PRICES": "false",
     "STANDALONE_AUTH_ENABLED": "true",
