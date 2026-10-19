@@ -1,0 +1,13 @@
+.seo-guide{margin-top:28px;margin-bottom:54px;padding-block:28px;border-block-start:1px solid var(--line,#e3e6e8);max-width:1180px}
+.seo-guide-intro{max-width:920px}
+.seo-guide h2{font-size:clamp(1.35rem,2.2vw,1.75rem);line-height:1.5;margin:0 0 16px}
+.seo-guide p{line-height:1.85;margin:0 0 13px;max-width:85ch}
+.seo-guide-questions{margin-top:22px}
+.seo-guide-questions h3{font-size:1.15rem;margin:0 0 18px}
+.seo-guide-answers{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:16px}
+.seo-guide-answers>div{border:1px solid var(--line,#e3e6e8);border-radius:14px;padding:16px;background:var(--surface,#fff)}
+.seo-guide-answers h4{font-size:1rem;margin:0 0 8px;line-height:1.6}
+.seo-guide-answers p{margin:0;font-size:.94rem}
+.seo-guide-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
+.seo-guide-links a{display:inline-block;padding:8px 12px;border:1px solid var(--line,#e3e6e8);border-radius:9px;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:650px){.seo-guide{margin-top:20px;margin-bottom:36px;padding-block:22px}.seo-guide-answers{grid-template-columns:1fr}}
