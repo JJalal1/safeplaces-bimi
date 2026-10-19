@@ -53,7 +53,7 @@ jobs:
             assert.equal(c.name,'safeplaces-production');
             assert.equal(c.vars?.SITE_PUBLIC,'false');
             assert.equal(c.vars?.SITE_INDEXABLE,'false');
-            assert.equal(c.vars?.STANDALONE_AUTH_ENABLED,'false');
+            assert.equal(c.vars?.STANDALONE_AUTH_ENABLED,'true');
             assert.equal(c.vars?.EMAIL_NOTIFICATIONS_ENABLED,'false');
             assert.equal(c.d1_databases?.[0]?.database_name,'safeplaces-production');
             assert.equal(c.r2_buckets?.[0]?.bucket_name,'safeplaces-production-private');
@@ -61,7 +61,7 @@ jobs:
             assert.equal(c.preview_urls,false);
             assert.ok(!c.route && !c.routes?.length);
           }
-          console.log('PASS: production bundle is isolated and locked.');
+          console.log('PASS: production bundle is isolated, auth-ready, and unrouted.');
           NODE
       - name: Dry run
         run: pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.json
