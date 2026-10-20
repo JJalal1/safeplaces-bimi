@@ -27,6 +27,102 @@ const POSTCONDITION_EXPECTED = {
   session_rows: 0,
   verification_reference_rows: 0,
 };
+const SQL_REFERENCES = Object.freeze({
+  auth_user: ['id', 'name', 'email', 'email_verified'],
+  auth_session: ['id', 'user_id'],
+  auth_account: ['id', 'user_id', 'account_id', 'provider_id', 'password', 'access_token', 'refresh_token', 'id_token'],
+  auth_verification: ['identifier', 'value'],
+  quotes: ['user_id'],
+  orders: ['user_id'],
+  customer_wishlists: ['user_id'],
+  activity: ['user_id'],
+  customers: ['id'],
+  files: ['owner_id'],
+  request_events: ['actor_id'],
+  request_drafts: ['updated_by'],
+  admin_members: ['auth_user_id', 'invited_by', 'email'],
+  // This is the fixed CTE name, not a claim that a physical table is missing.
+  candidate: ['id', 'email', 'email_verified', 'name'],
+});
+const SQL_ALIASES = Object.freeze({u: 'auth_user', s: 'auth_session', a: 'auth_account', v: 'auth_verification', c: 'candidate'});
+
+function knownSqlReference(message, kind) {
+  const match = kind === 'table'
+    ? /no such table:\s*["'`\[]?([a-z_][a-z0-9_.]*)/i.exec(message)
+    : /no such column:\s*["'`\[]?([a-z_][a-z0-9_.]*)/i.exec(message);
+  const result = {table: null, column: null};
+  if (!match) return result;
+  const parts = match[1].toLowerCase().split('.');
+  if (parts[0] === 'main') parts.shift();
+  const resolveTable = value => Object.hasOwn(SQL_ALIASES, value)
+    ? SQL_ALIASES[value] : Object.keys(SQL_REFERENCES).find(name => name === value) || null;
+  if (kind === 'table') {
+    if (parts.length === 1) result.table = resolveTable(parts[0]);
+  } else if (parts.length === 2) {
+    result.table = resolveTable(parts[0]);
+    result.column = result.table
+      ? SQL_REFERENCES[result.table].find(name => name === parts[1]) || null : null;
+  } else if (parts.length === 1) {
+    result.column = Object.values(SQL_REFERENCES).flat().find(name => name === parts[0]) || null;
+    const matchingTables = Object.keys(SQL_REFERENCES).filter(name => name !== 'candidate'
+      && SQL_REFERENCES[name].includes(result.column));
+    if (matchingTables.length === 1) result.table = matchingTables[0];
+  }
+  return result;
+}
+
+// Only fixed categories/references and a bounded numeric API code leave here.
+// Full provider errors can include SQL or bound values and must stay in memory.
+export function classifyCloudflareError(envelope) {
+  const entries = [];
+  if (Array.isArray(envelope?.errors)) entries.push(...envelope.errors.slice(0, 4));
+  if (typeof envelope?.error === 'string') entries.push({message: envelope.error});
+  if (Array.isArray(envelope?.result)) {
+    for (const item of envelope.result.slice(0, 2)) {
+      if (typeof item?.error === 'string') entries.push({message: item.error});
+      if (Array.isArray(item?.errors)) entries.push(...item.errors.slice(0, 4));
+    }
+  }
+  let apiErrorCode = null;
+  for (const entry of entries) {
+    const value = entry?.code;
+    const code = typeof value === 'number' ? value
+      : typeof value === 'string' && /^\d{1,6}$/.test(value) ? Number(value) : null;
+    if (Number.isInteger(code) && code >= 0 && code <= 999999) {
+      apiErrorCode = code;
+      break;
+    }
+  }
+  for (const entry of entries) {
+    if (typeof entry?.message !== 'string') continue;
+    const message = entry.message.slice(0, 8192);
+    let category = null;
+    let reference = {table: null, column: null};
+    if (/no such table:/i.test(message)) {
+      category = 'sql_missing_table';
+      reference = knownSqlReference(message, 'table');
+    } else if (/no such column:/i.test(message)) {
+      category = 'sql_missing_column';
+      reference = knownSqlReference(message, 'column');
+    } else if (/SQLITE_READONLY|\bread[- ]only\b/i.test(message)) {
+      category = 'sql_read_only_restriction';
+    } else if (/SQLITE_AUTH|\bnot authori[sz]ed\b|\bauthori[sz]ation denied\b|\bunauthori[sz]ed\b/i.test(message)) {
+      category = 'sql_authorization_denied';
+    } else if (/wrong number of parameters?|incorrect number of bindings|number of (?:parameter )?bindings|parameter count|binding count|too many SQL variables|SQLITE_RANGE|bind or column index out of range|D1_TYPE_ERROR/i.test(message)) {
+      category = 'sql_binding_error';
+    } else if (/syntax error|incomplete input|unrecognized token/i.test(message)) {
+      category = 'sql_syntax_error';
+    } else if (/SQLITE_CONSTRAINT|constraint failed/i.test(message)) {
+      category = 'sql_constraint_failed';
+    } else if (/not supported|unsupported/i.test(message)) {
+      category = 'sql_unsupported_feature';
+    } else if (/SQLITE_ERROR|D1_ERROR/i.test(message)) {
+      category = 'sql_error_unclassified';
+    }
+    if (category) return {category, api_error_code: apiErrorCode, ...reference};
+  }
+  return {category: 'cloudflare_error_unclassified', api_error_code: apiErrorCode, table: null, column: null};
+}
 
 class SafeFailure extends Error {
   constructor(category, status = 'blocked', exitCode = 2) {
@@ -163,12 +259,17 @@ export async function runFixture(mode, {fetchImplementation = globalThis.fetch, 
           isDelete ? 'unconfirmed' : 'blocked', isDelete ? 1 : 2);
       }
       report.http_statuses.push(response.status);
-      if (response.status === 403 || response.status === 401) {
-        if (isDelete) report.counts.directly_deleted_rows = 0;
-        block(response.status === 403 ? 'cloudflare_forbidden' : 'cloudflare_unauthorized');
-      }
       if (!response.ok) {
-        block(isDelete ? 'cleanup_result_unconfirmed' : 'cloudflare_http_failure',
+        let rejectedEnvelope;
+        try { rejectedEnvelope = await response.json(); } catch { /* Never log a raw response. */ }
+        report.diagnostic = classifyCloudflareError(rejectedEnvelope);
+        if (response.status === 403 || response.status === 401) {
+          if (isDelete) report.counts.directly_deleted_rows = 0;
+          block(response.status === 403 ? 'cloudflare_forbidden' : 'cloudflare_unauthorized');
+        }
+        const category = report.diagnostic.category === 'cloudflare_error_unclassified'
+          ? 'cloudflare_http_failure' : report.diagnostic.category;
+        block(isDelete ? 'cleanup_result_unconfirmed' : category,
           isDelete ? 'unconfirmed' : 'blocked', isDelete ? 1 : 2);
       }
       let envelope;
@@ -182,6 +283,7 @@ export async function runFixture(mode, {fetchImplementation = globalThis.fetch, 
       if (envelope?.success !== true || !Array.isArray(envelope.result)
           || envelope.result.length !== 1 || envelope.result[0]?.success !== true
           || !Array.isArray(envelope.result[0].results)) {
+        report.diagnostic = classifyCloudflareError(envelope);
         block(isDelete ? 'cleanup_result_unconfirmed' : 'cloudflare_query_rejected',
           isDelete ? 'unconfirmed' : 'blocked', isDelete ? 1 : 2);
       }
