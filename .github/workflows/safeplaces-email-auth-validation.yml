@@ -1,0 +1,16 @@
+name: Validate verified customer email accounts
+on:
+  push:
+    branches: [fix/customer-email-auth]
+    paths:
+      - 'website/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: safeplaces-email-auth-validation
+  cancel-in-progress: true
+jobs:
+  validate:
+    uses: ./.github/workflows/website-validate.yml

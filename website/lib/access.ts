@@ -1,7 +1,7 @@
 import {getChatGPTUser} from '../app/chatgpt-auth';
 import {headers} from 'next/headers';
 import {getStandaloneAuth} from './better-auth-server';
-import {standaloneAdmin,standaloneCustomer} from './standalone-auth-policy';
+import {isGoogleAuthSession,standaloneAdmin,standaloneCustomer} from './standalone-auth-policy';
 import {verifiedStaff} from './admin-members';
 import {ADMIN_PERMISSIONS,type AdminPermission} from './admin-permissions';
 import type {CustomerUser} from './customer-routes';
@@ -24,6 +24,10 @@ export async function adminUser():Promise<AdminIdentity|null>{
   const standalone=getStandaloneAuth();if(!standalone)return null;
   // Never let a cached cookie preserve an expired or operator-revoked session.
   const session=await standalone.api.getSession({headers:await headers(),query:{disableCookieCache:true}});
+  // Password recovery can add a credential to an existing Google identity.
+  // Even that same immutable user ID must use a Google-authenticated session
+  // for administration; a linked account or a verified email alone is not proof.
+  if(!isGoogleAuthSession(session?.session))return null;
   const identity=session?.user??null;
   const owner=standaloneAdmin(identity,bindings.STANDALONE_ADMIN_USER_ID,bindings.STANDALONE_ADMIN_EMAIL);
   if(owner)return {...owner,role:'owner',permissions:[...ADMIN_PERMISSIONS]};

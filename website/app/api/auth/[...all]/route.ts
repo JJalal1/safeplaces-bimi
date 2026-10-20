@@ -1,6 +1,6 @@
 import {getStandaloneAuth} from '../../../../lib/better-auth-server';
-import {authBindings,readyAuthConfig} from '../../../../lib/auth-settings';
-import {authRequestError,boundedAuthRequest} from '../../../../lib/auth-request-policy';
+import {authBindings,emailPasswordEnabled,readyAuthConfig} from '../../../../lib/auth-settings';
+import {authEndpointPath,authRequestError,boundedAuthRequest,emailAuthRequestPolicy,isEmailAuthPath} from '../../../../lib/auth-request-policy';
 
 export const dynamic='force-dynamic';
 
@@ -19,6 +19,7 @@ async function handle(request:Request){
   if(!ready||!auth)return failure('AUTH_NOT_CONFIGURED',503);
   const invalid=authRequestError(request,ready.baseURL);
   if(invalid)return failure(invalid.code,invalid.status);
+  if(isEmailAuthPath(authEndpointPath(request))&&!emailPasswordEnabled(bindings))return failure('EMAIL_PASSWORD_DISABLED',404);
   const bounded=await boundedAuthRequest(request);
   if(!bounded)return failure('TOO_LARGE',413);
   // D1 shares the limit across Worker instances; an in-memory limiter alone
@@ -30,6 +31,13 @@ async function handle(request:Request){
   const counter=await (bindings.DB as D1Database).prepare('INSERT INTO rate_limits (key,count,expires) VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count')
    .bind(key,(minute+1)*60000).first<{count:number}>();
   if(!counter||counter.count>(write?30:180))return failure('RATE_LIMIT',429,{'Retry-After':String(60-Math.floor(Date.now()/1000)%60)});
+  const policy=await emailAuthRequestPolicy(bounded,ready.secret);
+  if(policy.error)return failure(policy.error,400);
+  for(const limit of policy.limits){
+   const result=await (bindings.DB as D1Database).prepare('INSERT INTO rate_limits (key,count,expires) VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count')
+    .bind(limit.key,limit.expires).first<{count:number}>();
+   if(!result||result.count>limit.max)return failure('RATE_LIMIT',429,{'Retry-After':String(limit.retryAfter)});
+  }
   return protect(await auth.handler(bounded));
  }catch{
   // Auth errors must not expose OAuth credentials, verification records or

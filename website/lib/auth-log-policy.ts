@@ -17,7 +17,31 @@ const tokenErrors=new Set([
  'unsupported_grant_type'
 ]);
 
+const emailFailureCodes:Record<string,string>={
+ EMAIL_NOT_CONFIGURED:'not_configured',
+ INVALID_AUTH_EMAIL:'recipient_invalid',
+ INVALID_AUTH_LINK:'link_invalid',
+ EMAIL_PROVIDER_CONFIGURATION:'provider_configuration',
+ EMAIL_PROVIDER_RATE_LIMIT:'provider_rate_limit',
+ EMAIL_PROVIDER_UNAVAILABLE:'provider_unavailable',
+ EMAIL_DELIVERY_FAILED:'delivery_failed',
+ EMAIL_UNAVAILABLE:'request_failed'
+};
+const passwordFailureCodes=new Set(['PASSWORD_HASH_UNAVAILABLE','PASSWORD_HASH_INVALID_RESPONSE']);
+
 export function authLogCategory(message:unknown,args:readonly unknown[]=[]){
+ if(message==='AUTH_EMAIL_ERROR'){
+  const code=ownString(args[0],'code')||ownString(args[0],'message');
+  return {stage:'auth_email',code:code&&Object.prototype.hasOwnProperty.call(emailFailureCodes,code)?emailFailureCodes[code]:'delivery_failed'};
+ }
+ if(message==='AUTH_PASSWORD_ERROR')return {stage:'auth_password',code:'hash_unavailable'};
+ if(message==='EMAIL_PASSWORD_NOT_CONFIGURED')return {stage:'auth_email',code:'not_configured'};
+ // Ordinary rejected credentials and reset requests use the same fixed category;
+ // the logs never reveal whether a submitted address belongs to an account.
+ if(typeof message==='string'&&['User not found','Password not found','Invalid password'].includes(message))return {stage:'auth_password',code:'credentials_rejected'};
+ if(message==='Reset Password: User not found')return {stage:'auth_password',code:'reset_requested'};
+ if(message==='Verification email isn\'t enabled.')return {stage:'auth_email',code:'not_configured'};
+ if(message==='Reset password isn\'t enabled.Please pass an emailAndPassword.sendResetPassword function in your auth config!')return {stage:'auth_email',code:'not_configured'};
  if(message==='UNEXPECTED_AUTH_ERROR')return {stage:'authentication',code:'unexpected_error'};
  if(message==='Failed to parse state'){
   const detail=ownString(args[0],'message');
@@ -69,7 +93,10 @@ export const authLogger={
 export function createAuthErrorHandler(isAPIError:(error:unknown)=>boolean,unavailable:()=>Error){
  return (error:unknown):void=>{
   if(isAPIError(error))return;
-  authLogger.log('error','UNEXPECTED_AUTH_ERROR');
+  const code=ownString(error,'code')||ownString(error,'message');
+  if(code&&Object.prototype.hasOwnProperty.call(emailFailureCodes,code))authLogger.log('error','AUTH_EMAIL_ERROR',error);
+  else if(code&&passwordFailureCodes.has(code))authLogger.log('error','AUTH_PASSWORD_ERROR');
+  else authLogger.log('error','UNEXPECTED_AUTH_ERROR');
   throw unavailable();
  };
 }

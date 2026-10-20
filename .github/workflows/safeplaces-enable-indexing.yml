@@ -1,116 +1,14 @@
-name: Enable Safe Places search indexing
+name: Historical production deployment disabled — safeplaces-enable-indexing
 on:
-  push:
-    branches: [feature/auth-speed-seo-before-hosting]
-    paths: ['.github/workflows/safeplaces-enable-indexing.yml']
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: safeplaces-production-locked
-  cancel-in-progress: false
 jobs:
-  validate:
-    uses: ./.github/workflows/website-validate.yml
-  deploy:
-    needs: validate
+  replacement:
     runs-on: ubuntu-latest
-    environment: staging
-    defaults:
-      run:
-        working-directory: website
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: {node-version: '22'}
-      - uses: pnpm/action-setup@v4
-        with: {version: '11.25.0'}
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Confirm domain is actually live before enabling indexing
+      - name: Use the verified public production workflow
         run: |
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
-          const dns=await(await fetch('https://dns.google/resolve?name=safeplaces.sa&type=NS')).json();
-          assert.equal(dns.Status,0);
-          const ns=(dns.Answer||[]).map(x=>x.data.toLowerCase());
-          assert.ok(ns.some(x=>x.includes('rudy.ns.cloudflare.com')));
-          assert.ok(ns.some(x=>x.includes('summer.ns.cloudflare.com')));
-          const ar=await fetch('https://safeplaces.sa/ar',{redirect:'manual'});
-          assert.equal(ar.status,200);
-          const html=await ar.text();
-          assert.match(html,/lang="ar"/);
-          const en=await fetch('https://safeplaces.sa/en');
-          assert.equal(en.status,200);
-          const quote=await fetch('https://safeplaces.sa/ar/quote');
-          assert.equal(quote.status,200);
-          const www=await fetch('https://www.safeplaces.sa/ar',{redirect:'manual'});
-          assert.equal(www.status,308);
-          assert.equal(www.headers.get('location'),'https://safeplaces.sa/ar');
-          console.log('PASS: active Cloudflare delegation, bilingual site, quotation and canonical www route');
-          NODE
-      - name: Build and validate public indexing release
-        run: |
-          pnpm run build:production
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
-          import {readFileSync,writeFileSync} from 'node:fs';
-          const p='dist/server/wrangler.json';
-          const c=JSON.parse(readFileSync(p,'utf8'));
-          assert.equal(c.name,'safeplaces-production');
-          assert.equal(c.vars?.SITE_PUBLIC,'false');
-          assert.equal(c.vars?.PRODUCTION_LAUNCH_LOCKED,'true');
-          assert.equal(c.vars?.SITE_INDEXABLE,'false');
-          assert.equal(c.vars?.EMAIL_NOTIFICATIONS_ENABLED,'false');
-          assert.equal(c.vars?.SITE_DEMO_PRICES,'false');
-          assert.equal(c.vars?.CUSTOMER_AUTH_ENABLED,'false');
-          assert.equal(c.vars?.STANDALONE_AUTH_ENABLED,'true');
-          assert.equal(c.workers_dev,false);
-          assert.equal(c.preview_urls,false);
-          assert.ok(!c.route && !c.routes?.length);
-          assert.equal(c.d1_databases?.[0]?.database_id,'da06d822-b7ee-4a14-b3a5-7bcbc5839821');
-          assert.equal(c.r2_buckets?.[0]?.bucket_name,'safeplaces-production-private');
-          c.vars.PRODUCTION_LAUNCH_LOCKED='false';
-          c.vars.SITE_PUBLIC='true';
-          c.vars.SITE_INDEXABLE='true';
-          c.vars.EMAIL_NOTIFICATIONS_ENABLED='false';
-          c.vars.SITE_DEMO_PRICES='false';
-          writeFileSync(p,JSON.stringify(c,null,2)+'\n');
-          console.log('PASS: indexing enabled, protected admin and quote-only mode retained');
-          NODE
-          pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.json
-      - name: Deploy public indexable Worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
-        run: |
-          set -euo pipefail
-          test -n "$CLOUDFLARE_API_TOKEN"
-          export CLOUDFLARE_API_TOKEN="$(node -e "process.stdout.write((process.env.CLOUDFLARE_API_TOKEN || '').replace(/\\s+/g,''))")"
-          pnpm exec wrangler deploy --config dist/server/wrangler.json
-      - name: Verify live robots and populated sitemap
-        run: |
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
-          async function retry(fn,name){
-            for(let i=0;i<8;i++){
-              try{return await fn();}catch(e){if(i===7)throw e;await new Promise(r=>setTimeout(r,4000));}
-            }
-          }
-          await retry(async()=>{
-            const r=await fetch('https://safeplaces.sa/robots.txt');
-            assert.equal(r.status,200);
-            const text=await r.text();
-            assert.match(text,/Allow: \\//);
-            assert.doesNotMatch(text,/Disallow: \\/\s*(?:\\r?\\n|$)/);
-            assert.notEqual(r.headers.get('x-robots-tag'),'noindex, nofollow');
-          },'robots');
-          await retry(async()=>{
-            const r=await fetch('https://safeplaces.sa/sitemap.xml');
-            assert.equal(r.status,200);
-            const text=await r.text();
-            assert.match(text,/https:\/\/safeplaces.sa\/ar/);
-            assert.match(text,/https:\/\/safeplaces.sa\/en/);
-            assert.notEqual(r.headers.get('x-robots-tag'),'noindex, nofollow');
-          },'sitemap');
-          console.log('PASS: search engines can crawl the bilingual public site');
-          NODE
+          echo 'This historical deployment is disabled to preserve the public site and indexing.'
+          echo 'Use safeplaces-auth-buttons-deploy.yml for a validated production release.'
+          exit 1

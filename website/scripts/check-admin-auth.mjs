@@ -23,6 +23,11 @@ try{
  authLogger.log('warn',sensitive,{access_token:sensitive,user:{email:sensitive}});
  authLogger.log('error','',{error:sensitive});
  authLogger.log('error','Failed to parse state',Object.defineProperty({},'message',{get(){throw new Error(sensitive);}}));
+ authLogger.log('error','AUTH_EMAIL_ERROR',{code:'EMAIL_PROVIDER_CONFIGURATION',recipient:sensitive,url:sensitive});
+ authLogger.log('error','AUTH_EMAIL_ERROR',{code:'EMAIL_PROVIDER_RATE_LIMIT',response:{body:sensitive}});
+ authLogger.log('error','AUTH_EMAIL_ERROR',{code:sensitive,message:sensitive});
+ authLogger.log('error','AUTH_EMAIL_ERROR',Object.defineProperty({},'code',{get(){throw new Error(sensitive);}}));
+ authLogger.log('error','AUTH_PASSWORD_ERROR',{password:sensitive,hash:sensitive});
  authLogger.log('info',sensitive,{code:sensitive});
 }finally{console.warn=originalWarn;console.error=originalError;}
 assert.deepEqual(diagnosticMessages,[
@@ -30,7 +35,12 @@ assert.deepEqual(diagnosticMessages,[
  ['Safe Places auth diagnostic oauth_token/invalid_client'],
  ['Safe Places auth diagnostic authentication/unclassified_failure'],
  ['Safe Places auth diagnostic oauth_token/exchange_failed'],
- ['Safe Places auth diagnostic oauth_state/state_rejected']
+ ['Safe Places auth diagnostic oauth_state/state_rejected'],
+ ['Safe Places auth diagnostic auth_email/provider_configuration'],
+ ['Safe Places auth diagnostic auth_email/provider_rate_limit'],
+ ['Safe Places auth diagnostic auth_email/delivery_failed'],
+ ['Safe Places auth diagnostic auth_email/delivery_failed'],
+ ['Safe Places auth diagnostic auth_password/hash_unavailable']
 ]);
 assert.ok(!JSON.stringify(diagnosticMessages).includes(sensitive));
 console.log('PASS: auth logger emits fixed categories only; state, secrets, provider bodies, arbitrary messages and getters are not logged');
@@ -119,10 +129,10 @@ try{
   await db.prepare('INSERT INTO auth_user (id,name,email,email_verified,created_at,updated_at) VALUES (?,?,?,?,?,?)').bind(person.id,name,person.email,person.verified,timestamp,timestamp).run();
   await db.prepare('INSERT INTO auth_account (id,user_id,account_id,provider_id,created_at,updated_at) VALUES (?,?,?,?,?,?)').bind(randomUUID(),person.id,'local-google-subject-'+person.id,'google',timestamp,timestamp).run();
  }
- async function session(person,expiresAt=Date.now()+3600000){
+ async function session(person,expiresAt=Date.now()+3600000,method='google'){
   const token=randomBytes(32).toString('base64url');
-  await db.prepare('INSERT INTO auth_session (id,user_id,token,expires_at,created_at,updated_at) VALUES (?,?,?,?,?,?)')
-   .bind(randomUUID(),person.id,token,expiresAt,Date.now(),Date.now()).run();
+  await db.prepare('INSERT INTO auth_session (id,user_id,token,expires_at,created_at,updated_at,auth_method) VALUES (?,?,?,?,?,?,?)')
+   .bind(randomUUID(),person.id,token,expiresAt,Date.now(),Date.now(),method).run();
   const signed=await serializeSignedCookie('__Secure-better-auth.session_token',token,secret,{httpOnly:true,secure:true,sameSite:'lax',path:'/'});
   return signed.split(';',1)[0];
  }
@@ -152,6 +162,16 @@ try{
  assert.deepEqual(publicSession.socialProviders,['google']);
  const authSession=await json('/api/auth/get-session',undefined,cookies.owner);
  assert.equal(authSession.user.id,people.owner.id,'The real Better Auth handler accepts a correctly signed local DB session');
+ assert.equal(authSession.session.authMethod,'google');
+ const passwordOwnerCookie=await session(people.owner,Date.now()+3600000,'password');
+ const unknownOwnerCookie=await session(people.owner,Date.now()+3600000,'unknown');
+ await json('/api/admin/data',undefined,passwordOwnerCookie,403);
+ await json('/api/admin/data',undefined,unknownOwnerCookie,403);
+ const passwordOwnerSession=await json('/api/session',undefined,passwordOwnerCookie);
+ assert.equal(passwordOwnerSession.user.userId,'customer:'+people.owner.id,'A verified password session retains ordinary customer access');
+ assert.equal(passwordOwnerSession.admin,false,'A matching owner UUID and email never elevate a password session');
+ await json('/api/auth/update-session',{authMethod:'google'},passwordOwnerCookie,404);
+ assert.equal((await json('/api/auth/get-session',undefined,passwordOwnerCookie)).session.authMethod,'password','Public session input cannot upgrade the authentication method');
  const forged=cookies.owner.slice(0,-8)+'tampered';
  await json('/api/admin/data',undefined,forged,403);
  const expired=await session(people.owner,Date.now()-60000);
@@ -171,6 +191,9 @@ try{
  const ownerData=await json('/api/admin/data',undefined,cookies.owner);
  assert.equal(ownerData.orders.length,1);assert.equal(ownerData.quotes.length,1);assert.equal(ownerData.contacts.length,1);
  const invitation=await json('/api/admin/team',{email:people.staff.email.toUpperCase(),permissions:['orders']},cookies.owner);
+ const passwordStaffCookie=await session(people.staff,Date.now()+3600000,'password');
+ await json('/api/admin/data',undefined,passwordStaffCookie,403);
+ assert.equal((await db.prepare('SELECT auth_user_id FROM admin_members WHERE id=?').bind(invitation.id).first()).auth_user_id,null,'A password session must not claim a pending Google staff invitation');
  await json('/api/admin/team',{email:people.owner.email,permissions:['orders']},cookies.owner,403);
  await json('/api/admin/team',{email:people.staff.email,permissions:['quotes']},cookies.owner,409);
  let staffData=await json('/api/admin/data',undefined,cookies.staff);
@@ -315,6 +338,9 @@ try{
  await json('/api/admin/data',undefined,callbackCookie,403);
  const callbackSession=await json('/api/auth/get-session',undefined,callbackCookie);
  assert.equal(callbackSession.user.id,createdUser.id,'The callback must create a real signed Better Auth DB session');
+ assert.equal(callbackSession.session.authMethod,'google','The real pinned callback context must produce a Google session method');
+ const persistedMethod=await db.prepare('SELECT auth_method FROM auth_session WHERE id=?').bind(callbackSession.session.id).first();
+ assert.equal(persistedMethod.auth_method,'google','The server-only method is persisted in the mapped D1 column');
  const afterSuccess=await counts();
  assert.deepEqual(afterSuccess,{users:initialCounts.users+1,sessions:initialCounts.sessions+1,accounts:initialCounts.accounts+1});
  console.log('PASS: synthetic Google callback through Pages gateway, PKCE exchange, persisted verified identity, secure session and ordinary-user permissions');

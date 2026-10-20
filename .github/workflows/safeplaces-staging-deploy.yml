@@ -130,6 +130,12 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
         run: node scripts/protect-staging-auth-logs.mjs --preflight
+      - name: Verify the additive authentication schema before deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_D1_READ_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: node scripts/check-email-auth-release.mjs staging
       - name: Deploy staging Worker only
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

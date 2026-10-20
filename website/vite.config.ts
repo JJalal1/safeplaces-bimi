@@ -28,6 +28,8 @@ const standaloneBindings = standaloneStaging
     : null;
 
 const localBindingConfig = {
+  durable_objects: {bindings: [{name: "AUTH_PASSWORD_HASHER", class_name: "PasswordHasher"}]},
+  migrations: [{tag: "auth-password-v1", new_sqlite_classes: ["PasswordHasher"]}],
   main: "./build/sites-worker.ts",
   compatibility_flags: ["nodejs_compat"],
   d1_databases: d1

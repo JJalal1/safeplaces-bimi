@@ -1,5 +1,5 @@
 /**
- * Provider-independent identity policy for a future Better Auth / D1 deployment.
+ * Identity and session-method policy for the Better Auth / D1 deployment.
  *
  * This file does not authenticate credentials, trust incoming headers or create sessions.
  * A caller MUST pass a user returned by a successfully verified server-side auth session.
@@ -22,6 +22,25 @@ export type VerifiedIdentity={
 };
 
 export type StandaloneAdminIdentity=CustomerUser & {adminId:string};
+
+export type AuthSessionMethod='google'|'password'|'unknown';
+
+/**
+ * Called only by Better Auth's session.create database hook, after the endpoint
+ * has authenticated the user. In 1.7.7 dispatch sets context.path to the route
+ * template and callbackOAuth resolves its provider from context.params.id.
+ * A submitted body, header, existing linked account or email proves no method.
+ */
+export function authSessionMethod(context:{path?:unknown;params?:{id?:unknown}|null}|null|undefined):AuthSessionMethod{
+  if(context?.path==='/callback/:id'&&context.params?.id==='google')return 'google';
+  if(context?.path==='/sign-in/email')return 'password';
+  return 'unknown';
+}
+
+/** Missing/legacy method values require a fresh Google login for administration. */
+export function isGoogleAuthSession(session:{authMethod?:unknown}|null|undefined):boolean{
+  return session?.authMethod==='google';
+}
 
 /**
  * Reuse the existing D1 order/quote/wishlist ownership convention: customer:<UUID>.

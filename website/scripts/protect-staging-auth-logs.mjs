@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 
 // The deployment starts with logs and traces disabled. This guard enables logs
 // and query-string redaction together, then verifies the remote configuration.
+// Invocation logs remain disabled: recovery links contain a token in the path,
+// which query-string redaction alone does not protect.
 // It never reads secret values, changes bindings, or accepts a different target.
 const accountId = 'b67109c9489a46ae25fb36370c4ba880';
 const workerName = 'safeplaces-staging';
@@ -40,7 +42,7 @@ function protectedObservability(current) {
     enabled:true,
     head_sampling_rate:1,
     redact_query_string:true,
-    logs:{...optional.logs, enabled:true, invocation_logs:true, head_sampling_rate:1, persist:true},
+    logs:{...optional.logs, enabled:true, invocation_logs:false, head_sampling_rate:1, persist:true},
     traces:{...optional.traces, enabled:false},
   };
 }
@@ -48,7 +50,7 @@ function protectedObservability(current) {
 function protectionVerified(settings) {
   const observation = settings?.observability;
   return observation?.enabled === true && observation.head_sampling_rate === 1 && observation.redact_query_string === true
-    && observation.logs?.enabled === true && observation.logs.invocation_logs === true
+    && observation.logs?.enabled === true && observation.logs.invocation_logs === false
     && observation.logs.head_sampling_rate === 1 && observation.logs.persist === true
     && observation.traces?.enabled === false;
 }
@@ -190,6 +192,7 @@ async function selfTest() {
   assert.equal(applied.result.ok, true);
   assert.deepEqual(applied.calls.map(call => call.method), ['GET', 'GET', 'PATCH', 'GET']);
   assert.ok(protectionVerified(applied.settings));
+  assert.equal(applied.settings.observability.logs.invocation_logs, false);
   assert.deepEqual(applied.settings.tags, ['unrelated-fixture-tag']);
   assert.deepEqual(applied.settings.observability.logs.destinations, ['cloudflare']);
   assert.equal(applied.settings.observability.traces.propagation_policy, 'authenticated');
@@ -228,6 +231,15 @@ async function selfTest() {
   assert.equal(mismatched.result.writes, 2);
   assert.ok(disabledVerified(mismatched.settings));
   assert.equal(Object.hasOwn(mismatched.calls.filter(call => call.method === 'PATCH')[1].body.observability, 'redact_query_string'), false);
+
+  const unsafeInvocations = await run({mode:'apply', onRequest:({method, body}) => {
+    if (method === 'PATCH' && body.observability.enabled) body.observability.logs.invocation_logs = true;
+  }});
+  assert.equal(unsafeInvocations.result.code, 'PROTECTION_NOT_VERIFIED');
+  assert.equal(unsafeInvocations.result.ok, false);
+  assert.equal(unsafeInvocations.result.recovery.disabledVerified, true);
+  assert.equal(unsafeInvocations.result.writes, 2);
+  assert.ok(disabledVerified(unsafeInvocations.settings));
 
   const lostResponse = await run({mode:'apply', onRequest:({method, body, settings}) => {
     if (method === 'PATCH' && body.observability.enabled) {

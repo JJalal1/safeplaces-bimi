@@ -26,6 +26,8 @@ jobs:
         run: pnpm exec tsc --noEmit --incremental false
       - name: Authentication policy
         run: node scripts/check-standalone-auth-policy.mjs
+      - name: Native password hashing inside SQLite Durable Objects
+        run: node scripts/check-auth-password.mjs
       - name: Staff authorization policy
         run: node scripts/check-admin-permissions.mjs
       - name: Existing customer auth tests
@@ -42,6 +44,9 @@ jobs:
       - name: Admin sessions and permissions
         if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
         run: node scripts/check-admin-auth.mjs
+      - name: Verified email accounts, recovery, session security and ownership
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
+        run: node scripts/check-email-password-auth.mjs
       - name: Request operations and notification reliability
         if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
         run: node scripts/check-admin-operations.mjs
@@ -57,6 +62,9 @@ jobs:
       - name: Arabic and English admin workflows on mobile and desktop
         if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
         run: SAFEPLACES_PLAYWRIGHT_MODULE="$RUNNER_TEMP/safeplaces-browser/node_modules/playwright" node scripts/check-admin-browser.mjs
+      - name: Customer email and password on Arabic and English mobile and desktop
+        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
+        run: SAFEPLACES_PLAYWRIGHT_MODULE="$RUNNER_TEMP/safeplaces-browser/node_modules/playwright" node scripts/check-email-password-browser.mjs
       - name: Save browser evidence and resolved dependency lock
         if: always()
         uses: actions/upload-artifact@v4

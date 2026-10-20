@@ -3,18 +3,22 @@ import {APIError,isAPIError} from 'better-auth/api';
 import {drizzleAdapter} from '@better-auth/drizzle-adapter';
 import {getDb} from '../db';
 import {authUser,authSession,authAccount,authVerification} from '../db/auth-schema';
-import {authBindings,enabledProviders,readyAuthConfig} from './auth-settings';
+import {authBindings,emailPasswordEnabled,enabledProviders,readyAuthConfig} from './auth-settings';
 import {authLogger,createAuthErrorHandler} from './auth-log-policy';
+import {scheduleAuthEmail} from './auth-email';
+import {passwordHashing} from './auth-password';
+import {authSessionMethod} from './standalone-auth-policy';
+import {EMAIL_AUTH_PATHS} from './auth-request-policy';
 
 /**
- * Google-only launch. Password signup, reset and other social providers can
- * be enabled later when their email and OAuth integrations are fully tested.
+ * Customer identities use verified Google or verified email/password accounts.
+ * Administration independently requires a successful Google callback session.
  */
 export function getStandaloneAuth(){
  const bindings=authBindings(),ready=readyAuthConfig(bindings);
  if(!ready)return null;
  const google=enabledProviders(bindings).includes('google');
- if(!google)return null;
+ const passwords=emailPasswordEnabled(bindings);
  return betterAuth({
   appName:'Safe Places',
   baseURL:ready.baseURL,
@@ -36,7 +40,19 @@ export function getStandaloneAuth(){
    ipAddress:{ipAddressHeaders:['cf-connecting-ip']}
   },
   trustedOrigins:[ready.baseURL],
-  session:{cookieCache:{enabled:false}},
+  session:{
+   cookieCache:{enabled:false},
+   additionalFields:{
+    // Drizzle maps this property to auth_session.auth_method. input:false keeps
+    // every public input endpoint from writing it; the database hook sets it.
+    authMethod:{type:'string',required:true,defaultValue:'unknown',input:false}
+   }
+  },
+  databaseHooks:{
+   session:{create:{before:async (_session,context)=>({
+    data:{authMethod:authSessionMethod(context)}
+   })}}
+  },
   account:{
    // A different Google subject must never inherit an owner's/staff member's
    // immutable local ID just because it now owns the same email address.
@@ -45,20 +61,38 @@ export function getStandaloneAuth(){
    skipStateCookieCheck:false,
    encryptOAuthTokens:true
   },
-  socialProviders:{
+  socialProviders:google?{
    google:{
     clientId:String(bindings.GOOGLE_CLIENT_ID).trim(),
     clientSecret:String(bindings.GOOGLE_CLIENT_SECRET).trim(),
     prompt:'select_account'
    }
-  },
-  emailAndPassword:{enabled:false},
+  }:{},
+  emailAndPassword:passwords?{
+   enabled:true,
+   requireEmailVerification:true,
+   autoSignIn:false,
+   minPasswordLength:12,
+   maxPasswordLength:128,
+   password:passwordHashing({AUTH_PASSWORD_HASHER:bindings.AUTH_PASSWORD_HASHER}),
+   resetPasswordTokenExpiresIn:30*60,
+   revokeSessionsOnPasswordReset:true,
+   sendResetPassword:async ({user,url})=>scheduleAuthEmail(bindings,user.email,'reset',url)
+  }:{enabled:false},
+  emailVerification:passwords?{
+   sendOnSignUp:true,
+   sendOnSignIn:false,
+   autoSignInAfterVerification:false,
+   expiresIn:60*60,
+   sendVerificationEmail:async ({user,url})=>scheduleAuthEmail(bindings,user.email,'verify',url)
+  }:undefined,
   user:{changeEmail:{enabled:false},deleteUser:{enabled:false}},
-  // These features are not part of Google-only sign-in. In particular, the
-  // shop never needs to return Google API access/refresh tokens to a browser.
+  // Recovery uses a single-use email token. Public account linking, mutable
+  // auth email and token-export endpoints remain outside the supported flow.
   disabledPaths:[
-   '/sign-in/email','/sign-up/email','/request-password-reset','/reset-password',
+   ...(!passwords?EMAIL_AUTH_PATHS:[]),
    '/change-password','/set-password','/change-email','/delete-user',
+   '/update-session',
    '/link-social','/unlink-account','/get-access-token','/refresh-token','/account-info'
   ]
  });

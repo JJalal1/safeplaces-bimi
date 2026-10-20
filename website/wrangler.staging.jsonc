@@ -41,11 +41,29 @@
     "EMAIL_NOTIFICATIONS_ENABLED": "false",
     "NOTIFICATION_FROM": "info@safeplaces.sa",
     "NOTIFICATION_REPLY_TO": "info@safeplaces.sa",
-    "BETTER_AUTH_URL": "https://safeplaces-preview.pages.dev"
+    "BETTER_AUTH_URL": "https://safeplaces-preview.pages.dev",
+    "EMAIL_PASSWORD_ENABLED": "true",
+    "AUTH_EMAIL_FROM": "info@safeplaces.sa"
   },
   "triggers": {
     "crons": [
       "*/5 * * * *"
     ]
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AUTH_PASSWORD_HASHER",
+        "class_name": "PasswordHasher"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "auth-password-v1",
+      "new_sqlite_classes": [
+        "PasswordHasher"
+      ]
+    }
+  ]
 }

@@ -21,6 +21,7 @@ export const authSession=sqliteTable('auth_session',{
  expiresAt:integer('expires_at',{mode:'timestamp_ms'}).notNull(),
  ipAddress:text('ip_address'),
  userAgent:text('user_agent'),
+ authMethod:text('auth_method').notNull().default('unknown'),
  createdAt:integer('created_at',{mode:'timestamp_ms'}).notNull(),
  updatedAt:integer('updated_at',{mode:'timestamp_ms'}).notNull()
 },t=>[index('auth_session_user_idx').on(t.userId)]);
