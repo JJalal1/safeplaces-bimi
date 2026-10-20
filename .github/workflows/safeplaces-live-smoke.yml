@@ -1,0 +1,32 @@
+name: Safe Places live domain smoke
+
+on:
+  push:
+    branches: [feature/auth-speed-seo-before-hosting]
+    paths: ['.github/workflows/safeplaces-live-smoke.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect live DNS and HTTPS without submitting forms
+        run: |
+          node --input-type=module <<'NODE'
+          const dns=[['NS','safeplaces.sa'],['DS','safeplaces.sa'],['A','safeplaces.sa'],['AAAA','safeplaces.sa'],['MX','safeplaces.sa'],['A','www.safeplaces.sa']];
+          for(const [type,name] of dns){
+            const u=new URL('https://dns.google/resolve');u.searchParams.set('name',name);u.searchParams.set('type',type);
+            try {const r=await fetch(u,{signal:AbortSignal.timeout(12000)});const j=await r.json();console.log(JSON.stringify({dns:name,type,rcode:j.Status,answers:(j.Answer||[]).map(x=>x.data)}));}
+            catch(e){console.log(JSON.stringify({dns:name,type,error:String(e)}));}
+          }
+          for(const path of ['https://safeplaces.sa/','https://safeplaces.sa/ar','https://safeplaces.sa/en','https://safeplaces.sa/ar/shop','https://safeplaces.sa/ar/quote','https://safeplaces.sa/robots.txt','https://safeplaces.sa/sitemap.xml','https://www.safeplaces.sa/ar']){
+            try{
+              const r=await fetch(path,{redirect:'manual',signal:AbortSignal.timeout(15000)});
+              const txt=(await r.text()).slice(0,200);
+              console.log(JSON.stringify({url:path,status:r.status,location:r.headers.get('location'),type:r.headers.get('content-type'),robots:r.headers.get('x-robots-tag'),body_start:txt.replace(/[\r\n]/g,' ')}));
+            }catch(e){console.log(JSON.stringify({url:path,error:String(e)}));}
+          }
+          NODE
