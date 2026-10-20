@@ -1,0 +1,102 @@
+name: Safe Places Google token exchange diagnosis
+
+on:
+  push:
+    branches: [feature/auth-speed-seo-before-hosting]
+    paths: ['.github/workflows/safeplaces-google-exchange-diagnostic.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safeplaces-google-exchange-diagnosis
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exercise token exchange with a synthetic invalid code and private test state
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import {randomUUID} from 'node:crypto';
+          const origin = 'https://safeplaces.sa';
+          let step = 'start';
+          let status = null;
+          function ensure(condition) {
+            if (!condition) throw new Error('DIAGNOSTIC_CHECK_FAILED');
+          }
+          try {
+            const start = await fetch(origin + '/api/auth/sign-in/social', {
+              method: 'POST',
+              redirect: 'manual',
+              headers: {
+                Origin: origin,
+                'Content-Type': 'application/json',
+                'Sec-Fetch-Site': 'same-origin',
+              },
+              body: JSON.stringify({
+                provider: 'google',
+                callbackURL: '/ar/account',
+                newUserCallbackURL: '/ar/account',
+                errorCallbackURL: '/ar/account/login',
+                disableRedirect: true,
+              }),
+              signal: AbortSignal.timeout(15000),
+            });
+            status = start.status;
+            ensure(status === 200);
+            const body = await start.json();
+            ensure(body?.redirect === false && typeof body.url === 'string');
+            const authorizationURL = new URL(body.url);
+            ensure(authorizationURL.origin === 'https://accounts.google.com');
+            ensure(authorizationURL.searchParams.get('redirect_uri') ===
+              origin + '/api/auth/callback/google');
+            const state = authorizationURL.searchParams.get('state');
+            ensure(Boolean(state));
+            const cookies = start.headers.getSetCookie().filter(
+              value => value.startsWith('__Secure-better-auth.state='),
+            );
+            ensure(cookies.length === 1);
+            const cookie = cookies[0].split(';', 1)[0];
+            step = 'synthetic_callback';
+            const callback = new URL('/api/auth/callback/google', origin);
+            callback.searchParams.set('state', state);
+            callback.searchParams.set('code', 'safeplaces-invalid-diagnostic-' + randomUUID());
+            const result = await fetch(callback, {
+              redirect: 'manual',
+              headers: {Cookie: cookie},
+              signal: AbortSignal.timeout(15000),
+            });
+            status = result.status;
+            ensure([302, 303].includes(status));
+            const location = result.headers.get('location');
+            ensure(typeof location === 'string');
+            const destination = new URL(location, origin);
+            ensure(destination.origin === origin);
+            ensure(destination.pathname === '/ar/account/login');
+            const error = destination.searchParams.get('error');
+            const known = new Set([
+              'invalid_code', 'state_mismatch', 'state_not_found',
+              'state_invalid', 'invalid_state', 'state_error',
+              'code_verifier_not_found',
+            ]);
+            console.log(JSON.stringify({
+              step,
+              status,
+              callback_error: known.has(error) ? error : 'unclassified',
+              diagnostic_completed: true,
+              real_sign_in_verified: false,
+            }));
+            await result.body?.cancel();
+          } catch {
+            console.error(JSON.stringify({step, status, diagnostic_completed:false}));
+            process.exitCode = 1;
+          }
+          NODE
