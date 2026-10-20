@@ -1,0 +1,39 @@
+name: Safe Places public login readiness (read-only)
+on:
+  push:
+    branches: [feature/auth-speed-seo-before-hosting]
+    paths: ['.github/workflows/safeplaces-login-readiness-diagnostic.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  login:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect anonymous production login without showing sensitive data
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const urls=[
+            'https://safeplaces.sa/ar',
+            'https://safeplaces.sa/ar/account/login?return_to=%2Far%2Fadmin&reason=admin',
+            'https://safeplaces.sa/ar/admin',
+            'https://safeplaces.sa/api/auth/ok',
+            'https://safeplaces.sa/api/auth/get-session',
+            'https://safeplaces.sa/api/session?scope=customer',
+          ];
+          for(const url of urls){
+            try{
+              const response=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(14000)});
+              const body=(await response.text()).slice(0,200000);
+              console.log(JSON.stringify({
+                pathname:new URL(url).pathname,
+                status:response.status,
+                hasGoogleLogin:body.includes('المتابعة باستخدام Google')||body.includes('Continue with Google'),
+                hasAuthNotConfigured:body.includes('AUTH_NOT_CONFIGURED')||body.includes('تسجيل الدخول بالحسابات لم يُفعّل بعد')||body.includes('دخول الإدارة عبر Google بانتظار استكمال'),
+                hasAdminButtonDisabled:body.includes('الدخول متاح بعد التفعيل')||body.includes('تفعيل تسجيل الدخول قيد الاستكمال'),
+                responseClass:body.includes('AUTH_NOT_CONFIGURED')?'AUTH_NOT_CONFIGURED':body.includes('AUTH_UNAVAILABLE')?'AUTH_UNAVAILABLE':body.includes('RATE_LIMIT')?'RATE_LIMIT':'other'
+              }));
+            }catch(error){console.log(JSON.stringify({pathname:new URL(url).pathname,error:String(error)}));}
+          }
+          NODE
