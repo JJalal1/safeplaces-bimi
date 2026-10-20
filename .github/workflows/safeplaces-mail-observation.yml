@@ -1,0 +1,46 @@
+name: Verify and clean the production authentication mail fixture
+on:
+  push:
+    branches: [fix/auth-mail-observation]
+    paths:
+      - '.github/workflows/safeplaces-mail-observation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: safeplaces-production-locked
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.ref == 'refs/heads/fix/auth-mail-observation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_D1_READ_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Guard the exact existing nonhuman test account
+        run: node .github/diagnostics/cleanup-fixture.mjs preflight
+      - name: Observe one verification email without exposing tokens or requests
+        run: node .github/diagnostics/check-mail-runtime.mjs
+      - name: Remove the owned unused test account with atomic guards
+        if: always()
+        run: node .github/diagnostics/cleanup-fixture.mjs cleanup
+      - name: Close the earlier unused temporary log channel
+        if: always()
+        run: node .github/diagnostics/check-mail-runtime.mjs cleanup-tail
+      - name: Preserve sanitized verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: authentication-mail-observation
+          path: |
+            auth-mail-preflight.json
+            auth-mail-observation.json
+            auth-mail-cleanup.json
+            auth-mail-tail-cleanup.json
+          if-no-files-found: error
+          retention-days: 3
