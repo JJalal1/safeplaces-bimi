@@ -84,6 +84,8 @@ jobs:
         run: node scripts/check-email-auth-release.mjs production protect-logs
       - name: Verify live customer forms and password RPC without sending mail
         run: node scripts/check-live-email-auth.mjs
+      - name: Request one synthetic verification email
+        run: node scripts/check-live-auth-mail.mjs
       - name: Verify public login labels, SEO and quotation page
         run: |
           node --input-type=module <<'NODE'

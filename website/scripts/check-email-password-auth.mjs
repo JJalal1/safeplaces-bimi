@@ -75,7 +75,14 @@ async function send(path,{body,raw,stream=false,cookie='',ip='192.0.2.10',worker
 }
 async function reply(path,options={},status=200){
  const response=await send(path,options);
- check(response.status===status,'expected_http_status_'+status);
+ if(response.status!==status){
+  let category='unclassified_response';
+  try{
+   const data=await response.clone().json(),code=data?.code||data?.error;
+   if(['RATE_LIMIT','INVALID_ORIGIN','INVALID_REQUEST','INVALID_EMAIL','INVALID_NAME','AUTH_UNAVAILABLE','AUTH_NOT_CONFIGURED','EMAIL_PASSWORD_DISABLED','EMAIL_NOT_VERIFIED','INVALID_EMAIL_OR_PASSWORD','INVALID_TOKEN'].includes(code))category=code;
+  }catch{category='non_json_response';}
+  check(false,'expected_http_status_'+status+'_received_'+response.status+'_'+category);
+ }
  check(/no-store/.test(response.headers.get('cache-control')||''),'private_response_not_cached');
  return response;
 }
@@ -160,7 +167,10 @@ try{
    STANDALONE_AUTH_ENABLED:'true',CUSTOMER_AUTH_ENABLED:'false',ADMIN_BOOTSTRAP_PRIVATE:'false',
    EMAIL_PASSWORD_ENABLED:'true',EMAIL_NOTIFICATIONS_ENABLED:'false',BETTER_AUTH_URL:origin,BETTER_AUTH_SECRET:authSecret,
    RESEND_API_KEY:resendKey,AUTH_EMAIL_FROM:'info@safeplaces.sa',STANDALONE_ADMIN_USER_ID:fakeOwnerId,STANDALONE_ADMIN_EMAIL:alice.email},outboundService:outbound};
- mf=new Miniflare({workers:[{name:'email-auth-primary',...common},{name:'email-auth-peer',...common}],d1Persist:false,r2Persist:false,durableObjectsPersist:false,cf:false,host:'127.0.0.1',port:0,log:new FixtureLog()});
+ // getWorker().fetch uses Miniflare's protected /cdn-cgi proxy. Register the
+ // exact fixture origin so that proxy accepts its POST Origin before forwarding
+ // to the peer; the application's own origin and shared-D1 checks still run.
+ mf=new Miniflare({workers:[{name:'email-auth-primary',...common,routes:[origin+'/*']},{name:'email-auth-peer',...common}],d1Persist:false,r2Persist:false,durableObjectsPersist:false,cf:false,host:'127.0.0.1',port:0,log:new FixtureLog()});
  db=await mf.getD1Database('DB','email-auth-primary');bucket=await mf.getR2Bucket('BUCKET','email-auth-primary');peer=await mf.getWorker('email-auth-peer');
  for(const migration of readdirSync('drizzle').filter(name=>name.endsWith('.sql')).sort())
   for(const sql of readFileSync(join('drizzle',migration),'utf8').replace(/^\s*--.*$/gm,'').split(';').filter(sql=>sql.trim()))await db.prepare(sql).run();
@@ -282,19 +292,25 @@ try{
  // Avoid a wall-clock boundary splitting the isolated fixed-window fixture.
  if(Date.now()%600000>595000)await delay(5100);
  const mailTarget='limited@safeplaces-auth.example.test',mailBefore=outboundAttempts;
- for(let i=0;i<6;i++)await json('/api/auth/request-password-reset',{body:{email:i%2?mailTarget.toUpperCase():mailTarget,redirectTo:resetTarget},ip:'198.51.100.'+(i+1),worker:i%2});
+ for(let i=0;i<6;i++){
+  phase='distributed mail target limit / attempt '+(i+1)+' / worker '+(i%2);
+  await json('/api/auth/request-password-reset',{body:{email:i%2?mailTarget.toUpperCase():mailTarget,redirectTo:resetTarget},ip:'198.51.100.'+(i+1),worker:i%2});
+ }
+ phase='distributed mail target rejection';
  await errorCode('/api/auth/request-password-reset',{body:{email:mailTarget,redirectTo:resetTarget},ip:'198.51.100.20',worker:1},429,'RATE_LIMIT');
  const targetKey=rateKey('mail-target',mailTarget,3600);
  check((await db.prepare('SELECT count FROM rate_limits WHERE key=?').bind(targetKey).first())?.count===7,'mail_target_limit_is_shared_and_case_normalized');
  check(outboundAttempts===mailBefore,'unknown_or_throttled_targets_never_send_mail');
  // Seed only counters already created by a real request, avoiding repeated
  // password hashing or bulk mail while checking enforcement in the peer.
+ phase='distributed mail IP limit';
  const mailIp='203.0.113.40';
  await json('/api/auth/request-password-reset',{body:{email:'ip-fixture@safeplaces-auth.example.test',redirectTo:resetTarget},ip:mailIp});
  const mailIpKey=rateKey('mail-ip',mailIp,600);
  check(!!await db.prepare('SELECT key FROM rate_limits WHERE key=?').bind(mailIpKey).first(),'ip_bucket_uses_secret_hmac');
  await db.prepare('UPDATE rate_limits SET count=10 WHERE key=?').bind(mailIpKey).run();
  await errorCode('/api/auth/request-password-reset',{body:{email:'other-ip-fixture@safeplaces-auth.example.test',redirectTo:resetTarget},ip:mailIp,worker:1},429,'RATE_LIMIT');
+ phase='distributed password IP and pair limits';
  const guessIp='203.0.113.50',wrongPassword='Local deliberately incorrect passphrase';
  await errorCode('/api/auth/sign-in/email',{body:{email:bob.email,password:wrongPassword},ip:guessIp},401,'INVALID_EMAIL_OR_PASSWORD');
  const pairKey=rateKey('password-pair',guessIp+'\0'+bob.email,600),ipKey=rateKey('password-ip',guessIp,600);

@@ -81,6 +81,7 @@ html[dir=rtl] .customer-login-back > svg { transform:rotate(180deg); }
 .customer-auth-divider { display:flex; align-items:center; gap:12px; margin:22px 0; color:#627180; font-size:12px; line-height:1.8; text-align:center; }
 .customer-auth-divider::before,.customer-auth-divider::after { content:""; height:1px; flex:1; background:#e1e8ee; }
 .customer-auth-divider span { max-width:75%; }
+.customer-login-card #customer-password-help { margin-block:7px 18px; line-height:1.8; }
 .customer-login-card > .customer-auth-verified { display:flex; align-items:flex-start; gap:8px; padding:13px 15px; margin:0 0 20px; border:1px solid #c9e3d7; border-radius:6px; color:#28634e; background:#f1f7f4; font-size:13px; text-align:start; }
 .customer-auth-verified svg { flex:none; margin-top:3px; }
 .customer-auth-verify-link { display:block; width:fit-content; max-width:100%; min-height:44px; padding-block:10px; margin-block:4px 14px; color:var(--brand-blue); font-size:13px; line-height:1.8; text-decoration:underline; text-underline-offset:3px; }

@@ -27,7 +27,8 @@ Administration additionally requires a server-recorded successful Google callbac
 3. Verify the target and recorded migration through `check-email-auth-release.mjs`. A recovery bookmark is not an independent exported backup and does not satisfy that later handover requirement.
 4. Release through `safeplaces-auth-buttons-deploy.yml`. Historical production workflows are disabled because they could close the public site or restore conflicting indexing flags. Public pages, bilingual indexing, quotation-only commerce and existing credentials are preserved.
 5. Keep invocation logs and traces disabled. Query redaction alone cannot remove recovery tokens embedded in URL paths. Only fixed authentication diagnostic categories and fixed mail-acceptance messages are emitted.
-6. Run `check-live-email-auth.mjs`. Its nonexistent-account sign-in exercises the deployed password RPC, must return 401, and creates no account or email. Provider acceptance and a recipient's actual inbox receipt are separate evidence.
+6. Run `check-live-email-auth.mjs`. Its nonexistent-account sign-in exercises the deployed password RPC, must return 401, and creates no account or email.
+7. Run `check-live-auth-mail.mjs` once in the production release. It requests verification for the nonhuman Resend simulator address `delivered+safeplaces-auth-<commit12>@resend.dev`. It prints only that fixture address, its returned UUID and the Cloudflare ray, labelled `REQUESTED`. Confirm the exact UUID/email in D1 and correlate the ray with the fixed `email/verification_accepted` diagnostic, then remove only that owned unverified fixture. A duplicate-account response alone does not prove a new message was queued. Provider acceptance and an actual recipient's inbox receipt remain separate evidence.
 
 ## Remaining handover gates
 

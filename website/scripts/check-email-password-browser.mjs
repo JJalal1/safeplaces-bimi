@@ -69,25 +69,33 @@ async function visit(page,instance,path){
 }
 async function capture(page,lang,width,name){
  await stable(page);
- const view=await page.evaluate(()=>({language:document.documentElement.lang,direction:document.documentElement.dir,width:innerWidth,scrollWidth:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth),headings:document.querySelectorAll('main h1').length}));
+ const view=await page.evaluate(()=>{
+  const help=document.getElementById('customer-password-help'),field=help?.previousElementSibling?.querySelector('.customer-auth-input');
+  return {language:document.documentElement.lang,direction:document.documentElement.dir,width:innerWidth,scrollWidth:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth),headings:document.querySelectorAll('main h1').length,passwordHelpGap:help&&field?help.getBoundingClientRect().top-field.getBoundingClientRect().bottom:null};
+ });
  assert.equal(view.language,lang,name+' language');
  assert.equal(view.direction,lang==='ar'?'rtl':'ltr',name+' text direction');
  assert.equal(view.headings,1,name+' main heading');
  assert.ok(view.scrollWidth<=width+2,name+' must fit the viewport');
+ if(view.passwordHelpGap!==null)assert.ok(view.passwordHelpGap>=4,name+' password guidance must be separated from the input border');
  await page.evaluate(()=>window.scrollTo({top:0,left:0,behavior:'instant'}));
  const filename='email-password-'+lang+'-'+width+'-'+name+'.png';
  await page.screenshot({path:join(screenshots,filename),fullPage:true,animations:'disabled',mask:[page.locator('input[name="password"],input[name="confirmPassword"]')],timeout:20000});
  report.screenshots.push('screenshots/'+filename);
 }
 async function submit(page,path,button,status=200){
- const pending=page.waitForResponse(response=>new URL(response.url()).pathname===path&&response.request().method()==='POST',{timeout:45000});
+ // Read the response while the click is still running: a successful sign-in
+ // immediately navigates, and Chromium may discard its body by the time
+ // locator.click() has finished waiting for that navigation.
+ const pending=page.waitForResponse(response=>new URL(response.url()).pathname===path&&response.request().method()==='POST',{timeout:45000}).then(async response=>{
+  assert.equal(response.status(),status,'The '+path+' response has the expected status');
+  // Return the code only. Better Auth responses can include session tokens.
+  const body=await response.json();
+  return {code:typeof body?.code==='string'?body.code:typeof body?.error==='string'?body.error:null};
+ });
  void pending.catch(()=>{});
  await page.getByRole('button',{name:button,exact:true}).click();
- const response=await pending;
- assert.equal(response.status(),status,'The '+path+' response has the expected status');
- // Return the code only. Better Auth responses can include session tokens.
- const body=await response.json();
- return {code:typeof body?.code==='string'?body.code:typeof body?.error==='string'?body.error:null};
+ return pending;
 }
 async function sessionState(page){
  return page.evaluate(async()=>{
