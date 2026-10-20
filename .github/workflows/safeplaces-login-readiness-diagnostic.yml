@@ -18,16 +18,18 @@ jobs:
             'https://safeplaces.sa/ar',
             'https://safeplaces.sa/ar/account/login?return_to=%2Far%2Fadmin&reason=admin',
             'https://safeplaces.sa/ar/admin',
+            'https://safeplaces.sa/api/auth-readiness-probe',
             'https://safeplaces.sa/api/auth/ok',
             'https://safeplaces.sa/api/auth/get-session',
             'https://safeplaces.sa/api/session?scope=customer',
           ];
           for(const url of urls){
             try{
-              const response=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(14000)});
+              const response=await fetch(url,{redirect:'manual',headers:url.includes('auth-readiness-probe')?{'x-safeplaces-probe':'safeplaces-7cb9d265-20261020-authcheck'}:{},signal:AbortSignal.timeout(14000)});
               const body=(await response.text()).slice(0,200000);
               console.log(JSON.stringify({
                 pathname:new URL(url).pathname,
+                authProbe:url.includes('auth-readiness-probe')&&response.status===200?JSON.parse(body):undefined,
                 status:response.status,
                 hasGoogleLogin:body.includes('المتابعة باستخدام Google')||body.includes('Continue with Google'),
                 hasAuthNotConfigured:body.includes('AUTH_NOT_CONFIGURED')||body.includes('تسجيل الدخول بالحسابات لم يُفعّل بعد')||body.includes('دخول الإدارة عبر Google بانتظار استكمال'),
