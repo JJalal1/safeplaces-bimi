@@ -1,0 +1,48 @@
+name: Diagnose Safe Places post-cutover DNS
+
+on:
+  push:
+    branches: [feature/auth-speed-seo-before-hosting]
+    paths: ['.github/workflows/safeplaces-dns-propagation-diagnostic.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-dns:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Google and Cloudflare public resolvers, then HTTPS
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const sources=[
+            ['Google','https://dns.google/resolve'],
+            ['Cloudflare','https://cloudflare-dns.com/dns-query'],
+          ];
+          const tests=[
+            ['safeplaces.sa','NS'],['safeplaces.sa','DS'],
+            ['safeplaces.sa','A'],['safeplaces.sa','AAAA'],
+            ['safeplaces.sa','MX'],
+            ['www.safeplaces.sa','A'],['www.safeplaces.sa','AAAA'],
+          ];
+          for(const [label,base] of sources){
+            for(const [name,type] of tests){
+              try{
+                const u=new URL(base);
+                u.searchParams.set('name',name);u.searchParams.set('type',type);
+                const r=await fetch(u,{headers:{accept:'application/dns-json'},signal:AbortSignal.timeout(10000)});
+                const j=await r.json();
+                const answers=(j.Answer||[]).map(x=>x.data);
+                console.log(JSON.stringify({resolver:label,name,type,http:r.status,rcode:j.Status,answers,authority:j.Authority?.length||0}));
+              }catch(e){console.log(JSON.stringify({resolver:label,name,type,error:String(e)}));}
+            }
+          }
+          for(const endpoint of ['https://safeplaces.sa/ar','https://www.safeplaces.sa/ar','https://safeplaces.sa/robots.txt']){
+            try{
+              const r=await fetch(endpoint,{redirect:'manual',signal:AbortSignal.timeout(12000)});
+              console.log(JSON.stringify({url:endpoint,status:r.status,location:r.headers.get('location'),content_type:r.headers.get('content-type'),robots_header:r.headers.get('x-robots-tag')}));
+            }catch(e){console.log(JSON.stringify({url:endpoint,error:String(e)}));}
+          }
+          NODE
