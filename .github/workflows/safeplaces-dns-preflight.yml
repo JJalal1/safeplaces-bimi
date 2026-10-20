@@ -34,7 +34,7 @@ jobs:
             const json = await response.json();
             assert.equal(json.Status,0,label+' '+type+' DNS response must be NOERROR');
             const typeCode = {DS:43,NS:2,MX:15}[type];
-            return (json.Answer||[]).filter(row=>row.type===typeCode).map(row=>String(row.data).toLowerCase().replace(/\\.$/,''));
+            return (json.Answer||[]).filter(row=>row.type===typeCode).map(row=>String(row.data).toLowerCase().trim().replace(/^\\d+\\s+/, '').replace(/\\.$/,''));
           }
           let allGood = true;
           for (const [label,base] of providers) {
