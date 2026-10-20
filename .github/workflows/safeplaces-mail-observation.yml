@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '24'}
-      # SQL failures expose fixed categories and known schema names only.
+      # Unknown errors from the pinned read-only query get a bounded redacted diagnostic.
       - name: Guard the exact existing nonhuman test account
         run: node .github/diagnostics/cleanup-fixture.mjs preflight
       - name: Observe one verification email without exposing tokens or requests

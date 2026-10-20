@@ -124,6 +124,24 @@ export function classifyCloudflareError(envelope) {
   return {category: 'cloudflare_error_unclassified', api_error_code: apiErrorCode, table: null, column: null};
 }
 
+// Only the pinned, read-only fixture-count query can expose this bounded
+// diagnostic. It cannot return account data. Credentials, links, quoted
+// values and opaque identifiers are removed before any text leaves memory.
+export function describeOwnedQueryFailure(envelope, credential) {
+  const item = Array.isArray(envelope?.errors)
+    ? envelope.errors.find(value => Number(value?.code) === 7500) : null;
+  if (typeof item?.message !== 'string') return null;
+  return item.message.slice(0, 4096)
+    .replaceAll(credential, '[credential]')
+    .replace(/\bBearer\s+\S+/gi, '[credential]')
+    .replace(/https?:\/\/[^\s"'<>]+/gi, '[url]')
+    .replace(/[A-Za-z0-9.+_-]+@[A-Za-z0-9.-]+/g, '[email]')
+    .replace(/"[^"]*"|'[^']*'|\x60[^\x60]*\x60/g, '[quoted]')
+    .replace(/[A-Za-z0-9_\/+=-]{24,}/g, '[opaque]')
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ').slice(0, 512);
+}
+
 class SafeFailure extends Error {
   constructor(category, status = 'blocked', exitCode = 2) {
     super(category);
@@ -263,6 +281,10 @@ export async function runFixture(mode, {fetchImplementation = globalThis.fetch, 
         let rejectedEnvelope;
         try { rejectedEnvelope = await response.json(); } catch { /* Never log a raw response. */ }
         report.diagnostic = classifyCloudflareError(rejectedEnvelope);
+        if (!isDelete && statement === plan.preflight && response.status === 400
+            && ['cloudflare_error_unclassified', 'sql_error_unclassified'].includes(report.diagnostic.category)) {
+          report.diagnostic_detail = describeOwnedQueryFailure(rejectedEnvelope, token);
+        }
         if (response.status === 403 || response.status === 401) {
           if (isDelete) report.counts.directly_deleted_rows = 0;
           block(response.status === 403 ? 'cloudflare_forbidden' : 'cloudflare_unauthorized');
