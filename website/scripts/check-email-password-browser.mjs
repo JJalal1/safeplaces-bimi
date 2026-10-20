@@ -84,12 +84,14 @@ async function capture(page,lang,width,name){
  report.screenshots.push('screenshots/'+filename);
 }
 async function submit(page,path,button,status=200){
- // Read the response while the click is still running: a successful sign-in
- // immediately navigates, and Chromium may discard its body by the time
- // locator.click() has finished waiting for that navigation.
+ // Start validation while the click is still running. Successful sign-in
+ // navigates immediately, so Chromium may discard its response body. Success
+ // is checked by HTTP status, the visible UI, the application session and D1
+ // below; only expected errors need their JSON code, and those do not navigate.
  const pending=page.waitForResponse(response=>new URL(response.url()).pathname===path&&response.request().method()==='POST',{timeout:45000}).then(async response=>{
   assert.equal(response.status(),status,'The '+path+' response has the expected status');
-  // Return the code only. Better Auth responses can include session tokens.
+  if(status<400)return {code:null};
+  // Never read a successful auth body, which can contain session tokens.
   const body=await response.json();
   return {code:typeof body?.code==='string'?body.code:typeof body?.error==='string'?body.error:null};
  });
