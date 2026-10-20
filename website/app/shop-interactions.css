@@ -214,3 +214,25 @@
   .site-header.marketplace-header .brand-copy { display: none; }
   .site-header.marketplace-header .brand-logo { width: 41px; height: 40px; }
 }
+
+/* Direct login/logout actions for public visitors and signed-in accounts. */
+.topbar-links .site-auth-topbar,
+.topbar-links .site-auth-topbar-login {
+  display:inline-flex;align-items:center;gap:6px;border:0;padding:5px;
+  background:transparent;color:inherit;font:inherit;cursor:pointer;white-space:nowrap;
+}
+.topbar-links .site-auth-topbar:disabled { opacity:.5;cursor:wait; }
+.mobile-account-actions { display:none; }
+@media(max-width:650px) {
+  .mobile-shopping-nav.has-logout { grid-template-columns:repeat(5,minmax(0,1fr)); }
+  .mobile-shopping-nav .site-auth-mobile { font-size:clamp(10px,2.6vw,12px);text-align:center; }
+  .mobile-shopping-nav .site-auth-mobile:disabled { opacity:.5;cursor:wait; }
+  .mobile-account-actions { display:flex;gap:10px;align-items:stretch;padding:12px 18px 0; }
+  .mobile-account-actions > :is(a,button) {
+    display:inline-flex;flex:1;align-items:center;justify-content:center;
+    gap:6px;min-height:44px;padding:8px;border:1px solid var(--brand-border);
+    border-radius:8px;background:#f5f8fc;color:var(--brand-blue);
+    font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+  }
+  .mobile-account-actions > button:disabled { opacity:.5;cursor:wait; }
+}
