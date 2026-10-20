@@ -222,10 +222,17 @@ async function signIn(page,instance,lang,email,password){
  await visit(page,instance,'/'+lang+'/account/login');
  await page.getByLabel(words[lang].email,{exact:true}).fill(email);
  await page.getByLabel(words[lang].password,{exact:true}).fill(password);
- await submit(page,'/api/auth/sign-in/email',words[lang].login);
- await page.waitForURL(url=>url.pathname==='/'+lang+'/account',{timeout:30000});
- await page.locator('.account-nav').waitFor({state:'visible'});
- assert.equal((await sessionState(page)).authenticated,true,'Email sign-in must establish an application session');
+ const target='/'+lang+'/account';let accountNavigations=0;
+ const navigation=request=>{if(request.isNavigationRequest()&&request.frame()===page.mainFrame()&&new URL(request.url()).pathname===target)accountNavigations++;};
+ page.on('request',navigation);
+ try{
+  await submit(page,'/api/auth/sign-in/email',words[lang].login);
+  await page.waitForURL(url=>url.pathname===target,{timeout:30000});
+  await page.locator('.account-nav').waitFor({state:'visible'});
+  assert.equal((await sessionState(page)).authenticated,true,'Email sign-in must establish an application session');
+  await page.waitForLoadState('networkidle');
+  assert.equal(accountNavigations,1,'Successful email sign-in must initiate exactly one main-frame navigation to the account');
+ }finally{page.off('request',navigation);}
 }
 async function signOut(page,lang,db,userId){
  const pending=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/auth/sign-out'&&response.request().method()==='POST');void pending.catch(()=>{});

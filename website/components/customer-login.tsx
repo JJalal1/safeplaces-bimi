@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useState,type FormEvent} from 'react';
+import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {LockKeyhole,Mail,Eye,EyeOff,UserRound,CheckCircle2,LoaderCircle,ShieldCheck,ChevronLeft,ShoppingBag,Heart} from 'lucide-react';
 import {local,type Lang} from '../lib/config';
 import {customerReturnPath} from '../lib/customer-routes';
@@ -30,6 +30,7 @@ function emailError(code:string,lang:Lang){
 }
 export function CustomerLogin({lang,mode='login',configured,previewHref,returnTo,reason='account',tokenHash='',socialProviders=[],standalone=false,emailPasswordEnabled=false,resetToken=''}:{lang:Lang;mode?:LoginMode;configured:boolean;previewHref?:string;returnTo?:string;reason?:string;tokenHash?:string;socialProviders?:string[];standalone?:boolean;emailPasswordEnabled?:boolean;resetToken?:string}){
  const [visible,setVisible]=useState(false),[busyAction,setBusyAction]=useState<'google'|'email'|null>(null),[error,setError]=useState(''),[done,setDone]=useState(''),[recoveryReady,setRecoveryReady]=useState(false);
+ const loginNavigation=useRef<'idle'|'submitting'|'navigating'>('idle');
  const [verified,setVerified]=useState(false),[needsVerification,setNeedsVerification]=useState(false),[resetLinkInvalid,setResetLinkInvalid]=useState(false);
  const busy=busyAction!==null,root='/'+lang,target=customerReturnPath(returnTo,lang);
  const adminTarget=reason==='admin'||/^\/(ar|en)\/admin(?:[/?#]|$)/.test(target);
@@ -51,7 +52,7 @@ export function CustomerLogin({lang,mode='login',configured,previewHref,returnTo
    if(emailLinkError&&displayMode==='login')setNeedsVerification(true);
    return;
   }
-  if(displayMode==='login'&&configured&&!adminTarget){let cancelled=false;api('session').then(result=>{if(!cancelled&&result.user&&(result.user.provider==='supabase'||result.user.provider==='standalone'))window.location.assign(target);}).catch(()=>{});return()=>{cancelled=true;};}
+  if(displayMode==='login'&&configured&&!adminTarget){let cancelled=false;api('session').then(result=>{if(!cancelled&&loginNavigation.current==='idle'&&result.user&&(result.user.provider==='supabase'||result.user.provider==='standalone')){loginNavigation.current='navigating';window.location.assign(target);}}).catch(()=>{});return()=>{cancelled=true;};}
  },[adminTarget,configured,displayMode,emailFormAvailable,emailPasswordEnabled,lang,standalone,target]);
  async function social(provider:string){
   if(!configured||busy||provider!=='google')return;setBusyAction('google');setError('');
@@ -62,13 +63,15 @@ export function CustomerLogin({lang,mode='login',configured,previewHref,returnTo
   }catch(error){setError(errorText(error,lang));setBusyAction(null);}
  }
  async function submit(event:FormEvent<HTMLFormElement>){
-  event.preventDefault();if(!configured||!emailFormAvailable||busy||resetUnavailable)return;setBusyAction('email');setError('');setNeedsVerification(false);
+  event.preventDefault();if(!configured||!emailFormAvailable||busy||resetUnavailable||loginNavigation.current!=='idle')return;if(displayMode==='login')loginNavigation.current='submitting';setBusyAction('email');setError('');setNeedsVerification(false);
   const form=new FormData(event.currentTarget),password=String(form.get('password')||''),email=String(form.get('email')||'').trim();
   try{
    if((displayMode==='register'||displayMode==='reset')&&password!==form.get('confirmPassword'))throw new Error('PASSWORD_MISMATCH');
    if(standalone){
     const callbackURL=path('login')+'&verified=1';
-    const result=displayMode==='login'?await authClient.signIn.email({email,password,callbackURL:target,rememberMe:true}):
+    // A callbackURL makes Better Auth's default redirect plugin navigate too.
+    // Email sign-in uses the single sanitized redirect below instead.
+    const result=displayMode==='login'?await authClient.signIn.email({email,password,rememberMe:true}):
      displayMode==='register'?await authClient.signUp.email({name:String(form.get('name')||'').trim(),email,password,callbackURL}):
      displayMode==='forgot'?await authClient.requestPasswordReset({email,redirectTo:path('reset')}):
      displayMode==='reset'?await authClient.resetPassword({newPassword:password,token:resetToken}):
@@ -84,9 +87,9 @@ export function CustomerLogin({lang,mode='login',configured,previewHref,returnTo
     if(displayMode==='reset'&&!recoveryReady){await api('auth/recovery-verify',{token_hash:tokenHash});setRecoveryReady(true);}
     await api('auth/'+(displayMode==='forgot'?'recover':displayMode==='reset'?'reset':displayMode==='confirm'?'confirm':displayMode),displayMode==='confirm'?{token_hash:tokenHash}:displayMode==='reset'?{password}:{email,password,name:form.get('name')});
    }
-   if(displayMode==='login'||displayMode==='confirm'){window.location.assign(target);return;}
+   if(displayMode==='login'||displayMode==='confirm'){loginNavigation.current='navigating';window.location.assign(target);return;}
    setDone(displayMode==='register'?registrationMessage:displayMode==='forgot'?local(lang,'إذا كان البريد مرتبطًا بحساب، ستصلك رسالة بخطوات الاستعادة. راجع البريد غير المرغوب فيه أيضًا.','If this email has an account, you will receive recovery instructions. Check your spam folder too.'):displayMode==='verify'?local(lang,'إذا كان هذا البريد يحتاج إلى تأكيد، فستصلك رسالة برابط جديد. افتح أحدث رسالة ثم سجّل الدخول.','If this email needs verification, you will receive a new link. Open the latest message, then sign in.'):local(lang,'تم تحديث كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.','Your password was updated. Sign in with your new password.'));
-  }catch(error){setError(standalone?emailError(error instanceof Error?error.message:'',lang):errorText(error,lang));}finally{setBusyAction(null);}
+  }catch(error){setError(standalone?emailError(error instanceof Error?error.message:'',lang):errorText(error,lang));}finally{if(loginNavigation.current==='submitting')loginNavigation.current='idle';setBusyAction(null);}
  }
  const otherLang=lang==='ar'?'en':'ar',otherTarget=target.replace(/^\/(ar|en)(?=\/|$)/,'/'+otherLang);
  const languageHref='/'+otherLang+'/account/'+(['confirm','reset'].includes(displayMode)?'login':displayMode)+'?return_to='+encodeURIComponent(otherTarget)+'&reason='+(adminTarget?'admin':reason==='checkout'||reason==='wishlist'?reason:'account');
