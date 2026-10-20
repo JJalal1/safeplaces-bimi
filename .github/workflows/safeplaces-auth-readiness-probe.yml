@@ -1,0 +1,57 @@
+name: Temporary private production auth preflight
+on:
+  push:
+    branches: [feature/auth-speed-seo-before-hosting]
+    paths: ['.github/workflows/safeplaces-auth-readiness-probe.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: safeplaces-production-locked
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: pnpm/action-setup@v4
+        with: {version: '11.25.0'}
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm exec tsc --noEmit --incremental false
+      - name: Deploy diagnostic with preserved public release flags
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: |
+          set -euo pipefail
+          pnpm run build:production
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';import {readFileSync,writeFileSync} from 'node:fs';
+          const p='dist/server/wrangler.json',c=JSON.parse(readFileSync(p,'utf8'));
+          assert.equal(c.name,'safeplaces-production');
+          assert.equal(c.vars?.PRODUCTION_LAUNCH_LOCKED,'true');
+          assert.equal(c.vars?.SITE_PUBLIC,'false');
+          assert.equal(c.vars?.SITE_INDEXABLE,'false');
+          assert.equal(c.vars?.EMAIL_NOTIFICATIONS_ENABLED,'false');
+          assert.equal(c.vars?.SITE_DEMO_PRICES,'false');
+          assert.equal(c.vars?.STANDALONE_AUTH_ENABLED,'true');
+          assert.equal(c.vars?.CUSTOMER_AUTH_ENABLED,'false');
+          assert.equal(c.d1_databases?.[0]?.database_id,'da06d822-b7ee-4a14-b3a5-7bcbc5839821');
+          c.vars.PRODUCTION_LAUNCH_LOCKED='false';c.vars.SITE_PUBLIC='true';c.vars.SITE_INDEXABLE='true';
+          writeFileSync(p,JSON.stringify(c,null,2)+'\n');
+          NODE
+          export CLOUDFLARE_API_TOKEN="$(node -e "process.stdout.write((process.env.CLOUDFLARE_API_TOKEN || '').replace(/\\s+/g,''))")"
+          pnpm exec wrangler deploy --config dist/server/wrangler.json
+      - name: Check runtime auth flags without printing any secret
+        run: |
+          node --input-type=module <<'NODE'
+          const r=await fetch('https://safeplaces.sa/api/auth-readiness-probe',{headers:{'x-safeplaces-probe':'safeplaces-7cb9d265-20261020-authcheck'},signal:AbortSignal.timeout(20000)});
+          if(!r.ok)throw Error('Probe endpoint HTTP '+r.status);
+          const j=await r.json();console.log('AUTH_RUNTIME_FLAGS '+JSON.stringify(j));
+          NODE
