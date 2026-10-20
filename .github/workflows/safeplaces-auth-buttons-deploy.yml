@@ -1,4 +1,4 @@
-name: Deploy Safe Places login and logout buttons
+name: Deploy Safe Places clear login and logout
 on:
   push:
     branches: [feature/auth-speed-seo-before-hosting]
