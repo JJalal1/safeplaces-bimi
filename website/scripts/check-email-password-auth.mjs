@@ -20,6 +20,20 @@ const messages=[],mockFailures=[];
 let outboundAttempts=0,signInSequence=0,phase='setup',failureCode='',mf,peer,db,bucket;
 function check(condition,code){if(!condition){failureCode=code;throw new Error('LOCAL_AUTH_ASSERTION_FAILED');}}
 function pass(name){console.log('PASS: '+name);}
+function exceptionCategory(error){
+ const own=(value,key)=>{try{const field=value&&typeof value==='object'?Object.getOwnPropertyDescriptor(value,key):null;return field&&'value' in field?field.value:undefined;}catch{return undefined;}};
+ const codes=new Map([
+  ['UND_ERR_REQ_CONTENT_LENGTH_MISMATCH','local_request_length_mismatch'],
+  ['UND_ERR_RES_CONTENT_LENGTH_MISMATCH','local_response_length_mismatch'],
+  ['UND_ERR_SOCKET','local_socket_failure'],['ECONNRESET','local_connection_reset'],
+  ['EPIPE','local_pipe_failure'],['ERR_RUNTIME_FAILURE','local_worker_runtime_failure']
+ ]);
+ const code=own(error,'code')||own(own(error,'cause'),'code');
+ if(codes.has(code))return codes.get(code);
+ if(error instanceof TypeError)return 'local_type_error';
+ if(error instanceof SyntaxError)return 'local_syntax_error';
+ return 'unexpected_local_runtime_failure';
+}
 class FixtureLog extends Log{
  constructor(){super(LogLevel.ERROR);}
  error(){console.error('Local authentication fixture runtime error');}
@@ -44,13 +58,19 @@ async function outbound(request){
  messages.push({recipient:input.to[0],purpose,url:link.href});
  return Response.json({id:'local-message-'+randomUUID()});
 }
-async function send(path,{body,raw,cookie='',ip='192.0.2.10',worker=0,headers={}}={}){
+async function send(path,{body,raw,stream=false,cookie='',ip='192.0.2.10',worker=0,headers={}}={}){
  const method=body===undefined&&raw===undefined?'GET':'POST';
  const h=new Headers({'cf-connecting-ip':ip});
  if(cookie)h.set('cookie',cookie);
  if(method==='POST'){h.set('origin',origin);h.set('content-type','application/json');}
  for(const [name,value] of Object.entries(headers))h.set(name,value);
- const options={method,redirect:'manual',headers:h,...(method==='POST'?{body:raw??JSON.stringify(body)}:{})};
+ let payload=raw??(body===undefined?undefined:JSON.stringify(body));
+ if(stream){
+  check(method==='POST'&&!h.has('content-length'),'stream_fixture_has_no_content_length');
+  const bytes=new TextEncoder().encode(payload);
+  payload=new ReadableStream({start(controller){controller.enqueue(bytes.subarray(0,8192));controller.enqueue(bytes.subarray(8192));controller.close();}});
+ }
+ const options={method,redirect:'manual',headers:h,...(method==='POST'?{body:payload,...(stream?{duplex:'half'}:{})}:{})};
  return worker?peer.fetch(new URL(path,origin).href,options):mf.dispatchFetch(new URL(path,origin).href,options);
 }
 async function reply(path,options={},status=200){
@@ -151,10 +171,15 @@ try{
  check(readiness.authConfigured===true&&readiness.emailPasswordEnabled===true&&readiness.socialProviders?.length===0,'email_auth_works_without_google_configuration');
  await json('/api/auth/ok');
  const guarded={name:'Local guarded customer',email:'guarded@safeplaces-auth.example.test',password:alice.password,callbackURL:'/en/account/login'};
+ phase='HTTP origin boundary';
  await reply('/api/auth/sign-up/email',{body:guarded,headers:{origin:'https://untrusted.example'}},403);
+ phase='HTTP external callback boundary';
  await reply('/api/auth/sign-up/email',{body:{...guarded,callbackURL:'https://untrusted.example/return'},ip:'192.0.2.13'},403);
  await reply('/api/auth/request-password-reset',{body:{email:guarded.email,redirectTo:'https://untrusted.example/return'},ip:'192.0.2.14'},403);
- await reply('/api/auth/sign-up/email',{raw:JSON.stringify({...guarded,padding:'x'.repeat(25*1024)}),headers:{'content-length':'2'}},413);
+ phase='HTTP streamed body boundary';
+ // A false Content-Length makes Undici reject the fixture before the Worker.
+ // Send a real body with unknown length so the Worker must enforce its byte cap.
+ await reply('/api/auth/sign-up/email',{raw:JSON.stringify({...guarded,padding:'x'.repeat(25*1024)}),stream:true},413);
  check(outboundAttempts===0&&mockFailures.length===0,'rejected_requests_do_not_send_email');
  check((await db.prepare('SELECT COUNT(*) AS n FROM auth_user').first()).n===0,'invalid_requests_do_not_create_accounts');
  pass('email-only readiness; bad origin, external return targets and actual oversized bodies fail before mail');
@@ -284,8 +309,8 @@ try{
  check(mockFailures.length===0&&outboundAttempts===messages.length,'all_worker_egress_was_approved_local_mail_only');
  pass('D1 throttles survive Worker and IP changes; password and mail limits use secret HMAC keys without raw identity data');
  pass('email/password API integration completed using temporary fixtures only');
-}catch{
- console.error('FAIL: email/password integration / '+phase+' / '+(failureCode||'unexpected_local_runtime_failure'));
+}catch(error){
+ console.error('FAIL: email/password integration / '+phase+' / '+(failureCode||exceptionCategory(error)));
  process.exitCode=1;
 }finally{
  if(mf)await mf.dispose();

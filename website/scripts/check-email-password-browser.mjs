@@ -140,7 +140,9 @@ async function startInstance(Miniflare,Log,LogLevel,modules,label,email){
  const resendKey=secret('local-resend-fixture-'+randomUUID());
  instance.mf=new Miniflare({
   name:'safeplaces-email-browser-'+label,modulesRoot:resolve('dist/server'),modules,
-  compatibilityDate:'2026-10-15',compatibilityFlags:['nodejs_compat'],
+  // Match the pinned Wrangler/Miniflare runtime used by the other CI suites.
+  // Production's compatibility date is configured separately and unchanged.
+  compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],
   d1Databases:{DB:'email-browser-'+randomUUID()},d1Persist:false,
   durableObjects:{AUTH_PASSWORD_HASHER:{className:'PasswordHasher',useSQLite:true}},
   durableObjectsPersist:false,
