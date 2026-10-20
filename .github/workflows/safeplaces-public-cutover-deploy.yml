@@ -1,0 +1,84 @@
+name: Prepare Safe Places public cutover (SEO held)
+
+on:
+  push:
+    branches:
+      - feature/auth-speed-seo-before-hosting
+    paths:
+      - '.github/workflows/safeplaces-public-cutover-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safeplaces-production-locked
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    uses: ./.github/workflows/website-validate.yml
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.25.0'
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Compile production bundle
+        run: pnpm run build:production
+      - name: Apply guarded public cutover profile to production bundle
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const source=JSON.parse(readFileSync('wrangler.production.jsonc','utf8'));
+          const path='dist/server/wrangler.json';
+          const built=JSON.parse(readFileSync(path,'utf8'));
+          for(const c of [source,built]){
+            assert.equal(c.name,'safeplaces-production');
+            assert.equal(c.vars?.SITE_PUBLIC,'false');
+            assert.equal(c.vars?.PRODUCTION_LAUNCH_LOCKED,'true');
+            assert.equal(c.vars?.SITE_INDEXABLE,'false');
+            assert.equal(c.vars?.EMAIL_NOTIFICATIONS_ENABLED,'false');
+            assert.equal(c.vars?.SITE_DEMO_PRICES,'false');
+            assert.equal(c.vars?.STANDALONE_AUTH_ENABLED,'true');
+            assert.equal(c.vars?.CUSTOMER_AUTH_ENABLED,'false');
+            assert.equal(c.vars?.ADMIN_BOOTSTRAP_PRIVATE,'false');
+            assert.equal(c.workers_dev,false);
+            assert.equal(c.preview_urls,false);
+            assert.ok(!c.route && !c.routes?.length);
+            assert.equal(c.d1_databases?.[0]?.database_id,'da06d822-b7ee-4a14-b3a5-7bcbc5839821');
+            assert.equal(c.r2_buckets?.[0]?.bucket_name,'safeplaces-production-private');
+          }
+          built.vars.PRODUCTION_LAUNCH_LOCKED='false';
+          built.vars.SITE_PUBLIC='true';
+          // SEO is a distinct post-cutover release step, after HTTPS and forms are smoke-tested.
+          built.vars.SITE_INDEXABLE='false';
+          built.vars.EMAIL_NOTIFICATIONS_ENABLED='false';
+          built.vars.SITE_DEMO_PRICES='false';
+          writeFileSync(path,JSON.stringify(built,null,2)+'\n');
+          console.log('PASS: live quote-only Worker prepared; payments/prices/email/indexing remain disabled; production D1/R2 and auth retained.');
+          NODE
+      - name: Validate public profile using Wrangler dry run
+        run: pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.json
+      - name: Deploy quote-only Worker for nameserver cutover
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          export CLOUDFLARE_API_TOKEN="$(node -e "process.stdout.write((process.env.CLOUDFLARE_API_TOKEN || '').replace(/\\s+/g,''))")"
+          pnpm exec wrangler deploy --config dist/server/wrangler.json
