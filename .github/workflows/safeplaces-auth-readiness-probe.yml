@@ -1,4 +1,4 @@
-name: Temporary private production auth preflight
+name: Safe Places auth diagnosis cleanup
 on:
   push:
     branches: [feature/auth-speed-seo-before-hosting]
@@ -48,10 +48,10 @@ jobs:
           NODE
           export CLOUDFLARE_API_TOKEN="$(node -e "process.stdout.write((process.env.CLOUDFLARE_API_TOKEN || '').replace(/\\s+/g,''))")"
           pnpm exec wrangler deploy --config dist/server/wrangler.json
-      - name: Check runtime auth flags without printing any secret
+      - name: Confirm temporary diagnostic removed
         run: |
           node --input-type=module <<'NODE'
-          const r=await fetch('https://safeplaces.sa/api/auth-readiness-probe',{headers:{'x-safeplaces-probe':'safeplaces-7cb9d265-20261020-authcheck'},signal:AbortSignal.timeout(20000)});
-          if(!r.ok)throw Error('Probe endpoint HTTP '+r.status);
-          const j=await r.json();console.log('AUTH_RUNTIME_FLAGS '+JSON.stringify(j));
+          const r=await fetch('https://safeplaces.sa/api/auth-readiness-probe',{signal:AbortSignal.timeout(20000)});
+          if(r.status!==404)throw Error('Temporary diagnostic must be inaccessible; got '+r.status);
+          console.log('PASS: temporary diagnostic not accessible.');
           NODE
