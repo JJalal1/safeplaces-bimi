@@ -1,0 +1,64 @@
+name: Verify Safe Places DNS cutover preflight
+
+on:
+  push:
+    branches:
+      - feature/auth-speed-seo-before-hosting
+    paths:
+      - '.github/workflows/safeplaces-dns-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dns-preflight:
+    name: Check parent DS, delegation and Zoho MX
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public DNS before nameserver change
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const providers = [
+            ['Google Public DNS','https://dns.google/resolve'],
+            ['Cloudflare DNS','https://cloudflare-dns.com/dns-query'],
+          ];
+          async function query(label,base,type) {
+            const url = new URL(base);
+            url.searchParams.set('name','safeplaces.sa');
+            url.searchParams.set('type',type);
+            const response = await fetch(url,{headers:{Accept:'application/dns-json'},signal:AbortSignal.timeout(10000)});
+            assert.equal(response.status,200,label+' '+type+' HTTP status');
+            const json = await response.json();
+            assert.equal(json.Status,0,label+' '+type+' DNS response must be NOERROR');
+            const typeCode = {DS:43,NS:2,MX:15}[type];
+            return (json.Answer||[]).filter(row=>row.type===typeCode).map(row=>String(row.data).toLowerCase().replace(/\\.$/,''));
+          }
+          let allGood = true;
+          for (const [label,base] of providers) {
+            for (const kind of ['DS','NS','MX']) {
+              const rows = await query(label,base,kind);
+              console.log(label+' '+kind+': '+(rows.join('; ')||'(none)'));
+              if (kind==='DS' && rows.length!==0) {
+                allGood=false;
+                console.error('BLOCK: parent DS record is present. Do not change nameservers until DNSSEC is coordinated.');
+              }
+              if (kind==='NS' && !rows.some(row=>row.includes('dnetns.com'))) {
+                allGood=false;
+                console.error('BLOCK: current nameserver delegation was not Dnet. Re-check the registrar.');
+              }
+              if (kind==='MX') {
+                for (const mx of ['mx.zoho.com','mx2.zoho.com','mx3.zoho.com']) {
+                  if (!rows.some(row=>row.endsWith(mx))) {
+                    allGood=false;
+                    console.error('BLOCK: Zoho MX missing from current public DNS: '+mx);
+                  }
+                }
+              }
+            }
+          }
+          assert.equal(allGood,true,'DNS cutover preflight failed');
+          console.log('PASS: parent DS absent at two resolvers; current Dnet delegation and Zoho MX confirmed.');
+          NODE
