@@ -29,4 +29,11 @@ jobs:
               console.log(JSON.stringify({url:path,status:r.status,location:r.headers.get('location'),type:r.headers.get('content-type'),robots:r.headers.get('x-robots-tag'),body_start:txt.replace(/[\r\n]/g,' ')}));
             }catch(e){console.log(JSON.stringify({url:path,error:String(e)}));}
           }
+          const robots=await fetch('https://safeplaces.sa/robots.txt');
+          const robotText=await robots.text();
+          const sitemap=await fetch('https://safeplaces.sa/sitemap.xml');
+          const sitemapText=await sitemap.text();
+          const indexable=robots.status===200 && robotText.includes('Allow: /') && !robotText.includes('Disallow: /\\n') && sitemap.status===200 && sitemapText.includes('https://safeplaces.sa/ar') && sitemapText.includes('https://safeplaces.sa/en') && robots.headers.get('x-robots-tag')!=='noindex, nofollow';
+          console.log(JSON.stringify({seo_live_indexable:indexable,robots_status:robots.status,sitemap_status:sitemap.status,robots_preview:robotText.slice(0,400),sitemap_has_ar:sitemapText.includes('https://safeplaces.sa/ar'),sitemap_has_en:sitemapText.includes('https://safeplaces.sa/en')}));
+          if(!indexable)process.exitCode=1;
           NODE
