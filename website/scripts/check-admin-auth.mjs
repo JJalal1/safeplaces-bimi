@@ -172,6 +172,43 @@ try{
  assert.equal(passwordOwnerSession.admin,false,'A matching owner UUID and email never elevate a password session');
  await json('/api/auth/update-session',{authMethod:'google'},passwordOwnerCookie,404);
  assert.equal((await json('/api/auth/get-session',undefined,passwordOwnerCookie)).session.authMethod,'password','Public session input cannot upgrade the authentication method');
+
+ // A valid customer session denied management is not an anonymous sign-in.
+ // Exercise the actual page guard and SSR output without weakening API access.
+ for(const lang of ['ar','en']){
+  const adminPath='/'+lang+'/admin';
+  for(const cookie of ['',cookies.unverified]){
+   const response=await send(adminPath,undefined,cookie),html=await response.text();
+   assert.equal(response.status,200);
+   assert.ok(html.includes('class="admin-entry"'));
+   assert.ok(!html.includes('class="admin-entry-account"'),'Anonymous or unverified sessions must not be presented as verified customers');
+   assert.ok(!html.includes('class="management-console"'));
+  }
+  for(const [cookie,person] of [[cookies.customer,people.customer],[passwordOwnerCookie,people.owner],[unknownOwnerCookie,people.owner]]){
+   const response=await send(adminPath,undefined,cookie),html=await response.text();
+   assert.equal(response.status,200);
+   assert.match(response.headers.get('cache-control')||'',/no-store/,'A page showing the current account must not be cached');
+   assert.ok(html.includes('data-admin-entry-state="access-denied"'),'A signed-in session lacking management access must receive an explicit denied state');
+   assert.ok(html.includes('class="admin-entry-account"')&&html.includes(person.email),'Show only the current verified customer account');
+   assert.ok(html.includes('class="admin-entry-account-reference"')&&html.includes('customer:'+person.id),'The collapsed support reference must identify exactly the current verified customer');
+   assert.ok(!/<details[^>]*class="admin-entry-account-reference"[^>]*\bopen(?:[=>\s])/.test(html),'The account reference should be collapsed initially');
+   if(person===people.customer){
+    assert.ok(!html.includes(people.owner.email),'Never disclose the configured owner email to another customer');
+    assert.ok(!html.includes(people.owner.id),'Never disclose the configured owner UUID to another customer');
+   }
+   assert.ok(html.includes(lang==='ar'?'تسجيل دخولك ناجح، لكن الجلسة الحالية':'You are signed in, but this session cannot access management.'));
+   assert.ok(html.includes('return_to='+encodeURIComponent(adminPath)+'&amp;reason=admin'),'Choosing the approved Google account must retain the management return target');
+   assert.ok(html.includes('href="/'+lang+'/account"'),'The customer can return to their working account');
+   assert.ok(!html.includes('class="management-console"'),'A customer or password/unknown owner session must never render management data');
+   await json('/api/admin/data',undefined,cookie,403);
+  }
+  const ownerPage=await send(adminPath,undefined,cookies.owner),ownerHtml=await ownerPage.text();
+  assert.equal(ownerPage.status,200);
+  assert.ok(ownerHtml.includes('class="management-console"'),'The configured owner with a Google session must still open management');
+  assert.ok(!ownerHtml.includes('data-admin-entry-state="access-denied"'));
+ }
+ console.log('PASS: bilingual management entry distinguishes signed-in denied sessions and preserves Google-only administration');
+
  const forged=cookies.owner.slice(0,-8)+'tampered';
  await json('/api/admin/data',undefined,forged,403);
  const expired=await session(people.owner,Date.now()-60000);
@@ -397,3 +434,4 @@ try{
  console.log('PASS: missing/mismatched cookies, expired state and replay denied; invalid_client remains a token-exchange error; all provider requests intercepted locally');
  console.log('PASS: authentication and administrative security regression completed with local fixtures only');
 }finally{await mf.dispose();}
+
