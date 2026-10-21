@@ -31,14 +31,14 @@
     "attachmentIdentifiersRetained": false
   },
   "administrationSignIn": {
-    "status": "ADMIN_LOGIN_LOOP_USER_REPORTED",
-    "source": "Subsequent user report relayed by the root.",
+    "status": "OWNER_BINDING_REPAIR_APPLIED_AWAITING_FRESH_GOOGLE_ACCEPTANCE",
+    "source": "Historical user loop report, later private visual account-reference review, and root-reported successful Cloudflare binding repair/readback.",
     "symptom": "Opening administration returns to login; completing Google sign-in still returns to login.",
     "independentlyReproduced": false,
     "rootCauseVerified": false,
     "ownerIdentityVerified": false,
     "privilegeAssignmentInferredFromScreenshot": false,
-    "investigationStage": "UI_REPAIR_DEPLOYED_AND_READBACK_VERIFIED_OWNER_ACCESS_UNKNOWN",
+    "investigationStage": "OWNER_BINDING_REPAIR_APPLIED_READBACK_VERIFIED_LIVE_ACCEPTANCE_PENDING",
     "sourceReview": {
       "callbackDestinationPreservesAdministrationPath": true,
       "confirmedUiDefect": "A verified signed-in customer rejected by adminUser was shown the anonymous sign-in gate.",
@@ -111,24 +111,117 @@
       "deploymentEvidenceSource": "Exact revision, jobs, all-step success and deployment-log versions independently verified by the root."
     },
     "actualLiveOwnerAccess": "UNKNOWN",
-    "reportedLoopAcceptance": "PENDING_VERIFICATION_WITH_INTENDED_OWNER",
-    "nextOwnerEvidence": "Signed-in user own email and support reference from the new administration access-denied page, supplied privately for verified intended-owner comparison. Actual identity values are not included in this repository record."
+    "reportedLoopAcceptance": "PENDING_FRESH_GOOGLE_MANAGEMENT_CONSOLE_ACCEPTANCE",
+    "nextOwnerEvidence": "Fresh Google sign-in with the intended account must display the actual management console. No additional identity values are required for the recorded binding repair.",
+    "historicalReportedStatus": "ADMIN_LOGIN_LOOP_USER_REPORTED",
+    "ownerIdentityVerificationMeaning": "The requested target account was identified privately and configured; actual live owner-session authorization has not yet been verified.",
+    "intendedOwnerIdentityIdentifiedPrivately": true,
+    "latestAccessDeniedScreenshot": {
+      "source": "Private visual review by the root and an independent reviewer of the user-supplied administration screenshot.",
+      "deployedSignedInAccessDeniedUiDisplayed": true,
+      "expandedOwnSupportReferenceDisplayed": true,
+      "intendedAccountIdentifiedPrivately": true,
+      "submittedOwnerIdFormatValidatedAgainstDeployedPolicy": true,
+      "screenshotPublished": false,
+      "accountDetailsRetainedInRepository": false,
+      "attachmentIdentifiersRetained": false,
+      "currentSessionAuthMethodEstablishedByScreenshot": false,
+      "previousOwnerSecretMismatchEstablishedByScreenshot": false,
+      "managementConsoleAccessEstablishedByScreenshot": false
+    },
+    "ownerBindingRepair": {
+      "status": "APPLIED_READBACK_VERIFIED_LIVE_ACCEPTANCE_PENDING",
+      "source": "Successful mutation and subsequent deployment/settings readback reported by the root from the recovered Cloudflare connector.",
+      "observedAtUtc": "2026-10-21T20:46:28.513Z",
+      "observedAtLocal": "2026-10-21T23:46:28.513+03:00",
+      "worker": "safeplaces-production",
+      "method": "PATCH",
+      "endpointTemplate": "/accounts/{account_id}/workers/scripts/safeplaces-production/secrets-bulk",
+      "httpStatus": 200,
+      "bindingNamesUpdated": [
+        "STANDALONE_ADMIN_USER_ID",
+        "STANDALONE_ADMIN_EMAIL"
+      ],
+      "identityValuesPublished": false,
+      "ownerIdSuppliedWithoutCustomerPrefix": true,
+      "ownerValuesSuppliedWithoutSurroundingWhitespace": true,
+      "previousSecretValuesRead": false,
+      "previousSecretMismatchProven": false,
+      "previousVersion": {
+        "id": "d48a65ff-dffa-4529-a383-b6b31568bbb7",
+        "trafficPercentage": 100
+      },
+      "newDeployment": {
+        "id": "54724e5f-76a6-4a2d-847b-f0dfa6532f80",
+        "createdAtUtc": "2026-10-21T20:46:25.837435Z",
+        "activeVersion": "3803bbb1-e9da-43cd-9db5-c8ca920cd6b6",
+        "activeTrafficPercentage": 100
+      },
+      "settingsReadback": {
+        "httpStatus": 200,
+        "ownerId": {
+          "count": 1,
+          "type": "secret_text",
+          "valueReadable": null,
+          "valueRead": false,
+          "valueReadabilityAssessment": "NOT_TESTED"
+        },
+        "ownerEmail": {
+          "count": 1,
+          "type": "secret_text",
+          "valueReadable": null,
+          "valueRead": false,
+          "valueReadabilityAssessment": "NOT_TESTED"
+        },
+        "completeBindingNameTypeInventoryUnchanged": true,
+        "nonSecretBindingValuesUnchanged": true,
+        "observabilityUnchanged": true,
+        "scope": "Name/type and non-secret metadata projection; no secret-text property was inspected."
+      },
+      "unrelatedSecretsOmittedFromMutation": true,
+      "applicationCodeUploaded": false,
+      "applicationRevision": "06a52e446a7841be6c91ec8b708dd770c0b17c56",
+      "stagingChanged": false,
+      "authorizationPolicyChanged": false,
+      "actualLiveOwnerAccess": "UNKNOWN",
+      "freshGoogleAcceptance": "PENDING",
+      "mutationRequestCount": 1,
+      "bindingOperationCount": 2,
+      "evidencePath": ".github/diagnostics/admin-owner/owner-binding-runtime-patch-evidence.json",
+      "additionalVersionReadback": {
+        "source": "Additional direct Cloudflare readback reported by the root and reviewed from its redacted JSON evidence.",
+        "observedAtUtc": "2026-10-21T20:47:56.004Z",
+        "observedAtLocal": "2026-10-21T23:47:56.004+03:00",
+        "httpStatuses": {
+          "beforeVersion": 200,
+          "afterVersion": 200,
+          "deployments": 200
+        },
+        "scriptEtagUnchanged": true,
+        "handlersUnchanged": true,
+        "runtimeUnchanged": true,
+        "expectedVersionServing100Percent": true,
+        "secretValuesReturned": false,
+        "actualOwnerBrowserAcceptance": "PENDING",
+        "evidencePath": ".github/diagnostics/admin-owner/owner-binding-version-readback-evidence.json"
+      }
+    }
   },
   "separateChecks": {
     "explicitPageReloadPersistence": "NOT_SEPARATELY_REPORTED",
     "logoutAndRelogin": "NOT_SEPARATELY_REPORTED",
     "sessionExpiry": "NOT_OBSERVED",
     "realEmailVerificationAndRecoveryInbox": "PENDING",
-    "ownerAuthorization": "UNDER_INVESTIGATION"
+    "ownerAuthorization": "OWNER_BINDING_APPLIED_AWAITING_FRESH_GOOGLE_ACCEPTANCE"
   },
   "scope": {
     "historicalReadbackEvidenceModified": false,
     "fullAuthenticationStageAccepted": false,
     "wholeWordPlanComplete": false,
-    "nextGate": "Verify the intended owner using privately supplied own email/support reference, verify actual live administrator access, then complete remaining authentication acceptance in Word-plan order."
+    "nextGate": "Confirm actual management-console access following fresh Google sign-in with the privately identified intended owner, then complete remaining authentication acceptance and Word-plan gates in order."
   },
-  "updatedAtUtc": "2026-10-21T20:28:53Z",
-  "updatedAtLocal": "2026-10-21T23:28:53.000+03:00",
+  "updatedAtUtc": "2026-10-21T20:48:43Z",
+  "updatedAtLocal": "2026-10-21T23:48:43.000+03:00",
   "ownerBindingReadback": {
     "sourceRevision": "401a9c88362028d420e1766023cbff716139e38d",
     "runId": 39669272088,
@@ -171,8 +264,10 @@
   },
   "diagnosticAccessLimits": {
     "administrationPageInSessionBrowser": "BROWSER_ACCESS_POLICY_FORBIDDEN",
-    "cloudflareConnector": "INTERNAL_ERROR",
-    "administratorFailureIndependentlyReproducedByTheseTools": false
+    "cloudflareConnector": "RECOVERED_FOR_OWNER_BINDING_REPAIR",
+    "administratorFailureIndependentlyReproducedByTheseTools": false,
+    "previousCloudflareConnectorResult": "INTERNAL_ERROR",
+    "browserObservationScope": "Current observation of the existing exact administration tab displays a session-browser network-policy refusal. The tab state was read without a new navigation or reload. This is not an authentication outcome, bot challenge or evidence of a website fault."
   },
   "applicationRevisionMeaning": "Customer acceptance baseline from the earlier deployed repair; not an assertion of current production revision after the administration deployment.",
   "postAdministrationDeploymentReadback": {
@@ -184,7 +279,7 @@
     "requestPlan": "Two production GETs for deployment/settings only; no D1 query.",
     "windowStartUtc": "2026-10-21T20:26:00Z",
     "windowEndUtc": "2026-10-21T20:45:00Z",
-    "workflowRemoval": "REMOVED_AS_PART_OF_THIS_CHECKPOINT_COMMIT",
+    "workflowRemoval": "REMOVED_IN_HISTORICAL_CHECKPOINT_ARCHIVE",
     "jobId": 119466659417,
     "allWorkflowStepsSucceeded": true,
     "observedAtUtc": "2026-10-21T20:27:38.538Z",
@@ -212,10 +307,58 @@
     },
     "ownerInterpretation": "Presence and type only; unreadable secret values do not establish owner identity, format, policy validity or signed-in account match.",
     "archive": {
-      "commitReference": "This checkpoint commit, with publisher verification of the temporary workflow deletion.",
+      "commitReference": "Historical checkpoint archive 078e27f3a443e956d5b18e8a57217b4608b0f951; the root verified temporary workflow deletion in that commit.",
       "readbackEvidencePath": ".github/diagnostics/admin-owner/admin-entry-post-deploy-readback-evidence.json",
       "offlineVerificationPath": ".github/diagnostics/admin-owner/offline-postdeploy-verification.json",
-      "historicalRawReadbackEvidenceModified": false
+      "historicalRawReadbackEvidenceModified": false,
+      "revision": "078e27f3a443e956d5b18e8a57217b4608b0f951"
+    },
+    "runtimeObservationScope": "Historical observation after the UI deployment and before the owner-binding configuration update; not the current version after that update."
+  },
+  "wordPlanGateOrder": [
+    {
+      "phase": "A",
+      "currentGate": "A5 fresh Google acceptance of actual owner management-console access after binding repair",
+      "remaining": [
+        "A6 non-owner isolation, private access, expiry and logout",
+        "A7 remaining devices and networks",
+        "Real email/password verification, sign-in, recovery and inbox acceptance"
+      ]
+    },
+    {
+      "phase": "B",
+      "prerequisite": "A accepted",
+      "remaining": [
+        "Live quote without creating an order",
+        "Events and notes, idempotency and isolation",
+        "Actual Zoho inbound and outbound",
+        "Resend From/Reply-To/DKIM while preserving Zoho",
+        "Outbox inspection",
+        "Planned business-notification test with actual inbox confirmation",
+        "Controlled enablement"
+      ]
+    },
+    {
+      "phase": "C",
+      "prerequisite": "Prior applicable acceptance gates completed",
+      "remaining": [
+        "Independent D1 export outside the account and restore test",
+        "Private R2 with two accounts",
+        "Cron after outbox and R2 acceptance",
+        "Consolidate deployment paths and disable unsafe historical paths"
+      ],
+      "migration0005": "Previously recorded complete"
+    },
+    {
+      "phase": "D",
+      "prerequisite": "Earlier required gates accepted",
+      "remaining": [
+        "Search Console ownership and sitemap",
+        "SEO, Core Web Vitals and structured data",
+        "Real networks and devices",
+        "Approved commercial claims and images",
+        "Final acceptance PR ready for merge"
+      ]
     }
-  }
+  ]
 }

@@ -1,0 +1,60 @@
+{
+  "observedAt": "2026-10-21T20:46:28.513Z",
+  "worker": "safeplaces-production",
+  "status": "OWNER_BINDING_PATCH_ACCEPTED",
+  "mutated": true,
+  "patch": {
+    "httpStatus": 200,
+    "success": true,
+    "operationCount": 2,
+    "bindingNames": [
+      "STANDALONE_ADMIN_USER_ID",
+      "STANDALONE_ADMIN_EMAIL"
+    ],
+    "identitySource": "user-provided expanded support-reference screenshot, independently transcribed",
+    "rawUuidFormatValidated": true,
+    "emailFormatValidated": true,
+    "previousSecretValuesRead": false
+  },
+  "before": {
+    "deploymentId": "b8b8e760-7631-448b-b784-142b1aa97a6b",
+    "versionId": "d48a65ff-dffa-4529-a383-b6b31568bbb7",
+    "trafficPercentage": 100
+  },
+  "after": {
+    "settingsStatus": 200,
+    "deploymentStatus": 200,
+    "ownerBindings": [
+      {
+        "name": "STANDALONE_ADMIN_USER_ID",
+        "count": 1,
+        "types": [
+          "secret_text"
+        ]
+      },
+      {
+        "name": "STANDALONE_ADMIN_EMAIL",
+        "count": 1,
+        "types": [
+          "secret_text"
+        ]
+      }
+    ],
+    "bindingInventoryUnchanged": true,
+    "nonSecretBindingsUnchanged": true,
+    "observabilityUnchanged": true,
+    "latestDeployment": {
+      "id": "54724e5f-76a6-4a2d-847b-f0dfa6532f80",
+      "created_on": "2026-10-21T20:46:25.837435Z",
+      "versions": [
+        {
+          "version_id": "3803bbb1-e9da-43cd-9db5-c8ca920cd6b6",
+          "percentage": 100
+        }
+      ]
+    }
+  },
+  "unrelatedSecretsOmittedFromPatch": true,
+  "applicationCodeNotUploaded": true,
+  "actualOwnerBrowserAcceptance": "PENDING"
+}
