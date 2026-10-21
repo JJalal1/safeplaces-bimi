@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-21T00:22:43Z",
+  "repository": "JJalal1/safeplaces-bimi",
+  "applicationCommit": "b50b0775a7f0f084e808d601b34984dc6bffa193",
+  "diagnosticCommit": "b7115385ba8b081fafdc220473f7c32ec01db79a",
+  "runId": 39520801955,
+  "jobId": 118963884556,
+  "runUrl": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39520801955",
+  "reports": [
+    {
+      "status": "READBACK_FAILED",
+      "worker": "safeplaces-production",
+      "window": {
+        "from": "2026-10-21T00:05:00.000Z",
+        "to": "2026-10-21T00:21:23.889Z",
+        "maximumMinutes": 30
+      },
+      "signInTestPerformed": false,
+      "googleSignInVerified": false,
+      "requestCount": 3,
+      "deployments": {
+        "ok": true,
+        "createdAt": "2026-10-20T23:20:11.322Z",
+        "versions": [
+          {
+            "id": "e52b6904-cf5e-457a-bb27-504cd46f7264",
+            "percentage": 100
+          }
+        ],
+        "shapeValid": true,
+        "matchesKnownVersion": true
+      },
+      "settings": {
+        "ok": true,
+        "googleClientId": "1065235547111-41hr2mvfp3191sdvbd8c1ma306jkcb78.apps.googleusercontent.com",
+        "betterAuthUrlMatchesExpected": true,
+        "googleClientSecret": {
+          "present": true,
+          "type": "secret_text"
+        }
+      },
+      "telemetry": {
+        "ok": false,
+        "category": "cloudflare_api_blocked",
+        "httpStatus": 403
+      }
+    }
+  ],
+  "interpretation": {
+    "configurationRead": "completed",
+    "latestHistoricalLogRead": "blocked_HTTP_403",
+    "newGoogleSignInVerified": false,
+    "latestAttemptFailureCause": "not_confirmed_by_this_readback",
+    "priorObservedFailure": "oauth_token/invalid_client",
+    "googleClientSecretValue": "not_read_or_changed",
+    "applicationChanges": "none",
+    "oneOffWorkflow": "removed_after_readback"
+  }
+}
