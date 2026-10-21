@@ -1,0 +1,80 @@
+{
+  "observedAt": "2026-10-21T20:57:07.713Z",
+  "worker": "safeplaces-production",
+  "settings": {
+    "success": true,
+    "httpStatus": 200,
+    "errorCodes": [],
+    "emailConfiguration": [
+      {
+        "name": "AUTH_EMAIL_FROM",
+        "count": 1,
+        "type": "plain_text",
+        "value": "info@safeplaces.sa"
+      },
+      {
+        "name": "NOTIFICATION_FROM",
+        "count": 1,
+        "type": "plain_text",
+        "value": "info@safeplaces.sa"
+      },
+      {
+        "name": "NOTIFICATION_REPLY_TO",
+        "count": 1,
+        "type": "plain_text",
+        "value": "info@safeplaces.sa"
+      },
+      {
+        "name": "EMAIL_NOTIFICATIONS_ENABLED",
+        "count": 1,
+        "type": "plain_text",
+        "value": "false"
+      },
+      {
+        "name": "EMAIL_PASSWORD_ENABLED",
+        "count": 1,
+        "type": "plain_text",
+        "value": "true"
+      },
+      {
+        "name": "CUSTOMER_AUTH_ENABLED",
+        "count": 1,
+        "type": "plain_text",
+        "value": "false"
+      },
+      {
+        "name": "STANDALONE_AUTH_ENABLED",
+        "count": 1,
+        "type": "plain_text",
+        "value": "true"
+      }
+    ],
+    "adminRecipientBinding": {
+      "count": 1,
+      "types": [
+        "secret_text"
+      ],
+      "valueRead": false
+    },
+    "emailProviderCredential": {
+      "present": true,
+      "valueRead": false
+    }
+  },
+  "deployment": {
+    "success": true,
+    "httpStatus": 200,
+    "latest": {
+      "id": "54724e5f-76a6-4a2d-847b-f0dfa6532f80",
+      "created_on": "2026-10-21T20:46:25.837435Z",
+      "versions": [
+        {
+          "version_id": "3803bbb1-e9da-43cd-9db5-c8ca920cd6b6",
+          "percentage": 100
+        }
+      ]
+    }
+  },
+  "mutations": 0,
+  "emailMessagesSent": 0
+}

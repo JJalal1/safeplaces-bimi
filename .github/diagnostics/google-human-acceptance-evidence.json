@@ -31,14 +31,14 @@
     "attachmentIdentifiersRetained": false
   },
   "administrationSignIn": {
-    "status": "OWNER_BINDING_REPAIR_APPLIED_AWAITING_FRESH_GOOGLE_ACCEPTANCE",
-    "source": "Historical user loop report, later private visual account-reference review, and root-reported successful Cloudflare binding repair/readback.",
+    "status": "MANAGEMENT_UI_ACCESS_PASSED_SCREENSHOT_CONFIRMED",
+    "source": "Historical user reports and owner-binding repair/readback, followed by root and independent visual review of the user's management-console screenshot.",
     "symptom": "Opening administration returns to login; completing Google sign-in still returns to login.",
     "independentlyReproduced": false,
     "rootCauseVerified": false,
     "ownerIdentityVerified": false,
     "privilegeAssignmentInferredFromScreenshot": false,
-    "investigationStage": "OWNER_BINDING_REPAIR_APPLIED_READBACK_VERIFIED_LIVE_ACCEPTANCE_PENDING",
+    "investigationStage": "A5_MANAGEMENT_UI_SCREENSHOT_CONFIRMED_REMAINING_AUTHENTICATION_ACCEPTANCE_PENDING",
     "sourceReview": {
       "callbackDestinationPreservesAdministrationPath": true,
       "confirmedUiDefect": "A verified signed-in customer rejected by adminUser was shown the anonymous sign-in gate.",
@@ -110,11 +110,11 @@
       },
       "deploymentEvidenceSource": "Exact revision, jobs, all-step success and deployment-log versions independently verified by the root."
     },
-    "actualLiveOwnerAccess": "UNKNOWN",
-    "reportedLoopAcceptance": "PENDING_FRESH_GOOGLE_MANAGEMENT_CONSOLE_ACCEPTANCE",
-    "nextOwnerEvidence": "Fresh Google sign-in with the intended account must display the actual management console. No additional identity values are required for the recorded binding repair.",
+    "actualLiveOwnerAccess": "MANAGEMENT_UI_SCREENSHOT_CONFIRMED_EXACT_ROLE_NOT_INDEPENDENTLY_VERIFIED",
+    "reportedLoopAcceptance": "PASSED_FOR_MANAGEMENT_UI_ACCESS_BY_USER_SCREENSHOT",
+    "nextOwnerEvidence": "Complete the remaining role/API permission, Google/session-lifecycle, non-owner isolation and device checks. Management-page visibility is already screenshot-confirmed.",
     "historicalReportedStatus": "ADMIN_LOGIN_LOOP_USER_REPORTED",
-    "ownerIdentityVerificationMeaning": "The requested target account was identified privately and configured; actual live owner-session authorization has not yet been verified.",
+    "ownerIdentityVerificationMeaning": "The intended target was privately identified and configured, and the real management UI is now displayed in the user's screenshot. The latest screenshot does not independently identify the current session's exact role, immutable identity or full API permissions.",
     "intendedOwnerIdentityIdentifiedPrivately": true,
     "latestAccessDeniedScreenshot": {
       "source": "Private visual review by the root and an independent reviewer of the user-supplied administration screenshot.",
@@ -204,7 +204,38 @@
         "secretValuesReturned": false,
         "actualOwnerBrowserAcceptance": "PENDING",
         "evidencePath": ".github/diagnostics/admin-owner/owner-binding-version-readback-evidence.json"
-      }
+      },
+      "acceptanceObservationScope": "Access-acceptance statuses within this operation record describe the historical state at the configuration mutation/readback. See latestManagementConsoleScreenshot for subsequent UI acceptance."
+    },
+    "latestManagementConsoleScreenshot": {
+      "source": "Private visual review by the root and an independent reviewer of a later user-supplied mobile screenshot.",
+      "reviewedAtUtc": "2026-10-21T20:57:00Z",
+      "timestampMeaning": "Documentation/review time, not the screenshot capture time or OAuth callback time.",
+      "followsRecordedOwnerBindingRepair": true,
+      "managementInterfaceDisplayed": true,
+      "requestDetailAndFollowUpPanelDisplayed": true,
+      "notificationHistoryDisplayed": true,
+      "cancelSendControlsDisplayed": true,
+      "sendingDisabledStatusDisplayed": true,
+      "acceptance": {
+        "gate": "A5_MANAGEMENT_CONSOLE_UI_ACCESS",
+        "status": "PASSED_SCREENSHOT_CONFIRMED",
+        "scope": "The real user's management page opens after the recorded owner-binding repair."
+      },
+      "freshGoogleCallbackObserved": false,
+      "currentSessionAuthMethodIndependentlyVerified": false,
+      "exactRoleIndependentlyVerified": false,
+      "fullApiPermissionsIndependentlyVerified": false,
+      "pageReloadPersistenceObserved": false,
+      "logoutAndReloginObserved": false,
+      "sessionExpiryObserved": false,
+      "nonOwnerIsolationEstablished": false,
+      "actualInboxDeliveryEstablished": false,
+      "notificationOrPermissionActionPerformed": false,
+      "screenshotPublished": false,
+      "attachmentMetadataRetained": false,
+      "displayedAddressesRetained": false,
+      "customerRecordDetailsRetained": false
     }
   },
   "separateChecks": {
@@ -212,16 +243,17 @@
     "logoutAndRelogin": "NOT_SEPARATELY_REPORTED",
     "sessionExpiry": "NOT_OBSERVED",
     "realEmailVerificationAndRecoveryInbox": "PENDING",
-    "ownerAuthorization": "OWNER_BINDING_APPLIED_AWAITING_FRESH_GOOGLE_ACCEPTANCE"
+    "ownerAuthorization": "MANAGEMENT_UI_SCREENSHOT_CONFIRMED_EXACT_ROLE_AND_API_CHECKS_PENDING",
+    "freshGoogleCallbackAndSessionMethod": "NOT_INDEPENDENTLY_OBSERVED"
   },
   "scope": {
     "historicalReadbackEvidenceModified": false,
     "fullAuthenticationStageAccepted": false,
     "wholeWordPlanComplete": false,
-    "nextGate": "Confirm actual management-console access following fresh Google sign-in with the privately identified intended owner, then complete remaining authentication acceptance and Word-plan gates in order."
+    "nextGate": "Continue A6 permissions, isolation, private access and session lifecycle; A7 remaining device/network checks; and real email/password acceptance. A5 management-console UI access is screenshot-confirmed. Later Word-plan phases remain gated on completion of authentication acceptance."
   },
-  "updatedAtUtc": "2026-10-21T20:48:43Z",
-  "updatedAtLocal": "2026-10-21T23:48:43.000+03:00",
+  "updatedAtUtc": "2026-10-21T20:57:00Z",
+  "updatedAtLocal": "2026-10-21T23:57:00.000+03:00",
   "ownerBindingReadback": {
     "sourceRevision": "401a9c88362028d420e1766023cbff716139e38d",
     "runId": 39669272088,
@@ -267,7 +299,7 @@
     "cloudflareConnector": "RECOVERED_FOR_OWNER_BINDING_REPAIR",
     "administratorFailureIndependentlyReproducedByTheseTools": false,
     "previousCloudflareConnectorResult": "INTERNAL_ERROR",
-    "browserObservationScope": "Current observation of the existing exact administration tab displays a session-browser network-policy refusal. The tab state was read without a new navigation or reload. This is not an authentication outcome, bot challenge or evidence of a website fault."
+    "browserObservationScope": "Earlier observation of the existing exact administration tab showed a session-browser network-policy refusal without a new navigation or reload. The later user-supplied management screenshot is separate evidence of real management-UI access."
   },
   "applicationRevisionMeaning": "Customer acceptance baseline from the earlier deployed repair; not an assertion of current production revision after the administration deployment.",
   "postAdministrationDeploymentReadback": {
@@ -318,11 +350,16 @@
   "wordPlanGateOrder": [
     {
       "phase": "A",
-      "currentGate": "A5 fresh Google acceptance of actual owner management-console access after binding repair",
+      "currentGate": "A6 remaining role/API permissions, isolation, private access and session lifecycle, followed by A7 devices/networks and real email/password acceptance",
       "remaining": [
         "A6 non-owner isolation, private access, expiry and logout",
         "A7 remaining devices and networks",
         "Real email/password verification, sign-in, recovery and inbox acceptance"
+      ],
+      "a5ManagementConsoleUiAcceptance": "PASSED_SCREENSHOT_CONFIRMED",
+      "unobservedAuthenticationDetails": [
+        "Fresh Google callback and recorded session method",
+        "Exact current role and full API permissions"
       ]
     },
     {
@@ -360,5 +397,7 @@
         "Final acceptance PR ready for merge"
       ]
     }
-  ]
+  ],
+  "previousAcceptanceCheckpointRevision": "1891092bf0be1bab3841ed5d7c70f4cf4c627cb2"
 }
+

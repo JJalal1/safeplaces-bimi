@@ -1,0 +1,30 @@
+{
+  "observedAt": "2026-10-21T20:58:40.165Z",
+  "success": true,
+  "httpStatus": 200,
+  "errorCodes": [],
+  "records": [
+    {
+      "type": "MX",
+      "name": "safeplaces.sa",
+      "content": "mx3.zoho.com",
+      "priority": 50
+    },
+    {
+      "type": "MX",
+      "name": "safeplaces.sa",
+      "content": "mx2.zoho.com",
+      "priority": 20
+    },
+    {
+      "type": "MX",
+      "name": "safeplaces.sa",
+      "content": "mx.zoho.com",
+      "priority": 10
+    }
+  ],
+  "totalCount": 3,
+  "mutations": 0,
+  "mailboxInboxAccessed": false,
+  "emailSent": false
+}
