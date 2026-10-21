@@ -1,0 +1,30 @@
+{
+  "status": "LIVE_READBACK_NOT_EXECUTED",
+  "checkedAtUtc": "2026-10-21 14:26:19 UTC",
+  "repository": "JJalal1/safeplaces-bimi",
+  "diagnosticCommit": "297166ae48c8c3598bd3a8968b57c8d8a836817d",
+  "productionBranchHead": "b50b0775a7f0f084e808d601b34984dc6bffa193",
+  "productionCodeChanged": false,
+  "googleSecretChanged": false,
+  "googleSignInVerified": false,
+  "signInTestPerformed": false,
+  "cloudflareConnector": {
+    "status": "INTERNAL_ERROR",
+    "code": -32603
+  },
+  "cloudBrowser": {
+    "status": "ACCESS_BLOCKED",
+    "message": "Forbidden. Calls to this URL are not allowed."
+  },
+  "githubReadback": {
+    "localPrivacyAndReadOnlyChecks": "PASSED",
+    "workflowRunsObserved": 0,
+    "liveCloudflareRequestsFromRunner": 0
+  },
+  "lastConfirmedProduction": {
+    "version": "e52b6904-cf5e-457a-bb27-504cd46f7264",
+    "readAtUtc": "2026-10-21T00:21:23.889Z",
+    "notReconfirmed": true
+  },
+  "nextStep": "Confirm the GOOGLE_CLIENT_SECRET update was deployed through the authorized Cloudflare dashboard, then complete a fresh Google sign-in and session persistence check."
+}
