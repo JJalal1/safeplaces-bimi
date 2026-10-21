@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 
-// Deployment checks read only fixed schema and binding metadata. The optional
+// Deployment checks read fixed schema, binding metadata and public OAuth settings.
+// Public setting comparisons never log values. The optional
 // logging action changes script observability, never credentials or bindings.
 const accountId='b67109c9489a46ae25fb36370c4ba880';
 const target=process.argv[2],action=process.argv[3]||'preflight';
@@ -45,6 +46,15 @@ if(action==='preflight'){
  assert.ok(Number.isFinite(Date.parse(evidence[0].applied_at))&&evidence[0].backup_bookmark,'Recovery evidence is incomplete');
  const settings=await api('GET',workerPath+'/settings');
  const bindings=settings.bindings||[];
+ if(target==='production'){
+  const compiled=JSON.parse(readFileSync('dist/server/wrangler.json','utf8'));
+  assert.ok(compiled.name===worker,'The compiled authentication target is incorrect');
+  for(const name of ['GOOGLE_CLIENT_ID','BETTER_AUTH_URL']){
+   const current=bindings.filter(binding=>binding.name===name),value=compiled.vars?.[name];
+   assert.ok(typeof value==='string'&&value.length>0&&current.length===1&&current[0].type==='plain_text'&&current[0].text===value,'Production public OAuth settings must match the compiled release');
+  }
+  console.log('PASS: production public OAuth settings match the compiled release');
+ }
  assert.ok(bindings.some(binding=>binding.name==='DB'&&binding.id===database),'Unexpected production database binding');
  for(const name of target==='production'?['BETTER_AUTH_SECRET','GOOGLE_CLIENT_SECRET','RESEND_API_KEY']:['BETTER_AUTH_SECRET'])
   assert.ok(bindings.some(binding=>binding.name===name&&binding.type==='secret_text'),'A required authentication secret is missing');
