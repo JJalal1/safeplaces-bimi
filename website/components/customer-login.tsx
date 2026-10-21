@@ -55,12 +55,13 @@ export function CustomerLogin({lang,mode='login',configured,previewHref,returnTo
   if(displayMode==='login'&&configured&&!adminTarget){let cancelled=false;api('session').then(result=>{if(!cancelled&&loginNavigation.current==='idle'&&result.user&&(result.user.provider==='supabase'||result.user.provider==='standalone')){loginNavigation.current='navigating';window.location.assign(target);}}).catch(()=>{});return()=>{cancelled=true;};}
  },[adminTarget,configured,displayMode,emailFormAvailable,emailPasswordEnabled,lang,standalone,target]);
  async function social(provider:string){
-  if(!configured||busy||provider!=='google')return;setBusyAction('google');setError('');
+  // A pending customer-session read must not navigate over the Google request.
+  if(!configured||busy||provider!=='google'||loginNavigation.current!=='idle')return;loginNavigation.current='submitting';setBusyAction('google');setError('');
   try{
    const errorCallbackURL=root+'/account/login?return_to='+encodeURIComponent(target)+'&reason='+(adminTarget?'admin':'account');
    const result=await authClient.signIn.social({provider:'google',callbackURL:target,newUserCallbackURL:target,errorCallbackURL});
-   if(result.error){setError(result.error.status===429?errorText(new Error('RATE_LIMIT'),lang):googleError(result.error.code||'',lang,emailFormAvailable&&emailPasswordEnabled));setBusyAction(null);}
-  }catch(error){setError(errorText(error,lang));setBusyAction(null);}
+   if(result.error){loginNavigation.current='idle';setError(result.error.status===429?errorText(new Error('RATE_LIMIT'),lang):googleError(result.error.code||'',lang,emailFormAvailable&&emailPasswordEnabled));setBusyAction(null);}else{loginNavigation.current='navigating';}
+  }catch(error){loginNavigation.current='idle';setError(errorText(error,lang));setBusyAction(null);}
  }
  async function submit(event:FormEvent<HTMLFormElement>){
   event.preventDefault();if(!configured||!emailFormAvailable||busy||resetUnavailable||loginNavigation.current!=='idle')return;if(displayMode==='login')loginNavigation.current='submitting';setBusyAction('email');setError('');setNeedsVerification(false);

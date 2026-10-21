@@ -234,6 +234,49 @@ async function signIn(page,instance,lang,email,password){
   assert.equal(accountNavigations,1,'Successful email sign-in must initiate exactly one main-frame navigation to the account');
  }finally{page.off('request',navigation);}
 }
+async function customerGoogleNavigation(page,instance,lang,userId){
+ const target='/'+lang+'/account',loginPath=target+'/login';
+ let releaseSession,releaseGoogle,sessionReady=false,existingSession=false,accountNavigations=0;
+ const sessionGate=new Promise(done=>{releaseSession=done;}),googleGate=new Promise(done=>{releaseGoogle=done;});
+ const socialRequests=[];
+ const sessionMatch=url=>url.origin===instance.origin&&url.pathname==='/api/session'&&!url.search;
+ const socialMatch=url=>url.origin===instance.origin&&url.pathname==='/api/auth/sign-in/social';
+ const navigation=request=>{if(request.isNavigationRequest()&&request.frame()===page.mainFrame()&&new URL(request.url()).pathname===target)accountNavigations++;};
+ // Delay the real authenticated session response, not a replacement user.
+ // StoreProvider's scoped hydration read remains available to render the UI.
+ await page.route(sessionMatch,async route=>{
+  const response=await route.fetch({maxRedirects:0}),value=await response.json();
+  existingSession=response.status()===200&&value.user?.provider==='standalone';sessionReady=true;
+  await sessionGate;await route.fulfill({response});
+ });
+ await page.route(socialMatch,async route=>{
+  const payload=route.request().postDataJSON();socialRequests.push({provider:payload.provider,callbackURL:payload.callbackURL});
+  if(socialRequests.length===1)await googleGate;
+  await route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({code:'invalid_code',message:'Local Google response fixture'})});
+ });
+ page.on('request',navigation);
+ try{
+  await visit(page,instance,loginPath);
+  await until(()=>sessionReady,'The delayed customer session must reach the local browser');
+  assert.equal(existingSession,true,'The race requires an actual existing customer session');
+  await page.getByRole('button',{name:words[lang].google,exact:true}).click();
+  await until(()=>socialRequests.length===1,'The customer Google request must start');
+  const delayedResponse=page.waitForResponse(response=>sessionMatch(new URL(response.url())));void delayedResponse.catch(()=>{});
+  releaseSession();await (await delayedResponse).finished();await stable(page);
+  assert.equal(accountNavigations,0,'A late customer-session response must not navigate over an in-flight Google request');
+  assert.equal(new URL(page.url()).pathname,loginPath,'The Google request must retain its login page');
+  assert.equal(await page.locator('.customer-social-google').getAttribute('aria-busy'),'true','The Google request remains in flight');
+  releaseGoogle();await page.getByRole('alert').waitFor();
+  assert.ok(await page.getByRole('button',{name:words[lang].google,exact:true}).isEnabled(),'Google can be retried after the response error');
+  const retry=await submit(page,'/api/auth/sign-in/social',words[lang].google,400);
+  assert.equal(retry.code,'invalid_code');
+  assert.deepEqual(socialRequests,[{provider:'google',callbackURL:target},{provider:'google',callbackURL:target}],'Retry starts a second Google request with the same customer return path');
+  assert.equal((await sessionState(page)).userId,userId,'The local Google errors leave the existing customer session intact');
+ }finally{
+  releaseSession();releaseGoogle();page.off('request',navigation);
+  await page.unroute(sessionMatch);await page.unroute(socialMatch);
+ }
+}
 async function signOut(page,lang,db,userId){
  const pending=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/auth/sign-out'&&response.request().method()==='POST');void pending.catch(()=>{});
  await page.locator('.account-nav').getByRole('link',{name:words[lang].logout,exact:true}).click();
@@ -327,6 +370,10 @@ try{
   await page.reload({waitUntil:'domcontentloaded'});await page.locator('.account-nav').waitFor();
   assert.equal((await sessionState(page)).userId,firstSession.userId,'The authenticated session survives a browser refresh');
   await capture(page,lang,width,'account');
+
+  phase=label+' Google request and delayed customer session';
+  await customerGoogleNavigation(page,instance,lang,firstSession.userId);
+  pass(label+': a delayed customer session preserves the Google request and its retry');
 
   phase=label+' password session administration sign-in';
   await visit(page,instance,'/'+lang+'/account/login?return_to='+encodeURIComponent('/'+lang+'/admin')+'&reason=admin');

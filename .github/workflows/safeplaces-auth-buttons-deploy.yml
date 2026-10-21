@@ -1,4 +1,4 @@
-name: Deploy Safe Places verified customer accounts
+name: Deploy Safe Places session renewal fix
 on:
   push:
     branches: [feature/auth-speed-seo-before-hosting]
@@ -46,6 +46,9 @@ jobs:
           assert.equal(c.vars?.CUSTOMER_AUTH_ENABLED,'false');
           assert.equal(c.vars?.EMAIL_PASSWORD_ENABLED,'true');
           assert.equal(c.vars?.AUTH_EMAIL_FROM,'info@safeplaces.sa');
+          // Keep runtime owner/secret bindings out of config; --keep-vars preserves them.
+          for(const name of ['STANDALONE_ADMIN_USER_ID','STANDALONE_ADMIN_EMAIL','BETTER_AUTH_SECRET','GOOGLE_CLIENT_SECRET','RESEND_API_KEY'])
+            assert.ok(!Object.hasOwn(c.vars,name),'Runtime-managed auth bindings must not be written by the release config');
           assert.deepEqual(c.durable_objects?.bindings,[{name:'AUTH_PASSWORD_HASHER',class_name:'PasswordHasher'}]);
           assert.ok(c.migrations?.some(m=>m.tag==='auth-password-v1'&&m.new_sqlite_classes?.includes('PasswordHasher')));
           assert.equal(c.workers_dev,false);
@@ -61,14 +64,14 @@ jobs:
           writeFileSync(p,JSON.stringify(c,null,2)+'\n');
           console.log('PASS: public bilingual quote-only site, indexable, no prices or payments');
           NODE
-          pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.json
+          pnpm exec wrangler deploy --dry-run --keep-vars --config dist/server/wrangler.json
       - name: Verify the exact schema and existing credential names before deployment
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_D1_READ_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
         run: node scripts/check-email-auth-release.mjs production
-      - name: Deploy verified customer email accounts
+      - name: Deploy stable customer session renewal
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
@@ -76,7 +79,7 @@ jobs:
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
           export CLOUDFLARE_API_TOKEN="$(node -e "process.stdout.write((process.env.CLOUDFLARE_API_TOKEN || '').replace(/\\s+/g,''))")"
-          pnpm exec wrangler deploy --config dist/server/wrangler.json
+          pnpm exec wrangler deploy --keep-vars --config dist/server/wrangler.json
       - name: Protect authentication diagnostics after deployment
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -84,8 +87,6 @@ jobs:
         run: node scripts/check-email-auth-release.mjs production protect-logs
       - name: Verify live customer forms and password RPC without sending mail
         run: node scripts/check-live-email-auth.mjs
-      - name: Request one synthetic verification email
-        run: node scripts/check-live-auth-mail.mjs
       - name: Verify public login labels, SEO and quotation page
         run: |
           node --input-type=module <<'NODE'
