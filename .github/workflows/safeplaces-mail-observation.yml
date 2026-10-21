@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '24'}
-      # Unknown errors from the pinned read-only query get a bounded redacted diagnostic.
+      # Preserve all fixture guards with EXISTS checks within D1 compound-query limits.
       - name: Guard the exact existing nonhuman test account
         run: node .github/diagnostics/cleanup-fixture.mjs preflight
       - name: Observe one verification email without exposing tokens or requests

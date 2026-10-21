@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 // This one-off diagnostic is pinned to the reviewed simulator fixture and SQL.
 // It must never discover a replacement identity or send authentication mail.
 const API_URL = 'https://api.cloudflare.com/client/v4/accounts/b67109c9489a46ae25fb36370c4ba880/d1/database/da06d822-b7ee-4a14-b3a5-7bcbc5839821/query';
-const PLAN_SHA256 = 'ff1097f120cc557e1b43890a9073909dbe3dd11b1b1e7bc126c7c84f80043d4f';
+const PLAN_SHA256 = '0b19d06626a4497446f8661e628e00593718f3f48a9a7f793de85e063dec2da4';
 const FIXTURE_ID = '02f762db-ea6c-4384-929a-fc94a22a8801';
 const FIXTURE_COMMIT = 'b50b0775a7f0f084e808d601b34984dc6bffa193';
 const FIXTURE_EMAIL = 'delivered+safeplaces-auth-b50b0775a7f0@resend.dev';
