@@ -370,12 +370,15 @@ try{
  phase='Google link boundary / stale session';
  await db.prepare('UPDATE auth_session SET created_at=? WHERE id=?').bind(Date.now()-11*60000,linkLogin.sessionId).run();
  await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie},403,'GOOGLE_LINK_REAUTH_REQUIRED');
- phase='Google link boundary / implicit linking disabled';
+ phase='Direct Google sign-in requires verified provider and local email';
  linkLogin=await signIn(alice,changedPassword);
- const implicit=await beginGoogle(googleIdentity,'',false);
+ const implicit=await beginGoogle({...googleIdentity,verified:false},'',false);
  await denyGoogle(implicit,'','account_not_linked');
- check((await db.prepare("SELECT COUNT(*) AS n FROM auth_account WHERE user_id=? AND provider_id='google'").bind(alice.id).first()).n===0,'same_email_alone_never_links_google');
- pass('Google linking rejects anonymous, unverified, stale, cross-origin, token, alternate-provider and arbitrary-callback requests; implicit linking stays disabled');
+ check((await db.prepare("SELECT COUNT(*) AS n FROM auth_account WHERE user_id=? AND provider_id='google'").bind(alice.id).first()).n===0,'unverified_google_email_never_links_google');
+ await db.prepare('UPDATE auth_user SET email_verified=0 WHERE id=?').bind(alice.id).run();
+ await denyGoogle(await beginGoogle(googleIdentity,'',false),'','account_not_linked');
+ await db.prepare('UPDATE auth_user SET email_verified=1 WHERE id=?').bind(alice.id).run();
+ pass('Direct Google sign-in requires local and provider email verification; legacy explicit-link boundaries remain protected');
 
  phase='Google link callback session binding';
  const absent=await beginGoogle(googleIdentity,linkLogin.cookie);await denyGoogle(absent,'','GOOGLE_LINK_REAUTH_REQUIRED');
@@ -404,17 +407,18 @@ try{
  pass('Google callback rechecks the same live fresh session; revoked, switched, stale and unverified sessions, mismatched Google email and other-user provider bindings are rejected');
 
  phase='Google link success preserves identity and both login methods';
- const beforeLink=await authCounts(),validLink=await beginGoogle(googleIdentity,linkLogin.cookie),linked=await finishGoogle(validLink,linkLogin.cookie);
- check(linked.location.pathname==='/ar/account'&&linked.location.searchParams.get('tab')==='security'&&linked.location.searchParams.get('linked')==='google'&&!linked.location.searchParams.has('error'),'successful_link_returns_to_account_security');
- check(!hasLoginCookie(linked.response),'linking_does_not_mint_or_upgrade_a_login_session');await linked.response.body?.cancel();
- const afterLink=await authCounts();check(afterLink.users===beforeLink.users&&afterLink.sessions===beforeLink.sessions&&afterLink.accounts===beforeLink.accounts+1,'link_adds_one_provider_to_same_user_only');
+ const beforeLink=await authCounts(),validLink=await beginGoogle(googleIdentity,'',false),linked=await finishGoogle(validLink);
+ check(linked.location.pathname==='/ar/account'&&!linked.location.searchParams.has('error'),'direct_google_returns_to_account_without_password_or_settings');
+ check(hasLoginCookie(linked.response),'direct_google_creates_an_authenticated_session');await linked.response.body?.cancel();
+ const afterLink=await authCounts();check(afterLink.users===beforeLink.users&&afterLink.sessions===beforeLink.sessions+1&&afterLink.accounts===beforeLink.accounts+1,'direct_google_adds_one_provider_and_session_to_same_user_only');
  const stillPassword=(await json('/api/auth/get-session',{...googleOptions(),cookie:linkLogin.cookie})).data;
  check(stillPassword.user.id===alice.id&&stillPassword.session.id===linkLogin.sessionId&&stillPassword.session.authMethod==='password','linking_keeps_existing_session_and_password_method');
  await reply('/api/admin/data',{...googleOptions(),cookie:linkLogin.cookie},403);
  const googleAccount=await db.prepare("SELECT user_id,account_id FROM auth_account WHERE user_id=? AND provider_id='google'").bind(alice.id).first();
  check(googleAccount.user_id===alice.id&&googleAccount.account_id===googleIdentity.subject,'google_subject_is_linked_to_original_immutable_id');
  check((await db.prepare("SELECT password FROM auth_account WHERE user_id=? AND provider_id='credential'").bind(alice.id).first()).password===changedHash,'linking_preserves_existing_password_hash');
- await denyGoogle(validLink,linkLogin.cookie,'state_mismatch');
+ await denyGoogle(validLink,'','state_mismatch');
+ await denyGoogle(await beginGoogle({...googleIdentity,subject:'different-google-subject-'+randomUUID()},'',false),'','GOOGLE_LINK_ALREADY_LINKED');
  await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie},409,'GOOGLE_LINK_ALREADY_LINKED');
  await reply('/api/auth/unlink-account',{...googleOptions(),body:{accountId:collisionAccount},cookie:linkLogin.cookie},404);
  const googleLogin=await finishGoogle(await beginGoogle(googleIdentity,'',false));
@@ -432,7 +436,21 @@ try{
   await reply('/api/account/requests/quotes/'+bobRecord.id,{...googleOptions(),cookie},404);
  }
  check((await db.prepare('SELECT user_id FROM quotes WHERE id=?').bind(guestRecord.id).first()).user_id===null,'linking_cannot_claim_guest_records_by_email');
- pass('explicit link keeps UUID, password hash, session method, quotes and files; replay/duplicate/unlink denied; subsequent Google and password logins both access the original customer account');
+ pass('Direct Google sign-in needs no password or settings; UUID, existing password, quotes and private files are preserved; different-subject collisions, replay and unlink are rejected');
+
+ phase='Account-scoped contact defaults';
+ const quickKey=randomUUID();
+ const quick=await json('/api/quotes',{cookie:googleCookie,body:{description:'A quick request using saved account details',token:randomUUID(),key:quickKey}});
+ const quickRow=await db.prepare('SELECT user_id,name,email,phone FROM quotes WHERE idempotency_key=?').bind(quickKey).first();
+ check(!!quick.data.number&&quickRow.user_id==='customer:'+alice.id&&quickRow.email===alice.email&&quickRow.name===aliceQuote.name,'signed_in_quote_defaults_to_same_account_without_retyping');
+ const ownProfile=(await json('/api/profile',{cookie:googleCookie})).data,otherProfile=(await json('/api/profile',{cookie:otherBobLogin.cookie})).data;
+ check(ownProfile.email===alice.email&&otherProfile.email===bob.email&&otherProfile.name!==alice.name,'contact_defaults_are_isolated_by_immutable_customer_id');
+ const contactKey=randomUUID();
+ await json('/api/contact',{cookie:googleCookie,body:{message:'A contact message with saved customer details',key:contactKey}});
+ const contactRow=await db.prepare('SELECT name,email FROM contacts WHERE idempotency_key=?').bind(contactKey).first();
+ check(contactRow.email===alice.email&&contactRow.name===aliceQuote.name,'signed_in_contact_form_uses_same_saved_identity');
+ await reply('/api/quotes',{body:{description:'Guest still needs valid contact information',token:randomUUID(),key:randomUUID()}},400);
+ pass('Quotation and contact defaults require no repeated name or email; guest validation and cross-account isolation remain enforced');
 
  phase='distributed opaque rate limits';
  // Avoid a wall-clock boundary splitting the isolated fixed-window fixture.

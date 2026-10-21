@@ -4,7 +4,7 @@ import { runWithConnectorBinding } from "../lib/connector-context";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 import { stagingHostResponse } from "../lib/staging-access";
 import { productionLaunchGate } from "../lib/production-launch-gate";
-import { runOperationalMaintenance } from "../lib/notifications";
+import { runOperationalMaintenance,processNotificationOutbox } from "../lib/notifications";
 import type { OperationsBindings } from "../lib/operations-types";
 
 export default {
@@ -37,6 +37,7 @@ export default {
     }
     const result = await runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx));
     const response = new Response(result.body, result);
+    if(request.method==='POST'&&new URL(request.url).pathname.startsWith('/api/admin/')&&result.status<300)ctx.waitUntil(processNotificationOutbox(env as unknown as OperationsBindings,fetch,2).catch(()=>{console.error('Safe Places notification diagnostic outbox/unavailable');}));
     response.headers.set('X-Content-Type-Options', 'nosniff');
     // Staging and private previews must never be indexed, even for 404s or API responses.
     if ((env as unknown as Record<string, unknown>).SITE_INDEXABLE !== 'true') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
@@ -52,3 +53,4 @@ export default {
     return response;
   },
 };
+

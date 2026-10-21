@@ -72,7 +72,7 @@ export function getStandaloneAuth(){
   account:{
    // A different Google subject must never inherit an owner's/staff member's
    // immutable local ID just because it now owns the same email address.
-   accountLinking:{enabled:true,disableImplicitLinking:true,allowDifferentEmails:false,requireLocalEmailVerified:true,trustedProviders:[],updateUserInfoOnLink:false},
+   accountLinking:{enabled:true,disableImplicitLinking:false,allowDifferentEmails:false,requireLocalEmailVerified:true,trustedProviders:[],updateUserInfoOnLink:false},
    storeStateStrategy:'database',
    skipStateCookieCheck:false,
    encryptOAuthTokens:true
@@ -108,6 +108,18 @@ export function getStandaloneAuth(){
     if(source.action!=='link-account')return;
     if(!google||!passwords)return {error:'GOOGLE_LINK_UNAVAILABLE'};
     const state=await getOAuthState();
+    // Ordinary Google sign-in links matching VERIFIED accounts directly. The
+    // library independently checks local/provider verification and OAuth state.
+    // An existing Google subject is immutable, even if another Google identity
+    // presents the same email later. Never replace that identity by email.
+    if(!state?.link){
+     if(source.method!=='oauth'||source.oauth?.providerId!=='google'||user.emailVerified!==true)return {error:'email_not_verified'};
+     const existing=await context.context.internalAdapter.findUserById(user.id);
+     if(!existing||!existing.emailVerified||existing.email.toLowerCase()!==user.email?.toLowerCase())return {error:'account_not_linked'};
+     const accounts=await context.context.internalAdapter.findAccounts(existing.id);
+     if(accounts.some(account=>account.providerId==='google'))return {error:'GOOGLE_LINK_ALREADY_LINKED'};
+     return;
+    }
     const current=await getAuthoritativeSessionFromCtx(context);
     const error=googleLinkCallbackError({user,source,state,session:current});
     if(error)return {error};

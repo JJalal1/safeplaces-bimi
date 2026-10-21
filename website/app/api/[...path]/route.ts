@@ -1,4 +1,4 @@
-import {env} from 'cloudflare:workers';
+import {env,waitUntil} from 'cloudflare:workers';
 import {getDb} from '../../../db';
 import * as schema from '../../../db/schema';
 import {eq,desc,and,inArray} from 'drizzle-orm';
@@ -7,7 +7,7 @@ import {adminUser,canBootstrap,type AdminIdentity} from '../../../lib/access';
 import {adminMembers} from '../../../db/admin-schema';
 import {authSession} from '../../../db/auth-schema';
 import {handleAdminOperations,customerRequestDetail,requestRecord} from '../../../lib/admin-operations';
-import {requestCreatedStatements,eventStatement} from '../../../lib/notifications';
+import {requestCreatedStatements,eventStatement,processNotificationOutbox} from '../../../lib/notifications';
 import {OperationError,MAX_UPLOAD_BYTES,type OperationsBindings} from '../../../lib/operations-types';
 import {limitedBody,verifiedFileMime} from '../../../lib/upload-policy';
 import {canAdmin,canAdminContent,ADMIN_PERMISSIONS,HOMEPAGE_SETTINGS_KEYS,parseAdminPermissions} from '../../../lib/admin-permissions';
@@ -81,7 +81,17 @@ async function handle(req:Request){
   if(action==='logout'){await provider.logout(cookieValue(req.headers.get('cookie'),accessCookie));return json({ok:true},200,clearAuthCookies());}
   throw new HttpError('NOT_FOUND',404);
  }
- const user=path.startsWith('admin')||path.startsWith('media/')||['uploads','contact','checkout/review'].includes(path)?null:await customerUser();
+ const user=path.startsWith('admin')||path.startsWith('media/')||['uploads','checkout/review'].includes(path)?null:await customerUser();
+ // Resolve defaults by immutable account ID, never by an email-only lookup.
+ const contactDefaults=async(input:unknown)=>{
+  if(!user)return input;
+  const incoming=z.record(z.unknown()).parse(input);
+  const [profile]=await db.select().from(schema.customers).where(eq(schema.customers.id,user.userId)).limit(1);
+  const [previous]=await db.select().from(schema.quotes).where(eq(schema.quotes.userId,user.userId)).orderBy(desc(schema.quotes.createdAt)).limit(1);
+  const defaults={name:profile?.name||previous?.name||user.fullName||user.displayName,email:user.email,phone:profile?.phone||previous?.phone||'',company:profile?.company||previous?.company||'',city:previous?.city||''};
+  return {...defaults,...Object.fromEntries(Object.entries(incoming).filter(([key,value])=>!(key in defaults)||typeof value!=='string'||!!value.trim()))};
+ };
+ const dispatchNotifications=()=>waitUntil(processNotificationOutbox(bindings,fetch,2).catch(()=>{console.error('Safe Places notification diagnostic outbox/unavailable');}));
  if(path==='wishlist'){
   if(!user)throw new HttpError('UNAUTHORIZED',401);
   const list=async()=>{const rows=await db.select().from(schema.customerWishlists).where(eq(schema.customerWishlists.userId,user.userId)).orderBy(desc(schema.customerWishlists.createdAt));const active=new Set((await getProducts()).map(product=>product.id));return {ids:rows.map(row=>row.productId).filter(id=>active.has(id))};};
@@ -125,7 +135,7 @@ async function handle(req:Request){
  }
  if(req.method==='POST'&&path==='contact'){
   await rate(req,'contact',8);
-  const b=z.object({name:z.string().trim().min(2).max(120),email:z.string().trim().email().max(200),phone:z.string().max(24).optional(),message:z.string().trim().min(10).max(5000),key:z.string().uuid().optional(),website:z.string().max(0).optional()}).parse(await body(req));
+  const b=z.object({name:z.string().trim().min(2).max(120),email:z.string().trim().email().max(200),phone:z.string().max(24).optional(),message:z.string().trim().min(10).max(5000),key:z.string().uuid().optional(),website:z.string().max(0).optional()}).parse(await contactDefaults(await body(req)));
   const key=b.key||id(),existing=await env.DB!.prepare('SELECT id,name,email,message FROM contacts WHERE idempotency_key=?').bind(key).first<{id:string;name:string;email:string;message:string}>();
   if(existing){if(existing.email!==b.email||existing.name!==b.name||existing.message!==b.message)throw new HttpError('IDEMPOTENCY_CONFLICT',409);return json({ok:true,reference:'SPC-'+existing.id.slice(0,8).toUpperCase()});}
   const record={id:id(),name:b.name,email:b.email},time=now();
@@ -133,11 +143,15 @@ async function handle(req:Request){
    env.DB!.prepare('INSERT INTO contacts (id,name,email,phone,message,created_at,idempotency_key) VALUES (?,?,?,?,?,?,?)').bind(record.id,b.name,b.email,b.phone||null,b.message,time,key),
    ...requestCreatedStatements(bindings,'contacts',record)
   ]);}catch(error){const repeat=await env.DB!.prepare('SELECT id,name,email,message FROM contacts WHERE idempotency_key=?').bind(key).first<{id:string;name:string;email:string;message:string}>();if(!repeat)throw error;if(repeat.name!==b.name||repeat.email!==b.email||repeat.message!==b.message)throw new HttpError('IDEMPOTENCY_CONFLICT',409);return json({ok:true,reference:'SPC-'+repeat.id.slice(0,8).toUpperCase()});}
+  dispatchNotifications();
   return json({ok:true,reference:'SPC-'+record.id.slice(0,8).toUpperCase()});
  }
  if(req.method==='POST'&&path==='quotes'){
   await rate(req,'quotes',8);
-  const b=person.extend({city:z.string().max(120).default(''),service:z.string().max(100).default(''),description:z.string().trim().min(10).max(12000),items:z.array(line).max(40).default([]),files:z.array(z.string().uuid()).max(4).default([]),token:z.string().uuid(),key:z.string().uuid(),website:z.string().max(0).optional()}).parse(await body(req));
+  const input=await contactDefaults(await body(req)) as Record<string,unknown>;
+  if(Array.isArray(input.items)&&input.items.length&&!(typeof input.description==='string'&&input.description.trim()))input.description='طلب عرض سعر للمنتجات المحددة / Quotation for selected products.';
+  const quotePerson=user?person.extend({phone:z.union([person.shape.phone,z.literal('')]).optional().default('')}):person;
+  const b=quotePerson.extend({city:z.string().max(120).default(''),service:z.string().max(100).default(''),description:z.string().trim().min(10).max(12000),items:z.array(line).max(40).default([]),files:z.array(z.string().uuid()).max(4).default([]),token:z.string().uuid(),key:z.string().uuid(),website:z.string().max(0).optional()}).parse(input);
   const repeat=async()=>{const row=(await db.select().from(schema.quotes).where(eq(schema.quotes.idempotencyKey,b.key)).limit(1))[0];if(!row)return null;if(row.userId!==(user?.userId||null)||row.email!==b.email||row.description!==b.description)throw new HttpError('IDEMPOTENCY_CONFLICT',409);return row;};
   const existing=await repeat();if(existing)return json({number:existing.number});
   const quoteId=id(),number='SPQ-'+Date.now().toString(36).toUpperCase()+'-'+quoteId.slice(0,4).toUpperCase(),catalog=await getProducts();
@@ -153,6 +167,7 @@ async function handle(req:Request){
   }
   statements.push(...requestCreatedStatements(bindings,'quotes',{id:quoteId,number,name:b.name,email:b.email}));
   try{await env.DB!.batch(statements);}catch(error){const repeated=await repeat();if(repeated)return json({number:repeated.number});if(error instanceof Error&&/files.owner_id|request_events.request_id/.test(error.message))throw new HttpError('INVALID_ATTACHMENTS',409);throw error;}
+  dispatchNotifications();
   return json({number});
  }
  if(req.method==='POST'&&(path==='checkout/review'||path==='orders'))throw new HttpError('QUOTE_ONLY',409);
@@ -160,7 +175,16 @@ async function handle(req:Request){
  if(req.method==='POST'&&path==='orders'){await rate(req,'orders',10);const config=await getSettings();if(!config.orderEnabled)throw new HttpError('ORDER_CONFIRMATION_REQUIRED',409);const b=person.extend({items:z.array(line).min(1).max(40),coupon:z.string().max(40).default(''),billing:z.string().max(1000).default(''),key:z.string().uuid()}).parse(await body(req));const existing=(await db.select().from(schema.orders).where(eq(schema.orders.idempotencyKey,b.key)).limit(1))[0];if(existing){if(existing.userId!==(user?.userId||null))throw new HttpError('FORBIDDEN',403);return json({id:existing.id,number:existing.number});}const result=await priceOrder(b.items,b.coupon);const orderId=id();const number='SPO-'+Date.now().toString(36).toUpperCase()+'-'+orderId.slice(0,4).toUpperCase();const record={id:orderId,number,userId:user?.userId||null,name:b.name,email:b.email,phone:b.phone,company:b.company,billing:b.billing,items:JSON.stringify(result.items),subtotal:result.subtotal,discount:result.discount,vat:result.vat,total:result.total,createdAt:now(),idempotencyKey:b.key,coupon:result.coupon?.code||null};if(result.coupon){const orderSql=env.DB!.prepare('INSERT INTO orders (id,number,user_id,name,email,phone,company,billing,items,subtotal,discount,vat,total,created_at,idempotency_key,coupon) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(...Object.values(record));const checkedAt=now();const redemption=env.DB!.prepare('INSERT INTO coupon_redemptions (id,coupon_id,order_id) VALUES (?,(SELECT id FROM coupons WHERE id=? AND active=1 AND (usage_limit IS NULL OR used<usage_limit) AND (starts_at IS NULL OR starts_at<=?) AND (ends_at IS NULL OR ends_at>=?)),?)').bind(id(),result.coupon.id,checkedAt,checkedAt,orderId);const increment=env.DB!.prepare('UPDATE coupons SET used=used+1 WHERE id=?').bind(result.coupon.id);await env.DB!.batch([orderSql,redemption,increment,...requestCreatedStatements(bindings,'orders',{id:orderId,number,name:b.name,email:b.email})]);}else await env.DB!.batch([env.DB!.prepare('INSERT INTO orders (id,number,user_id,name,email,phone,company,billing,items,subtotal,discount,vat,total,created_at,idempotency_key,coupon) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(...Object.values(record)),...requestCreatedStatements(bindings,'orders',{id:orderId,number,name:b.name,email:b.email})]);return json({id:orderId,number});}
  const accountDetail=path.match(/^account\/requests\/(orders|quotes)\/([^/]+)$/);
  if(req.method==='GET'&&accountDetail){if(!user)throw new HttpError('UNAUTHORIZED',401);return json(await customerRequestDetail(bindings,accountDetail[1] as 'orders'|'quotes',accountDetail[2],user.userId));}
- if(path==='profile'){if(!user)throw new HttpError('UNAUTHORIZED',401);if(req.method==='GET'){return json((await db.select().from(schema.customers).where(eq(schema.customers.id,user.userId)).limit(1))[0]||{name:user.fullName||'',email:user.email});}const b=person.parse(await body(req));if((user.provider==='supabase'||user.provider==='standalone')&&b.email.toLowerCase()!==user.email.toLowerCase())throw new HttpError('EMAIL_CHANGE_REQUIRES_VERIFICATION');await db.insert(schema.customers).values({id:user.userId,...b,updatedAt:now()}).onConflictDoUpdate({target:schema.customers.id,set:{...b,updatedAt:now()}});return json({ok:true});}
+ if(path==='profile'){
+  if(!user)throw new HttpError('UNAUTHORIZED',401);
+  if(req.method==='GET'){
+   const details=await contactDefaults({}) as Record<string,unknown>;
+   return json({...details,email:user.email});
+  }
+  const b=person.extend({phone:z.union([person.shape.phone,z.literal('')]).optional().default('')}).parse(await body(req));
+  if((user.provider==='supabase'||user.provider==='standalone')&&b.email.toLowerCase()!==user.email.toLowerCase())throw new HttpError('EMAIL_CHANGE_REQUIRES_VERIFICATION');
+  await db.insert(schema.customers).values({id:user.userId,...b,updatedAt:now()}).onConflictDoUpdate({target:schema.customers.id,set:{...b,updatedAt:now()}});return json({ok:true});
+ }
  if(req.method==='GET'&&path==='account'){if(!user)throw new HttpError('UNAUTHORIZED',401);const [orders,quotes]=await Promise.all([db.select().from(schema.orders).where(eq(schema.orders.userId,user.userId)).orderBy(desc(schema.orders.createdAt)),db.select().from(schema.quotes).where(eq(schema.quotes.userId,user.userId)).orderBy(desc(schema.quotes.createdAt))]);return json({orders:orders.map(({notes,idempotencyKey,...o})=>o),quotes:quotes.map(({notes,idempotencyKey,...q})=>q)});}
  if(path.startsWith('admin')){
   if(req.method==='POST'&&path==='admin/bootstrap'){const native=await getChatGPTUser();if(!native)throw new HttpError('UNAUTHORIZED',401);if(!await canBootstrap())throw new HttpError('FORBIDDEN',403);await db.insert(schema.settings).values({key:'site-owner',value:native!.userId}).onConflictDoNothing();if(!await adminUser())throw new HttpError('FORBIDDEN',403);for(const p of starterProducts)await db.insert(schema.products).values(p).onConflictDoNothing();for(const c of initialContent)await db.insert(schema.content).values(c).onConflictDoNothing();await db.insert(schema.settings).values({key:'catalog-ready',value:'true'}).onConflictDoNothing();await audit(native!.userId,'admin:activate');return json({ok:true});}

@@ -39,9 +39,6 @@
 /* Service tiles use coloured icon blocks, with one clear action per tile. */
 .company-service-grid { gap:18px; }
 .company-service-tile { --service-accent:var(--brand-blue,#073669); --service-surface:var(--brand-tint,#eaf1f8); position:relative; background:#fff; border:1px solid var(--brand-border,#dae4ee); border-top:3px solid var(--service-accent); border-radius:12px; padding:23px; gap:13px; box-shadow:0 5px 17px #05274605; transition:border-color .16s ease,box-shadow .16s ease; }
-.company-service-tile:nth-child(3n+1) { --service-accent:var(--brand-red,#d82030); --service-surface:#fff1f3; }
-.company-service-tile:nth-child(3n+2) { --service-accent:var(--brand-blue,#073669); --service-surface:var(--brand-tint,#eaf1f8); }
-.company-service-tile:nth-child(3n) { --service-accent:var(--brand-orange,#f26722); --service-surface:#fff3eb; }
 .company-service-tile:hover { border-color:var(--service-accent); box-shadow:0 9px 25px #05274610; }
 .company-service-title { align-items:center; gap:13px; }
 .company-service-icon { width:47px; height:47px; border-radius:12px; background:var(--service-surface); color:var(--service-accent); }
@@ -76,8 +73,6 @@ html[dir=rtl] .company-services-intro { border-radius:8px 0 0 8px; }
 .company-article-section { border-bottom:1px solid var(--brand-border,#dae4ee); padding-block:25px; }
 .company-article-section > h2 { display:flex; align-items:flex-start; gap:11px; margin-bottom:15px; color:var(--brand-blue,#073669); font-size:22px; line-height:1.55; }
 .company-section-number { display:inline-flex; align-items:center; justify-content:center; width:33px; height:33px; flex:none; border-radius:8px; background:var(--brand-tint,#eaf1f8); color:var(--brand-blue,#073669); font-size:12px; line-height:1; font-weight:700; font-variant-numeric:tabular-nums; margin-top:1px; }
-.company-article-section:nth-of-type(3n+2) .company-section-number { background:#fff1f3; color:var(--brand-red,#d82030); }
-.company-article-section:nth-of-type(3n) .company-section-number { background:#fff3eb; color:#ae440e; }
 .company-article-section:target > h2 .company-section-number { background:var(--brand-blue,#073669); color:#fff; }
 .company-scope-list { list-style:none; padding:0; gap:9px; margin-bottom:17px; }
 .company-scope-list li { position:relative; background:var(--brand-tint,#eaf1f8); color:var(--brand-blue,#073669); border-radius:7px; padding:11px 13px; padding-inline-start:27px; font-size:13px; line-height:1.75; }
@@ -100,8 +95,6 @@ html[dir=rtl] .company-services-intro { border-radius:8px 0 0 8px; }
 .company-process > li { position:relative; padding-top:0; border:0; }
 .company-process > li::before { content:''; position:absolute; top:18px; inset-inline:0; height:1px; background:var(--brand-border,#dae4ee); }
 .company-step-no { position:relative; display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:9px; background:var(--brand-blue,#073669); color:#fff; font-size:12px; font-weight:700; margin:0 0 14px; box-shadow:0 0 0 6px #fff; }
-.company-process > li:nth-child(2) .company-step-no { background:var(--brand-red,#d82030); }
-.company-process > li:nth-child(3) .company-step-no { background:var(--brand-deep,#052746); }
 .company-process h3 { font-size:15px; line-height:1.7; color:var(--brand-blue,#073669); margin-bottom:8px; }
 .company-process p { color:#536c81; font-size:13px; line-height:1.85; margin:0; }
 .company-service-brief { padding:25px 27px; margin-block:27px 3px; gap:34px; border:1px solid var(--brand-border,#dae4ee); border-radius:13px; background:var(--brand-tint,#eaf1f8); }
@@ -248,3 +241,4 @@ html[dir=rtl] .company-faq details[open] summary::after { transform:rotate(135de
  .company-intro-mark { display:none; }
  .company-article { padding:0; border:0; }
 }
+

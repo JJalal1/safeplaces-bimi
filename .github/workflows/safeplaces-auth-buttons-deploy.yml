@@ -59,7 +59,8 @@ jobs:
           c.vars.PRODUCTION_LAUNCH_LOCKED='false';
           c.vars.SITE_PUBLIC='true';
           c.vars.SITE_INDEXABLE='true';
-          c.vars.EMAIL_NOTIFICATIONS_ENABLED='false';
+          c.vars.EMAIL_NOTIFICATIONS_ENABLED='true';
+          c.triggers={crons:['*/5 * * * *']};
           c.vars.SITE_DEMO_PRICES='false';
           writeFileSync(p,JSON.stringify(c,null,2)+'\n');
           console.log('PASS: public bilingual quote-only site, indexable, no prices or payments');
@@ -87,6 +88,19 @@ jobs:
         run: node scripts/check-email-auth-release.mjs production protect-logs
       - name: Verify live customer forms and password RPC without sending mail
         run: node scripts/check-live-email-auth.mjs
+      - name: Verify actual customer and staff notification provider acceptance
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_D1_READ_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN }}
+        run: node scripts/check-live-notifications.mjs
+      - name: Save live notification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safeplaces-live-notification-acceptance
+          path: website/test-results/live-notification-acceptance.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Verify public login labels, SEO and quotation page
         run: |
           node --input-type=module <<'NODE'
