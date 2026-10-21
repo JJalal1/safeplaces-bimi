@@ -1,6 +1,7 @@
 import {getStandaloneAuth} from '../../../../lib/better-auth-server';
-import {authBindings,emailPasswordEnabled,readyAuthConfig} from '../../../../lib/auth-settings';
+import {authBindings,emailPasswordEnabled,enabledProviders,readyAuthConfig} from '../../../../lib/auth-settings';
 import {authEndpointPath,authRequestError,boundedAuthRequest,emailAuthRequestPolicy,isEmailAuthPath} from '../../../../lib/auth-request-policy';
+import {googleLinkRequestError} from '../../../../lib/google-link-policy';
 
 export const dynamic='force-dynamic';
 
@@ -31,6 +32,11 @@ async function handle(request:Request){
   const counter=await (bindings.DB as D1Database).prepare('INSERT INTO rate_limits (key,count,expires) VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count')
    .bind(key,(minute+1)*60000).first<{count:number}>();
   if(!counter||counter.count>(write?30:180))return failure('RATE_LIMIT',429,{'Retry-After':String(60-Math.floor(Date.now()/1000)%60)});
+  if(write&&authEndpointPath(bounded)==='/link-social'&&emailPasswordEnabled(bindings)&&enabledProviders(bindings).includes('google')){
+   let body:unknown;try{body=await bounded.clone().json();}catch{return failure('GOOGLE_LINK_INVALID_REQUEST',400);}
+   const linkError=googleLinkRequestError(body);
+   if(linkError)return failure(linkError,400);
+  }
   const policy=await emailAuthRequestPolicy(bounded,ready.secret);
   if(policy.error)return failure(policy.error,400);
   for(const limit of policy.limits){

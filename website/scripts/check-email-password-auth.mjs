@@ -1,4 +1,4 @@
-import {createHmac,randomBytes,randomUUID} from 'node:crypto';
+import {createHash,createHmac,generateKeyPairSync,randomBytes,randomUUID,sign} from 'node:crypto';
 import {existsSync,readFileSync,readdirSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {join,resolve} from 'node:path';
@@ -17,7 +17,9 @@ const alice={email:'alice@safeplaces-auth.example.test',name:'Local customer Ali
 const bob={email:'bob@safeplaces-auth.example.test',name:'Local customer Bob',password:'Local second passphrase '+randomUUID()};
 const fakeOwnerId=randomUUID();
 const messages=[],mockFailures=[];
-let outboundAttempts=0,signInSequence=0,phase='setup',failureCode='',mf,peer,db,bucket;
+const googleClientId='local-google-link-fixture.apps.googleusercontent.com',googleClientSecret='local-google-link-'+randomUUID();
+const googleFixtures=new Map(),{privateKey:googleSigningKey}=generateKeyPairSync('rsa',{modulusLength:2048});
+let outboundAttempts=0,signInSequence=0,googleSequence=0,phase='setup',failureCode='',mf,peer,googlePeer,db,bucket;
 function check(condition,code){if(!condition){failureCode=code;throw new Error('LOCAL_AUTH_ASSERTION_FAILED');}}
 function pass(name){console.log('PASS: '+name);}
 function exceptionCategory(error){
@@ -45,6 +47,20 @@ class FixtureLog extends Log{
 async function outbound(request){
  outboundAttempts++;
  const deny=code=>{mockFailures.push(code);return Response.json({error:'LOCAL_MOCK_DENIED'},{status:400});};
+ if(request.url==='https://oauth2.googleapis.com/token'&&request.method==='POST'){
+  const body=new URLSearchParams(await request.text()),fixture=googleFixtures.get(body.get('code'));
+  if(!fixture||fixture.used)return deny('unregistered_or_replayed_google_code');
+  if(body.get('grant_type')!=='authorization_code'||body.get('redirect_uri')!==origin+'/api/auth/callback/google')return deny('invalid_google_exchange_target');
+  if(body.get('client_id')!==googleClientId||body.get('client_secret')!==googleClientSecret)return deny('invalid_google_fixture_credentials');
+  const verifier=body.get('code_verifier')||'';
+  if(!verifier||createHash('sha256').update(verifier).digest('base64url')!==fixture.challenge)return deny('google_pkce_verifier_mismatch');
+  fixture.used=true;
+  const now=Math.floor(Date.now()/1000),identity=fixture.identity;
+  const payload={iss:'https://accounts.google.com',aud:googleClientId,sub:identity.subject,email:identity.email,email_verified:identity.verified!==false,name:'Local linking fixture',iat:now,exp:now+3600};
+  const encoded=Buffer.from(JSON.stringify({alg:'RS256',typ:'JWT',kid:'local-linking-fixture'})).toString('base64url')+'.'+Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const idToken=encoded+'.'+sign('RSA-SHA256',Buffer.from(encoded),googleSigningKey).toString('base64url');
+  return Response.json({access_token:'local-google-token-'+randomUUID(),token_type:'Bearer',expires_in:3600,scope:'openid email profile',id_token:idToken});
+ }
  if(request.url!=='https://api.resend.com/emails'||request.method!=='POST')return deny('unexpected_external_request');
  if(request.headers.get('authorization')!=='Bearer '+resendKey)return deny('incorrect_fixture_mail_credential');
  let input;try{input=await request.json();}catch{return deny('invalid_mail_body');}
@@ -71,7 +87,7 @@ async function send(path,{body,raw,stream=false,cookie='',ip='192.0.2.10',worker
   payload=new ReadableStream({start(controller){controller.enqueue(bytes.subarray(0,8192));controller.enqueue(bytes.subarray(8192));controller.close();}});
  }
  const options={method,redirect:'manual',headers:h,...(method==='POST'?{body:payload,...(stream?{duplex:'half'}:{})}:{})};
- return worker?peer.fetch(new URL(path,origin).href,options):mf.dispatchFetch(new URL(path,origin).href,options);
+ return worker?(worker===2?googlePeer:peer).fetch(new URL(path,origin).href,options):mf.dispatchFetch(new URL(path,origin).href,options);
 }
 async function reply(path,options={},status=200){
  const response=await send(path,options);
@@ -170,8 +186,8 @@ try{
  // getWorker().fetch uses Miniflare's protected /cdn-cgi proxy. Register the
  // exact fixture origin so that proxy accepts its POST Origin before forwarding
  // to the peer; the application's own origin and shared-D1 checks still run.
- mf=new Miniflare({workers:[{name:'email-auth-primary',...common,routes:[origin+'/*']},{name:'email-auth-peer',...common}],d1Persist:false,r2Persist:false,durableObjectsPersist:false,cf:false,host:'127.0.0.1',port:0,log:new FixtureLog()});
- db=await mf.getD1Database('DB','email-auth-primary');bucket=await mf.getR2Bucket('BUCKET','email-auth-primary');peer=await mf.getWorker('email-auth-peer');
+ mf=new Miniflare({workers:[{name:'email-auth-primary',...common,routes:[origin+'/*']},{name:'email-auth-peer',...common},{name:'email-auth-google',...common,bindings:{...common.bindings,GOOGLE_CLIENT_ID:googleClientId,GOOGLE_CLIENT_SECRET:googleClientSecret}}],d1Persist:false,r2Persist:false,durableObjectsPersist:false,cf:false,host:'127.0.0.1',port:0,log:new FixtureLog()});
+ db=await mf.getD1Database('DB','email-auth-primary');bucket=await mf.getR2Bucket('BUCKET','email-auth-primary');peer=await mf.getWorker('email-auth-peer');googlePeer=await mf.getWorker('email-auth-google');
  for(const migration of readdirSync('drizzle').filter(name=>name.endsWith('.sql')).sort())
   for(const sql of readFileSync(join('drizzle',migration),'utf8').replace(/^\s*--.*$/gm,'').split(';').filter(sql=>sql.trim()))await db.prepare(sql).run();
  await db.prepare("INSERT INTO settings (key,value) VALUES ('catalog-ready','true'),('orderEnabled','false')").run();
@@ -288,6 +304,117 @@ try{
  check((await json('/api/session',{cookie:bobSession.cookie})).data.user===null,'expired_database_session_has_no_customer_access');
  pass('each Worker rechecks current verification, expiration and revocation in D1');
 
+ phase='explicit Google linking request boundary';
+ const linkBody={provider:'google',callbackURL:'/ar/account?tab=security&linked=google',errorCallbackURL:'/ar/account?tab=security',disableRedirect:true};
+ const googleOptions=()=>({worker:2,ip:'198.18.0.'+(++googleSequence)});
+ const googleIdentity={subject:'local-link-subject-'+randomUUID(),email:alice.email};
+ const authCounts=()=>db.prepare('SELECT (SELECT COUNT(*) FROM auth_user) AS users,(SELECT COUNT(*) FROM auth_account) AS accounts,(SELECT COUNT(*) FROM auth_session) AS sessions').first();
+ async function beginGoogle(identity,cookie='',link=true){
+  const body=link?linkBody:{provider:'google',callbackURL:'/ar/account',newUserCallbackURL:'/ar/account',errorCallbackURL:'/ar/account/login',disableRedirect:true};
+  const response=await reply('/api/auth/'+(link?'link-social':'sign-in/social'),{...googleOptions(),body,cookie});
+  const url=new URL((await response.json()).url);
+  check(url.origin==='https://accounts.google.com'&&url.pathname==='/o/oauth2/v2/auth','google_link_uses_expected_authorization_url');
+  check(url.searchParams.get('client_id')===googleClientId&&url.searchParams.get('redirect_uri')===origin+'/api/auth/callback/google','google_link_uses_exact_provider_and_callback');
+  const state=url.searchParams.get('state'),challenge=url.searchParams.get('code_challenge');
+  check(!!state&&!!challenge&&url.searchParams.get('code_challenge_method')==='S256','google_link_requires_state_and_pkce');
+  const cookies=response.headers.getSetCookie().filter(value=>value.startsWith('__Secure-better-auth.state='));
+  check(cookies.length===1&&/HttpOnly/i.test(cookies[0])&&/Secure/i.test(cookies[0])&&/SameSite=Lax/i.test(cookies[0])&&!/Domain=/i.test(cookies[0]),'google_link_uses_host_only_secure_state_cookie');
+  const code='local-link-code-'+randomUUID();googleFixtures.set(code,{identity,challenge,used:false});
+  return {state,code,cookie:cookies[0].split(';',1)[0]};
+ }
+ async function finishGoogle(flow,cookie=''){
+  const response=await send('/api/auth/callback/google?'+new URLSearchParams({state:flow.state,code:flow.code}),{...googleOptions(),cookie:[cookie,flow.cookie].filter(Boolean).join('; ')});
+  check([302,303].includes(response.status)&&/no-store/.test(response.headers.get('cache-control')||''),'google_callback_returns_private_redirect');
+  const location=new URL(response.headers.get('location'),origin);
+  check(location.origin===origin,'google_callback_cannot_redirect_outside_site');
+  return {response,location};
+ }
+ async function denyGoogle(flow,cookie,code){
+  const before=await authCounts(),result=await finishGoogle(flow,cookie);
+  check(result.location.searchParams.get('error')===code,'google_link_callback_rejection_'+code);
+  check(!hasLoginCookie(result.response),'rejected_link_cannot_create_or_upgrade_session');
+  check(JSON.stringify(await authCounts())===JSON.stringify(before),'rejected_link_cannot_change_users_accounts_or_sessions');
+  await result.response.body?.cancel();
+ }
+ let linkLogin=await signIn(alice,changedPassword);
+ await reply('/api/auth/link-social',{body:linkBody,cookie:linkLogin.cookie},404);
+ await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody},401,'GOOGLE_LINK_REAUTH_REQUIRED');
+ await reply('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie,headers:{origin:'https://untrusted.example'}},403);
+ await reply('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie,headers:{origin:''}},403);
+ for(const body of [
+  {...linkBody,provider:'github'}, {...linkBody,idToken:{token:'not-an-identity-proof'}},
+  {...linkBody,callbackURL:'https://untrusted.example/return'}, {...linkBody,errorCallbackURL:'/ar/admin'},
+  {...linkBody,additionalData:{serverContext:{googleLink:{userId:alice.id}}}},
+  {...linkBody,scopes:['openid','email']}, {...linkBody,userId:fakeOwnerId}, {...linkBody,disableRedirect:false}
+ ])await errorCode('/api/auth/link-social',{...googleOptions(),body,cookie:linkLogin.cookie},400,'GOOGLE_LINK_INVALID_REQUEST');
+ await db.prepare('UPDATE auth_user SET email_verified=0 WHERE id=?').bind(alice.id).run();
+ await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie},403,'GOOGLE_LINK_REAUTH_REQUIRED');
+ await db.prepare('UPDATE auth_user SET email_verified=1 WHERE id=?').bind(alice.id).run();
+ await db.prepare('UPDATE auth_session SET created_at=? WHERE id=?').bind(Date.now()-11*60000,linkLogin.sessionId).run();
+ await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie},403,'GOOGLE_LINK_REAUTH_REQUIRED');
+ linkLogin=await signIn(alice,changedPassword);
+ const implicit=await beginGoogle(googleIdentity,'',false);
+ await denyGoogle(implicit,'','account_not_linked');
+ check((await db.prepare("SELECT COUNT(*) AS n FROM auth_account WHERE user_id=? AND provider_id='google'").bind(alice.id).first()).n===0,'same_email_alone_never_links_google');
+ pass('Google linking rejects anonymous, unverified, stale, cross-origin, token, alternate-provider and arbitrary-callback requests; implicit linking stays disabled');
+
+ phase='Google link callback session binding';
+ const absent=await beginGoogle(googleIdentity,linkLogin.cookie);await denyGoogle(absent,'','GOOGLE_LINK_REAUTH_REQUIRED');
+ const revoked=await beginGoogle(googleIdentity,linkLogin.cookie);
+ await db.prepare('DELETE FROM auth_session WHERE id=?').bind(linkLogin.sessionId).run();
+ await denyGoogle(revoked,linkLogin.cookie,'GOOGLE_LINK_REAUTH_REQUIRED');
+ linkLogin=await signIn(alice,changedPassword);
+ const switched=await beginGoogle(googleIdentity,linkLogin.cookie),otherAliceLogin=await signIn(alice,changedPassword);
+ await denyGoogle(switched,otherAliceLogin.cookie,'GOOGLE_LINK_REAUTH_REQUIRED');
+ const switchedUser=await beginGoogle(googleIdentity,linkLogin.cookie),otherBobLogin=await signIn(bob);
+ await denyGoogle(switchedUser,otherBobLogin.cookie,'GOOGLE_LINK_REAUTH_REQUIRED');
+ const stale=await beginGoogle(googleIdentity,linkLogin.cookie);
+ await db.prepare('UPDATE auth_session SET created_at=? WHERE id=?').bind(Date.now()-11*60000,linkLogin.sessionId).run();
+ await denyGoogle(stale,linkLogin.cookie,'GOOGLE_LINK_REAUTH_REQUIRED');
+ linkLogin=await signIn(alice,changedPassword);
+ const localUnverified=await beginGoogle(googleIdentity,linkLogin.cookie);
+ await db.prepare('UPDATE auth_user SET email_verified=0 WHERE id=?').bind(alice.id).run();
+ await denyGoogle(localUnverified,linkLogin.cookie,'GOOGLE_LINK_REAUTH_REQUIRED');
+ await db.prepare('UPDATE auth_user SET email_verified=1 WHERE id=?').bind(alice.id).run();
+ await denyGoogle(await beginGoogle({...googleIdentity,email:bob.email},linkLogin.cookie),linkLogin.cookie,'GOOGLE_LINK_EMAIL_MISMATCH');
+ await denyGoogle(await beginGoogle({...googleIdentity,verified:false},linkLogin.cookie),linkLogin.cookie,'GOOGLE_LINK_EMAIL_NOT_VERIFIED');
+ const collision={...googleIdentity,subject:'local-other-user-subject-'+randomUUID()},collisionAccount=randomUUID(),stamp=Date.now();
+ await db.prepare('INSERT INTO auth_account (id,user_id,account_id,provider_id,created_at,updated_at) VALUES (?,?,?,?,?,?)').bind(collisionAccount,bob.id,collision.subject,'google',stamp,stamp).run();
+ await denyGoogle(await beginGoogle(collision,linkLogin.cookie),linkLogin.cookie,'account_already_linked_to_different_user');
+ check((await db.prepare('SELECT user_id FROM auth_account WHERE id=?').bind(collisionAccount).first()).user_id===bob.id,'provider_identity_never_moves_between_local_users');
+ pass('Google callback rechecks the same live fresh session; revoked, switched, stale and unverified sessions, mismatched Google email and other-user provider bindings are rejected');
+
+ phase='Google link success preserves identity and both login methods';
+ const beforeLink=await authCounts(),validLink=await beginGoogle(googleIdentity,linkLogin.cookie),linked=await finishGoogle(validLink,linkLogin.cookie);
+ check(linked.location.pathname==='/ar/account'&&linked.location.searchParams.get('tab')==='security'&&linked.location.searchParams.get('linked')==='google'&&!linked.location.searchParams.has('error'),'successful_link_returns_to_account_security');
+ check(!hasLoginCookie(linked.response),'linking_does_not_mint_or_upgrade_a_login_session');await linked.response.body?.cancel();
+ const afterLink=await authCounts();check(afterLink.users===beforeLink.users&&afterLink.sessions===beforeLink.sessions&&afterLink.accounts===beforeLink.accounts+1,'link_adds_one_provider_to_same_user_only');
+ const stillPassword=(await json('/api/auth/get-session',{...googleOptions(),cookie:linkLogin.cookie})).data;
+ check(stillPassword.user.id===alice.id&&stillPassword.session.id===linkLogin.sessionId&&stillPassword.session.authMethod==='password','linking_keeps_existing_session_and_password_method');
+ await reply('/api/admin/data',{...googleOptions(),cookie:linkLogin.cookie},403);
+ const googleAccount=await db.prepare("SELECT user_id,account_id FROM auth_account WHERE user_id=? AND provider_id='google'").bind(alice.id).first();
+ check(googleAccount.user_id===alice.id&&googleAccount.account_id===googleIdentity.subject,'google_subject_is_linked_to_original_immutable_id');
+ check((await db.prepare("SELECT password FROM auth_account WHERE user_id=? AND provider_id='credential'").bind(alice.id).first()).password===changedHash,'linking_preserves_existing_password_hash');
+ await denyGoogle(validLink,linkLogin.cookie,'state_mismatch');
+ await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie},409,'GOOGLE_LINK_ALREADY_LINKED');
+ await reply('/api/auth/unlink-account',{...googleOptions(),body:{accountId:collisionAccount},cookie:linkLogin.cookie},404);
+ const googleLogin=await finishGoogle(await beginGoogle(googleIdentity,'',false));
+ check(!googleLogin.location.searchParams.has('error'),'linked_google_sign_in_succeeds');
+ const googleCookie=sessionCookie(googleLogin.response);await googleLogin.response.body?.cancel();
+ const googleSession=(await json('/api/auth/get-session',{...googleOptions(),cookie:googleCookie})).data;
+ check(googleSession.user.id===alice.id&&googleSession.session.authMethod==='google','only_a_new_google_sign_in_creates_google_method_for_same_user');
+ const passwordAgain=await signIn(alice,changedPassword);
+ for(const cookie of [googleCookie,passwordAgain.cookie]){
+  const current=(await json('/api/session',{...googleOptions(),cookie})).data;
+  check(current.user?.userId==='customer:'+alice.id&&current.admin===false,'both_methods_keep_customer_identity_without_email_only_admin');
+  const account=(await json('/api/account',{...googleOptions(),cookie})).data;
+  check(account.quotes.length===1&&account.quotes[0].id===aliceRecord.id,'both_methods_keep_original_private_quote_ownership');
+  const media=await reply('/api/media/'+aliceFile.id,{...googleOptions(),cookie});check(await media.text()===aliceFile.content,'both_methods_keep_original_private_attachment_access');
+  await reply('/api/account/requests/quotes/'+bobRecord.id,{...googleOptions(),cookie},404);
+ }
+ check((await db.prepare('SELECT user_id FROM quotes WHERE id=?').bind(guestRecord.id).first()).user_id===null,'linking_cannot_claim_guest_records_by_email');
+ pass('explicit link keeps UUID, password hash, session method, quotes and files; replay/duplicate/unlink denied; subsequent Google and password logins both access the original customer account');
+
  phase='distributed opaque rate limits';
  // Avoid a wall-clock boundary splitting the isolated fixed-window fixture.
  if(Date.now()%600000>595000)await delay(5100);
@@ -322,7 +449,7 @@ try{
  const storedKeys=(await db.prepare("SELECT key FROM rate_limits WHERE key LIKE 'auth-policy:%'").all()).results.map(row=>row.key);
  check(storedKeys.length>0&&storedKeys.every(key=>/^auth-policy:[a-z-]+:\d+:[0-9a-f]{64}$/.test(key)),'rate_table_has_only_opaque_policy_keys');
  check(storedKeys.every(key=>![alice.email,bob.email,mailTarget,mailIp,guessIp,authSecret].some(value=>key.includes(value))),'rate_keys_contain_no_raw_private_values');
- check(mockFailures.length===0&&outboundAttempts===messages.length,'all_worker_egress_was_approved_local_mail_only');
+ check(mockFailures.length===0&&outboundAttempts===messages.length+[...googleFixtures.values()].filter(fixture=>fixture.used).length,'all_worker_egress_was_approved_local_mail_or_google_fixtures');
  pass('D1 throttles survive Worker and IP changes; password and mail limits use secret HMAC keys without raw identity data');
  pass('email/password API integration completed using temporary fixtures only');
 }catch(error){

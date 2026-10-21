@@ -9,8 +9,9 @@ import {fileURLToPath} from 'node:url';
 
 // Exercises the built application and its real Better Auth, D1 and password
 // Durable Object using four disposable local browser/database instances.
-// Resend requests terminate in the in-memory transport below. Google and all
-// other external requests are blocked. Passwords, cookies and email links must
+// Resend requests terminate in the in-memory transport below. A Google cancel
+// redirect is intercepted locally; token exchange and other external requests
+// are blocked. Passwords, cookies and email links must
 // never be written into reports, screenshots, filenames or console output.
 process.chdir(resolve(dirname(fileURLToPath(import.meta.url)),'..'));
 const require=createRequire(import.meta.url);
@@ -277,6 +278,73 @@ async function customerGoogleNavigation(page,instance,lang,userId){
   await page.unroute(sessionMatch);await page.unroute(socialMatch);
  }
 }
+async function customerGoogleLinking(page,instance,lang,width,email,password,userId){
+ const target='/'+lang+'/account',security=target+'?tab=security';
+ const connect=lang==='ar'?'ربط Google':'Connect Google',confirm=lang==='ar'?'تأكيد تسجيل الدخول':'Confirm sign-in';
+ await visit(page,instance,target+'/login?return_to='+encodeURIComponent('/'+lang+'/admin')+'&reason=admin&error=account_not_linked');
+ const adminLinkPrompt=page.locator('[data-admin-google-link]');await adminLinkPrompt.waitFor();
+ const adminLink=adminLinkPrompt.getByRole('link',{name:lang==='ar'?'ربط Google بحسابي':'Connect Google to my account',exact:true});
+ assert.ok(await adminLink.isVisible(),'An unlinked administration Google attempt offers the separate customer linking flow');
+ const adminLinkURL=new URL(await adminLink.getAttribute('href'),instance.origin);
+ assert.equal(adminLinkURL.origin,instance.origin);assert.equal(adminLinkURL.pathname,target+'/login');
+ assert.equal(adminLinkURL.searchParams.get('return_to'),security,'The linking CTA has a fixed customer-security return target');
+ assert.equal(adminLinkURL.searchParams.get('reason'),'link-google');
+ assert.equal(await page.locator('main input[name="email"], main input[name="password"], .customer-auth-switch').count(),0,'The administration form remains Google-only beside the customer linking CTA');
+ assert.ok(await page.getByRole('button',{name:words[lang].google,exact:true}).isEnabled());
+ assert.ok((await adminLinkPrompt.innerText()).includes(lang==='ar'?'بعد الربط':'After connecting'),'The CTA explains that administration requires a subsequent Google sign-in');
+ // A callback error must explain the one-time ownership proof even when an
+ // existing customer session is present; it must not immediately navigate away.
+ await visit(page,instance,target+'/login?error=account_not_linked');
+ await page.getByRole('alert').waitFor();
+ assert.ok((await page.getByRole('alert').innerText()).includes(connect),'An unlinked Google account receives an actionable connection instruction');
+ assert.ok(await page.locator('.customer-google-link-prompt').isVisible());
+ await visit(page,instance,security);
+ await page.locator('.customer-sign-in-methods').waitFor();
+ await page.getByRole('button',{name:connect,exact:true}).waitFor();
+ assert.ok(await page.locator('.account-nav').getByRole('button',{name:lang==='ar'?'طرق تسجيل الدخول':'Sign-in methods',exact:true}).isVisible(),'Customers can find the sign-in methods section');
+ await capture(page,lang,width,'sign-in-methods');
+ const prior=await instance.db.prepare('SELECT id FROM auth_session WHERE user_id=?').bind(userId).first();
+ assert.ok(prior);secret(prior.id);
+ await instance.db.prepare('UPDATE auth_session SET created_at=? WHERE id=?').bind(Date.now()-11*60000,prior.id).run();
+ const rejected=await submit(page,'/api/auth/link-social',connect,403);
+ assert.equal(rejected.code,'GOOGLE_LINK_REAUTH_REQUIRED');
+ await page.getByRole('link',{name:confirm,exact:true}).click();
+ await page.waitForURL(url=>url.pathname===target+'/login'&&url.searchParams.get('reason')==='link-google');
+ await page.getByLabel(words[lang].password,{exact:true}).waitFor();await page.waitForLoadState('networkidle');
+ assert.equal(new URL(page.url()).pathname,target+'/login','A stale signed-in customer can reauthenticate without a redirect loop');
+ assert.equal(await page.locator('.customer-social-google').count(),0,'The one-time ownership step asks for the existing account password');
+ await page.getByLabel(words[lang].email,{exact:true}).fill(email);
+ await page.getByLabel(words[lang].password,{exact:true}).fill(password);
+ await submit(page,'/api/auth/sign-in/email',words[lang].login);
+ await page.waitForURL(url=>url.pathname===target&&url.searchParams.get('tab')==='security');
+ await page.getByRole('button',{name:connect,exact:true}).waitFor();
+ assert.equal((await sessionState(page)).userId,'customer:'+userId,'Reauthentication returns to the same customer account');
+ const fresh=await instance.db.prepare('SELECT id,auth_method FROM auth_session WHERE user_id=? AND id<>?').bind(userId,prior.id).first();
+ assert.ok(fresh&&fresh.auth_method==='password'&&fresh.id!==prior.id,'Reauthentication creates a fresh password session');secret(fresh.id);
+ // Retire only the superseded local fixture session so the later sign-out
+ // check starts with its intended single active browser session.
+ await instance.db.prepare('DELETE FROM auth_session WHERE id=?').bind(prior.id).run();
+ let cancelledAtProvider=0;
+ const googleMatch=url=>url.origin==='https://accounts.google.com'&&url.pathname==='/o/oauth2/v2/auth';
+ await page.route(googleMatch,async route=>{
+  const url=new URL(route.request().url()),state=url.searchParams.get('state');
+  assert.equal(url.searchParams.get('redirect_uri'),instance.origin+'/api/auth/callback/google');
+  assert.ok(state&&url.searchParams.get('code_challenge'),'The real link endpoint starts a state-bound PKCE flow');
+  secret(state);secret(url.href);cancelledAtProvider++;
+  await route.fulfill({status:302,headers:{location:instance.origin+'/api/auth/callback/google?'+new URLSearchParams({state,error:'access_denied'}),'cache-control':'no-store'},body:''});
+ });
+ try{
+  await page.getByRole('button',{name:connect,exact:true}).click();
+  await page.waitForURL(url=>url.pathname===target&&url.searchParams.get('tab')==='security'&&url.searchParams.get('error')==='access_denied');
+  await page.getByRole('status').filter({hasText:lang==='ar'?'ألغيت الربط':'linking was cancelled'}).waitFor();
+  assert.equal(cancelledAtProvider,1,'The synthetic provider cancellation is intercepted exactly once');
+  assert.equal((await sessionState(page)).userId,'customer:'+userId,'Cancelling Google linking preserves the authenticated customer');
+  assert.equal((await instance.db.prepare("SELECT COUNT(*) AS count FROM auth_account WHERE user_id=? AND provider_id='google'").bind(userId).first()).count,0,'Cancellation never adds a Google account');
+  assert.equal((await instance.db.prepare('SELECT auth_method FROM auth_session WHERE id=?').bind(fresh.id).first()).auth_method,'password','Cancellation cannot upgrade the session method');
+  assert.ok(await page.getByRole('button',{name:connect,exact:true}).isEnabled(),'A cancelled link can be retried');
+  await capture(page,lang,width,'google-link-cancelled');
+ }finally{await page.unroute(googleMatch);}
+}
 async function signOut(page,lang,db,userId,{source='account'}={}){
  const lex=words[lang],width=page.viewportSize().width;
  phase=lang+'-'+width+' '+source+' logout confirmation';
@@ -443,6 +511,10 @@ try{
   await page.reload({waitUntil:'domcontentloaded'});await page.locator('.account-nav').waitFor();
   assert.equal((await sessionState(page)).userId,firstSession.userId,'The authenticated session survives a browser refresh');
   await capture(page,lang,width,'account');
+
+  phase=label+' explicit Google linking and reauthentication';
+  await customerGoogleLinking(page,instance,lang,width,email,oldPassword,user.id);
+  pass(label+': actionable Google linking, account security, same-user reauthentication without loops and safe provider cancellation');
 
   phase=label+' Google request and delayed customer session';
   await customerGoogleNavigation(page,instance,lang,firstSession.userId);
