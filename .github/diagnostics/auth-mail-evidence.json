@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-21T00:03:07Z",
+  "repository": "JJalal1/safeplaces-bimi",
+  "applicationCommit": "b50b0775a7f0f084e808d601b34984dc6bffa193",
+  "diagnosticCommit": "efbb73b7de0993bde15b519782e82602a4c7e2a0",
+  "runId": 39518730778,
+  "jobId": 118957094965,
+  "runUrl": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39518730778",
+  "overallRunConclusion": "failure",
+  "conclusion": {
+    "productionAuthVerificationMail": "provider_acceptance_confirmed",
+    "humanInboxDelivery": "not_tested",
+    "ownedFixtureDeletion": "blocked_by_D1_write_permission_HTTP_403",
+    "temporaryTailCleanup": "confirmed",
+    "automaticRepetition": "workflow_removed_after_this_observation"
+  },
+  "reports": [
+    {
+      "schema_version": 1,
+      "mode": "preflight",
+      "status": "ready",
+      "category": "preflight_passed",
+      "can_send_test": true,
+      "deletion_attempted": false,
+      "cleanup_confirmed": false,
+      "checks": {
+        "foreign_keys_enabled": true,
+        "account_delete_cascade": true,
+        "session_delete_cascade": true,
+        "exact_fixture_guard": true
+      },
+      "counts": {
+        "read_requests": 4,
+        "write_requests": 0,
+        "directly_deleted_rows": 0,
+        "preflight": {
+          "exact_identity_rows": 1,
+          "simulator_profile_matches": 1,
+          "session_rows": 0,
+          "account_rows": 1,
+          "credential_only_rows": 1,
+          "verification_reference_rows": 0,
+          "has_other_references": 0
+        }
+      },
+      "http_statuses": [
+        200,
+        200,
+        200,
+        200
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "mode": "observe",
+      "startedAt": "2026-10-21T00:01:34.313Z",
+      "finishedAt": "2026-10-21T00:01:38.385Z",
+      "target": {
+        "accountId": "b67109c9489a46ae25fb36370c4ba880",
+        "worker": "safeplaces-production",
+        "expectedVersionId": "e52b6904-cf5e-457a-bb27-504cd46f7264"
+      },
+      "fixture": {
+        "email": "delivered+safeplaces-auth-b50b0775a7f0@resend.dev",
+        "userId": "02f762db-ea6c-4384-929a-fc94a22a8801"
+      },
+      "deployment": {
+        "status": "verified",
+        "httpStatus": 200,
+        "versionMatched": true,
+        "traffic100Percent": true,
+        "createdAt": "2026-10-20T23:20:11.322Z"
+      },
+      "oldTail": {
+        "id": "15d674b13cd44d669dee844c6b80bad8",
+        "attempted": true,
+        "status": "not_found",
+        "httpStatus": 404
+      },
+      "tail": {
+        "created": true,
+        "createHttpStatus": 200,
+        "id": "4acc21c0b0e14dce97e45ccfb0a19fbc",
+        "expiresAt": "2026-10-21T06:01:35.000Z",
+        "connected": true,
+        "protocolConfirmed": true,
+        "initialized": true,
+        "cleanupStatus": "success",
+        "cleanupHttpStatus": 200
+      },
+      "request": {
+        "sent": true,
+        "state": "REQUESTED",
+        "httpStatus": 200,
+        "noSessionCookie": true,
+        "cfRay": "a4dbfd1bbf03cd73-LHR"
+      },
+      "events": [
+        {
+          "nonceMatched": true,
+          "workerFieldMatched": true,
+          "versionFieldMatched": true,
+          "timestamp": "2026-10-21T00:01:36.628Z",
+          "logs": [
+            {
+              "message": "Safe Places auth diagnostic email/verification_accepted",
+              "level": "info"
+            }
+          ],
+          "outcome": "ok",
+          "exceptionCount": 0
+        }
+      ],
+      "providerAcceptanceObserved": true,
+      "deliveryConfirmed": false,
+      "finishReason": "owned_invocation_observed",
+      "result": "ACCEPTED",
+      "reportWritten": true
+    },
+    {
+      "schema_version": 1,
+      "mode": "cleanup",
+      "status": "blocked",
+      "category": "cloudflare_forbidden",
+      "can_send_test": false,
+      "deletion_attempted": true,
+      "cleanup_confirmed": false,
+      "checks": {
+        "foreign_keys_enabled": true,
+        "account_delete_cascade": true,
+        "session_delete_cascade": true,
+        "exact_fixture_guard": true
+      },
+      "counts": {
+        "read_requests": 4,
+        "write_requests": 1,
+        "directly_deleted_rows": 0,
+        "preflight": {
+          "exact_identity_rows": 1,
+          "simulator_profile_matches": 1,
+          "session_rows": 0,
+          "account_rows": 1,
+          "credential_only_rows": 1,
+          "verification_reference_rows": 0,
+          "has_other_references": 0
+        }
+      },
+      "http_statuses": [
+        200,
+        200,
+        200,
+        200,
+        403
+      ],
+      "diagnostic": {
+        "category": "sql_authorization_denied",
+        "api_error_code": 7403,
+        "table": null,
+        "column": null
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "mode": "cleanup-tail",
+      "startedAt": "2026-10-21T00:01:40.318Z",
+      "finishedAt": "2026-10-21T00:01:40.639Z",
+      "target": {
+        "accountId": "b67109c9489a46ae25fb36370c4ba880",
+        "worker": "safeplaces-production",
+        "expectedVersionId": "e52b6904-cf5e-457a-bb27-504cd46f7264"
+      },
+      "fixture": null,
+      "deployment": {
+        "status": "not_checked",
+        "httpStatus": null,
+        "versionMatched": false,
+        "traffic100Percent": false,
+        "createdAt": null
+      },
+      "oldTail": {
+        "id": "15d674b13cd44d669dee844c6b80bad8",
+        "attempted": true,
+        "status": "not_found",
+        "httpStatus": 404
+      },
+      "tail": {
+        "created": false,
+        "createHttpStatus": null,
+        "id": null,
+        "expiresAt": null,
+        "connected": false,
+        "protocolConfirmed": false,
+        "initialized": false,
+        "cleanupStatus": "not_needed",
+        "cleanupHttpStatus": null
+      },
+      "request": {
+        "sent": false,
+        "state": "NOT_SENT",
+        "httpStatus": null,
+        "noSessionCookie": null,
+        "cfRay": null
+      },
+      "events": [],
+      "providerAcceptanceObserved": false,
+      "deliveryConfirmed": false,
+      "finishReason": "old_tail_cleanup_confirmed",
+      "result": "CLEANED",
+      "reportWritten": true
+    }
+  ]
+}
