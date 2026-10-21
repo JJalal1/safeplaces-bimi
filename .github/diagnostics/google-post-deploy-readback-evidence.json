@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "workflowRunId": 39628361702,
+    "jobId": 119319587865,
+    "runAttempt": 1,
+    "headCommit": "10a6144ce9b1e002fbc7b170a8ee29e27fa3a120",
+    "workflowPath": ".github/workflows/safeplaces-google-post-deploy-readback.yml"
+  },
+  "expectedVersionFromSuccessfulDeployment": "6e83c238-894f-4f07-ade5-90e0ed6a2cb0",
+  "validation": {
+    "complete": true,
+    "exactRequests": true,
+    "deployedVersion": true,
+    "googlePublicConfig": true,
+    "googleSecretBinding": true,
+    "authCapabilities": true,
+    "ownerBindingsPresent": true,
+    "rawInvocationAndTracesOff": true
+  },
+  "report": {
+    "status": "READBACK_COMPLETED",
+    "worker": "safeplaces-production",
+    "observedAt": "2026-10-21T15:44:10.188Z",
+    "allowedRequestWindow": {
+      "from": "2026-10-21T15:35:00.000Z",
+      "to": "2026-10-21T16:15:00.000Z"
+    },
+    "previousRuntimeVersion": "0f58136e-71fb-43b0-b890-86ba533813cd",
+    "signInTestPerformed": false,
+    "googleSignInVerified": false,
+    "cloudflareRequestCount": 2,
+    "cloudflareAccessDenied": false,
+    "deployments": {
+      "ok": true,
+      "createdAt": "2026-10-21T15:40:44.324Z",
+      "versions": [
+        {
+          "id": "6e83c238-894f-4f07-ade5-90e0ed6a2cb0",
+          "percentage": 100
+        }
+      ],
+      "previousRuntimeVersionActive": false,
+      "newRuntimeVersionActive": true,
+      "runtimeVersionStateSincePriorReadback": "NEW"
+    },
+    "settings": {
+      "ok": true,
+      "googleClientIdMatchesProduction": true,
+      "betterAuthUrlMatchesProduction": true,
+      "standaloneAuthFlagEnabled": true,
+      "emailPasswordFlagEnabled": true,
+      "googleClientSecret": {
+        "present": true,
+        "type": "secret_text"
+      },
+      "ownerIdBindingPresent": true,
+      "ownerEmailBindingPresent": true,
+      "observability": {
+        "present": true,
+        "enabled": true,
+        "headSamplingRate": 1,
+        "logs": {
+          "enabled": true,
+          "invocationLogsEnabled": false,
+          "headSamplingRate": 1
+        },
+        "traces": {
+          "enabled": false,
+          "headSamplingRate": 1
+        }
+      }
+    }
+  }
+}
