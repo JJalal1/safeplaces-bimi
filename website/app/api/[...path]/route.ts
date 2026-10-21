@@ -21,6 +21,7 @@ import {productReady} from '../../../lib/admin-utils';
 import {z} from 'zod';
 import {customerUser,customerAuthConfig} from '../../../lib/customer-session';
 import {getStandaloneAuth} from '../../../lib/better-auth-server';
+import {standaloneCustomer} from '../../../lib/standalone-auth-policy';
 import {enabledProviders,authBindings,emailPasswordEnabled} from '../../../lib/auth-settings';
 import {CustomerAuth,CustomerAuthError,cookieValue,authCookie,clearAuthCookies,accessCookie,refreshCookie,recoveryCookie} from '../../../lib/customer-auth';
 export const dynamic='force-dynamic';
@@ -51,7 +52,14 @@ async function handle(req:Request){
  const standalone=getStandaloneAuth();
  const auth=standalone?null:customerAuthConfig(),provider=auth?new CustomerAuth(auth):null;
  if(req.method==='GET'&&path==='session'){
-  let user=await customerUser();const cookies:string[]=[];
+  let user=standalone?null:await customerUser();const cookies:string[]=[];
+  if(standalone){
+   // Preserve Better Auth's renewal/expiry cookies in this actual HTTP response.
+   // SSR and authorization helpers deliberately do not consume renewal first.
+   const checked=await standalone.api.getSession({headers:req.headers,query:{disableCookieCache:true},returnHeaders:true});
+   user=standaloneCustomer(checked.response?.user??null);
+   cookies.push(...checked.headers.getSetCookie());
+  }
   const refresh=standalone?'':cookieValue(req.headers.get('cookie'),refreshCookie);
   if(provider&&!user&&refresh){try{const session=await provider.refresh(refresh);user=await provider.user(session.access_token);cookies.push(authCookie(accessCookie,session.access_token),authCookie(refreshCookie,session.refresh_token));}catch(error){if(error instanceof CustomerAuthError&&error.code==='AUTH_INVALID')cookies.push(...clearAuthCookies());else throw error;}}
   const customerOnly=new URL(req.url).searchParams.get('scope')==='customer';

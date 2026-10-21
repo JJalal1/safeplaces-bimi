@@ -23,7 +23,9 @@ export async function adminUser():Promise<AdminIdentity|null>{
  if(bindings.STANDALONE_AUTH_ENABLED==='true'){
   const standalone=getStandaloneAuth();if(!standalone)return null;
   // Never let a cached cookie preserve an expired or operator-revoked session.
-  const session=await standalone.api.getSession({headers:await headers(),query:{disableCookieCache:true}});
+  // Internal authorization cannot forward a renewed cookie to the browser.
+  // /api/session owns renewal; authorization still checks live database state.
+  const session=await standalone.api.getSession({headers:await headers(),query:{disableCookieCache:true,disableRefresh:true}});
   // Password recovery can add a credential to an existing Google identity.
   // Even that same immutable user ID must use a Google-authenticated session
   // for administration; a linked account or a verified email alone is not proof.

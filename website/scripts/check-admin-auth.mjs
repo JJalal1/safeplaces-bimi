@@ -181,6 +181,41 @@ try{
  await db.prepare('UPDATE auth_user SET email=? WHERE id=?').bind(people.owner.email,people.owner.id).run();
  console.log('PASS: verified DB sessions, owner ID plus email, forged/expired cookies and public-header impersonation');
 
+ // Simulate an existing remembered session that is due for renewal. Exercise
+ // the real built Worker and D1 through the Pages gateway, not policy stubs.
+ const day=24*60*60*1000,agedAt=Date.now()-6*day,agedExpiry=agedAt+7*day;
+ const agedCookie=await session(people.owner,agedExpiry);
+ const agedRow=await db.prepare('SELECT id FROM auth_session WHERE user_id=? AND expires_at=?').bind(people.owner.id,agedExpiry).first();
+ assert.ok(agedRow,'The isolated renewal fixture must exist');
+ await db.prepare('UPDATE auth_session SET created_at=?,updated_at=? WHERE id=?').bind(agedAt,agedAt,agedRow.id).run();
+ const renewalState=()=>db.prepare('SELECT expires_at,updated_at,auth_method FROM auth_session WHERE id=?').bind(agedRow.id).first();
+ const beforeRenewal=await renewalState();
+ const accountPage=await send('/ar/account',undefined,agedCookie);
+ assert.equal(accountPage.status,200);
+ assert.ok((await accountPage.text()).includes('customer-route-section'),'The SSR account page must authenticate the aged session');
+ assert.ok(!accountPage.headers.getSetCookie().some(value=>value.startsWith('__Secure-better-auth.session_token=')),'An internal SSR read must not consume cookie renewal');
+ assert.deepEqual(await renewalState(),beforeRenewal,'SSR must not extend database expiry without delivering the renewed browser cookie');
+ await json('/api/admin/data',undefined,agedCookie);
+ assert.deepEqual(await renewalState(),beforeRenewal,'Internal authorization must not consume cookie renewal');
+ const renewal=await send('/api/session?scope=customer',undefined,agedCookie);
+ assert.equal(renewal.status,200);
+ assert.match(renewal.headers.get('cache-control')||'',/no-store/);
+ const renewalBody=await renewal.json();
+ assert.ok(renewalBody.user?.userId==='customer:'+people.owner.id,'Renewal must retain the verified customer identity');
+ const renewedCookies=renewal.headers.getSetCookie().filter(value=>value.startsWith('__Secure-better-auth.session_token='));
+ assert.equal(renewedCookies.length,1,'The HTTP session endpoint must deliver exactly one renewed session cookie');
+ assert.ok(/HttpOnly/i.test(renewedCookies[0])&&/Secure/i.test(renewedCookies[0])&&/SameSite=Lax/i.test(renewedCookies[0]),'Renewal preserves secure cookie attributes');
+ assert.ok(!/Domain=/i.test(renewedCookies[0])&&/Max-Age=[1-9]\d*/i.test(renewedCookies[0]),'Renewal stays host-only and extends browser expiry');
+ assert.ok(renewedCookies[0].split(';',1)[0]===agedCookie,'Renewal retains the existing signed session token');
+ const afterRenewal=await renewalState();
+ assert.ok(afterRenewal.expires_at>beforeRenewal.expires_at&&afterRenewal.updated_at>beforeRenewal.updated_at,'Database and browser session expiry must advance together');
+ assert.equal(afterRenewal.auth_method,'google');
+ await db.prepare('DELETE FROM auth_session WHERE id=?').bind(agedRow.id).run();
+ const revokedRenewal=await json('/api/session',undefined,agedCookie);
+ assert.equal(revokedRenewal.user,null);assert.equal(revokedRenewal.admin,false);
+ assert.equal(await renewalState(),null,'A revoked renewed session must not be recreated');
+ console.log('PASS: aged SSR/admin reads preserve expiry; HTTP session renewal delivers secure cookies; revoked sessions remain denied');
+
  const orderId=randomUUID(),quoteId=randomUUID(),contactId=randomUUID(),createdAt=new Date().toISOString();
  await db.prepare('INSERT INTO orders (id,number,name,email,phone,items,subtotal,vat,total,created_at,idempotency_key) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
   .bind(orderId,'AUTH-ORDER','Local order',people.customer.email,'+966500000000','[]',10000,1500,11500,createdAt,randomUUID()).run();

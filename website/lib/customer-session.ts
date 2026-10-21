@@ -10,7 +10,9 @@ export async function customerUser():Promise<CustomerUser|null>{
  // Never fall back to legacy preview identity when standalone auth is requested but misconfigured.
  if((env as unknown as Record<string,string>).STANDALONE_AUTH_ENABLED==='true'){
   const standalone=getStandaloneAuth();if(!standalone)return null;
-  const session=await standalone.api.getSession({headers:await headers()});
+  // Internal reads cannot forward Set-Cookie. Leave renewal to /api/session,
+  // which can update the browser cookie and the database together.
+  const session=await standalone.api.getSession({headers:await headers(),query:{disableCookieCache:true,disableRefresh:true}});
   return standaloneCustomer(session?.user??null);
  }
  const config=customerAuthConfig();
