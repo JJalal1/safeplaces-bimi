@@ -1,0 +1,173 @@
+{
+  "observedAt": "2026-10-21T21:15:41.283Z",
+  "settingsStatus": 200,
+  "deploymentStatus": 200,
+  "publicConfiguration": [
+    {
+      "name": "SITE_PUBLIC",
+      "count": 1,
+      "type": "plain_text",
+      "value": "true"
+    },
+    {
+      "name": "SITE_INDEXABLE",
+      "count": 1,
+      "type": "plain_text",
+      "value": "true"
+    },
+    {
+      "name": "PRODUCTION_LAUNCH_LOCKED",
+      "count": 1,
+      "type": "plain_text",
+      "value": "false"
+    },
+    {
+      "name": "SITE_DEMO_PRICES",
+      "count": 1,
+      "type": "plain_text",
+      "value": "false"
+    },
+    {
+      "name": "STANDALONE_AUTH_ENABLED",
+      "count": 1,
+      "type": "plain_text",
+      "value": "true"
+    },
+    {
+      "name": "EMAIL_PASSWORD_ENABLED",
+      "count": 1,
+      "type": "plain_text",
+      "value": "true"
+    },
+    {
+      "name": "EMAIL_NOTIFICATIONS_ENABLED",
+      "count": 1,
+      "type": "plain_text",
+      "value": "false"
+    },
+    {
+      "name": "BETTER_AUTH_URL",
+      "count": 1,
+      "type": "plain_text",
+      "value": "https://safeplaces.sa"
+    },
+    {
+      "name": "GOOGLE_CLIENT_ID",
+      "count": 1,
+      "type": "plain_text",
+      "value": "1065235547111-41hr2mvfp3191sdvbd8c1ma306jkcb78.apps.googleusercontent.com"
+    },
+    {
+      "name": "AUTH_EMAIL_FROM",
+      "count": 1,
+      "type": "plain_text",
+      "value": "info@safeplaces.sa"
+    },
+    {
+      "name": "NOTIFICATION_FROM",
+      "count": 1,
+      "type": "plain_text",
+      "value": "info@safeplaces.sa"
+    },
+    {
+      "name": "NOTIFICATION_REPLY_TO",
+      "count": 1,
+      "type": "plain_text",
+      "value": "info@safeplaces.sa"
+    }
+  ],
+  "secretMetadata": [
+    {
+      "name": "STANDALONE_ADMIN_USER_ID",
+      "count": 1,
+      "types": [
+        "secret_text"
+      ],
+      "valueRead": false
+    },
+    {
+      "name": "STANDALONE_ADMIN_EMAIL",
+      "count": 1,
+      "types": [
+        "secret_text"
+      ],
+      "valueRead": false
+    },
+    {
+      "name": "BETTER_AUTH_SECRET",
+      "count": 1,
+      "types": [
+        "secret_text"
+      ],
+      "valueRead": false
+    },
+    {
+      "name": "GOOGLE_CLIENT_SECRET",
+      "count": 1,
+      "types": [
+        "secret_text"
+      ],
+      "valueRead": false
+    },
+    {
+      "name": "RESEND_API_KEY",
+      "count": 1,
+      "types": [
+        "secret_text"
+      ],
+      "valueRead": false
+    },
+    {
+      "name": "NOTIFICATION_ADMIN_EMAIL",
+      "count": 1,
+      "types": [
+        "secret_text"
+      ],
+      "valueRead": false
+    }
+  ],
+  "resourceBindings": [
+    {
+      "name": "AUTH_PASSWORD_HASHER",
+      "type": "durable_object_namespace",
+      "class_name": "PasswordHasher"
+    },
+    {
+      "name": "BUCKET",
+      "type": "r2_bucket",
+      "bucket_name": "safeplaces-production-private"
+    },
+    {
+      "name": "DB",
+      "type": "d1",
+      "database_id": "da06d822-b7ee-4a14-b3a5-7bcbc5839821"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "redact_query_string": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": false
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  },
+  "latestDeployment": {
+    "id": "54724e5f-76a6-4a2d-847b-f0dfa6532f80",
+    "created_on": "2026-10-21T20:46:25.837435Z",
+    "versions": [
+      {
+        "version_id": "3803bbb1-e9da-43cd-9db5-c8ca920cd6b6",
+        "percentage": 100
+      }
+    ]
+  },
+  "mutations": 0
+}

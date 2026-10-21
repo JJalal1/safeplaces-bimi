@@ -1,5 +1,17 @@
 # Google login repair — acceptance checkpoint
 
+## Latest release — 21 October 2026, 21:50 UTC
+
+The customer Google-linking repair, Arabic/English sign-out confirmation and malformed-route SEO correction are now published from verified source `fc48472fec8f0367a36acddf46248d746cf8be92`. The final review and production/staging deployment gates all succeeded. Independent Cloudflare readback confirmed production version `b9e8d5c6-e097-432e-8a29-62941d21acb1` and staging version `6112ee9f-5f2b-4d1b-8aec-f9c42fd1de0c`, each serving 100% at `2026-10-21T21:50:37.700Z`.
+
+An existing verified password customer now connects Google from Account → Sign-in methods while preserving the same account and data ownership. Management still requires Google sign-in and the established role policy. The affected real account's new linking/logout flow still needs human acceptance; fixture success does not prove a real provider callback.
+
+The current results, release links and remaining Word-plan gates are in [Customer launch readiness](customer-launch/CUSTOMER_LAUNCH_READINESS.md). Business notifications remain disabled. Real inbox acceptance, live quotation/private-storage checks, independent backup/restore, scheduled operations and final search/device acceptance remain open. No new Google Client Secret is required for this release.
+
+## Historical acceptance checkpoint — through 20:57 UTC
+
+The record below is preserved as historical evidence. Its previous “latest” or “current” statements apply to those earlier checkpoints; the release and remaining gates above take precedence for the present status.
+
 **Checkpoint update: 21 October 2026, 23:57 Asia/Aden (20:57 UTC). The latest user-supplied mobile screenshot confirms that the real management console opens after the production owner-binding repair. A5 management-console UI access is now PASSED_SCREENSHOT_CONFIRMED. This does not independently establish a fresh Google callback, the session method, exact role/API permissions or email delivery. A6/A7, real email/password acceptance and the later Word-plan gates remain pending.**
 
 ## Customer Google acceptance and administration follow-up

@@ -1,0 +1,230 @@
+{
+  "sourceHead": "fc48472fec8f0367a36acddf46248d746cf8be92",
+  "runId": 39680651741,
+  "jobId": 119501948199,
+  "conclusion": "success",
+  "source": "CLIENT_ASSET_INVENTORY emitted by the actual site integration build",
+  "inventory": {
+    "assets": [
+      {
+        "path": "/.assetsignore",
+        "bytes": 30
+      },
+      {
+        "path": "/.vite/manifest.json",
+        "bytes": 8116
+      },
+      {
+        "path": "/_headers",
+        "bytes": 131
+      },
+      {
+        "path": "/_next/static/60d52c7f-6950-4a4b-9b0d-7f4002210961/_buildManifest.js",
+        "bytes": 159,
+        "gzipEstimateBytes": 121
+      },
+      {
+        "path": "/_next/static/60d52c7f-6950-4a4b-9b0d-7f4002210961/_ssgManifest.js",
+        "bytes": 76,
+        "gzipEstimateBytes": 60
+      },
+      {
+        "path": "/_next/static/chunks/Icon-D0zGVybZ.js",
+        "bytes": 1082,
+        "gzipEstimateBytes": 655
+      },
+      {
+        "path": "/_next/static/chunks/accessibility-LkF4NQBT.js",
+        "bytes": 2595,
+        "gzipEstimateBytes": 1428
+      },
+      {
+        "path": "/_next/static/chunks/admin-hfq2S2Ij.js",
+        "bytes": 139723,
+        "gzipEstimateBytes": 37937
+      },
+      {
+        "path": "/_next/static/chunks/app-route-prefetch-policy-Cp2UZbzG.js",
+        "bytes": 937,
+        "gzipEstimateBytes": 486
+      },
+      {
+        "path": "/_next/static/chunks/auth-client-9aX6nmnm.js",
+        "bytes": 30899,
+        "gzipEstimateBytes": 11631
+      },
+      {
+        "path": "/_next/static/chunks/catalog-browser-DN9sAp2B.js",
+        "bytes": 10770,
+        "gzipEstimateBytes": 3834
+      },
+      {
+        "path": "/_next/static/chunks/chevron-left-9nCBRNTJ.js",
+        "bytes": 127,
+        "gzipEstimateBytes": 144
+      },
+      {
+        "path": "/_next/static/chunks/chevron-right-_b48_Xnh.js",
+        "bytes": 127,
+        "gzipEstimateBytes": 140
+      },
+      {
+        "path": "/_next/static/chunks/customer-login-CD1173Qt.js",
+        "bytes": 24030,
+        "gzipEstimateBytes": 7898
+      },
+      {
+        "path": "/_next/static/chunks/file-text-r13n7YsB.js",
+        "bytes": 382,
+        "gzipEstimateBytes": 251
+      },
+      {
+        "path": "/_next/static/chunks/forms-CeIz12Tc.js",
+        "bytes": 46489,
+        "gzipEstimateBytes": 13991
+      },
+      {
+        "path": "/_next/static/chunks/framework-D_rUT4EX.js",
+        "bytes": 190152,
+        "gzipEstimateBytes": 58977
+      },
+      {
+        "path": "/_next/static/chunks/index-OFMSbeXb.js",
+        "bytes": 196416,
+        "gzipEstimateBytes": 56777
+      },
+      {
+        "path": "/_next/static/chunks/layout-segment-context-0-3w7GSB.js",
+        "bytes": 494,
+        "gzipEstimateBytes": 342
+      },
+      {
+        "path": "/_next/static/chunks/lock-keyhole-CUnGWLoW.js",
+        "bytes": 629,
+        "gzipEstimateBytes": 381
+      },
+      {
+        "path": "/_next/static/chunks/rolldown-runtime-C60lm6uB.js",
+        "bytes": 694,
+        "gzipEstimateBytes": 422
+      },
+      {
+        "path": "/_next/static/chunks/shield-check-oBX9nHIa.js",
+        "bytes": 876,
+        "gzipEstimateBytes": 478
+      },
+      {
+        "path": "/_next/static/chunks/shop-filters-C-ESxxEI.js",
+        "bytes": 11082,
+        "gzipEstimateBytes": 4038
+      },
+      {
+        "path": "/_next/static/chunks/sliders-horizontal-BRk5QJgh.js",
+        "bytes": 421,
+        "gzipEstimateBytes": 241
+      },
+      {
+        "path": "/_next/static/chunks/store-Dg0mgeE4.js",
+        "bytes": 49112,
+        "gzipEstimateBytes": 16276
+      },
+      {
+        "path": "/_next/static/chunks/streamed-icons-Dh0VjZc_.js",
+        "bytes": 772,
+        "gzipEstimateBytes": 490
+      },
+      {
+        "path": "/_next/static/css/layout.CHq66c6U.css",
+        "bytes": 301811,
+        "gzipEstimateBytes": 51651
+      },
+      {
+        "path": "/favicon.svg",
+        "bytes": 344
+      },
+      {
+        "path": "/file.svg",
+        "bytes": 392
+      },
+      {
+        "path": "/fonts/OFL-Tajawal.txt",
+        "bytes": 4372
+      },
+      {
+        "path": "/fonts/SOURCES-Tajawal.txt",
+        "bytes": 2091
+      },
+      {
+        "path": "/fonts/tajawal-400.woff2",
+        "bytes": 20708
+      },
+      {
+        "path": "/fonts/tajawal-500.woff2",
+        "bytes": 20680
+      },
+      {
+        "path": "/fonts/tajawal-700.woff2",
+        "bytes": 20900
+      },
+      {
+        "path": "/globe.svg",
+        "bytes": 1036
+      },
+      {
+        "path": "/images/brand-favicon.png",
+        "bytes": 15145
+      },
+      {
+        "path": "/images/catalog/alarms.webp",
+        "bytes": 25548
+      },
+      {
+        "path": "/images/catalog/emergency.webp",
+        "bytes": 23670
+      },
+      {
+        "path": "/images/catalog/extinguishers.webp",
+        "bytes": 16284
+      },
+      {
+        "path": "/images/catalog/fire-pump.webp",
+        "bytes": 69234
+      },
+      {
+        "path": "/images/catalog/helmet.webp",
+        "bytes": 23160
+      },
+      {
+        "path": "/images/catalog/hose-reel.webp",
+        "bytes": 42792
+      },
+      {
+        "path": "/images/catalog/ppe.webp",
+        "bytes": 49718
+      },
+      {
+        "path": "/images/catalog/sprinkler.webp",
+        "bytes": 43272
+      },
+      {
+        "path": "/images/hero.webp",
+        "bytes": 108216
+      },
+      {
+        "path": "/images/safeplaces-logo.webp",
+        "bytes": 40652
+      },
+      {
+        "path": "/vinext-client-entry-manifest.json",
+        "bytes": 65
+      },
+      {
+        "path": "/window.svg",
+        "bytes": 386
+      }
+    ],
+    "totalFileBytes": 1546797,
+    "staticHeaders": "# Cache content-hashed assets immutably (generated by vinext)\n/_next/static/*\n  Cache-Control: public, max-age=31536000, immutable\n"
+  },
+  "limits": "Complete build output and estimated gzip sizes; not per-page transfer, production response-header observation or field Core Web Vitals."
+}

@@ -1,0 +1,234 @@
+{
+  "reviewHead": "2087a198e057987c77315429e0d2fd35bdce7038",
+  "runId": 39678533051,
+  "jobId": 119494630260,
+  "conclusion": "success",
+  "source": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39678533051/job/119494630260",
+  "inventory": {
+    "assets": [
+      {
+        "path": "/.assetsignore",
+        "bytes": 30
+      },
+      {
+        "path": "/.vite/manifest.json",
+        "bytes": 8122
+      },
+      {
+        "path": "/_headers",
+        "bytes": 131
+      },
+      {
+        "path": "/_next/static/50724524-f2b8-47f2-b766-6b9eee1b34be/_buildManifest.js",
+        "bytes": 159,
+        "gzipEstimateBytes": 121
+      },
+      {
+        "path": "/_next/static/50724524-f2b8-47f2-b766-6b9eee1b34be/_ssgManifest.js",
+        "bytes": 76,
+        "gzipEstimateBytes": 60
+      },
+      {
+        "path": "/_next/static/chunks/Icon-D0zGVybZ.js",
+        "bytes": 1082,
+        "gzipEstimateBytes": 655
+      },
+      {
+        "path": "/_next/static/chunks/accessibility-LkF4NQBT.js",
+        "bytes": 2595,
+        "gzipEstimateBytes": 1428
+      },
+      {
+        "path": "/_next/static/chunks/admin-B9bJEMMX.js",
+        "bytes": 139723,
+        "gzipEstimateBytes": 37940
+      },
+      {
+        "path": "/_next/static/chunks/app-route-prefetch-policy-ByUvphxG.js",
+        "bytes": 937,
+        "gzipEstimateBytes": 489
+      },
+      {
+        "path": "/_next/static/chunks/auth-client-9aX6nmnm.js",
+        "bytes": 30899,
+        "gzipEstimateBytes": 11631
+      },
+      {
+        "path": "/_next/static/chunks/catalog-browser-CA_Hza-K.js",
+        "bytes": 10770,
+        "gzipEstimateBytes": 3836
+      },
+      {
+        "path": "/_next/static/chunks/chevron-left-9nCBRNTJ.js",
+        "bytes": 127,
+        "gzipEstimateBytes": 144
+      },
+      {
+        "path": "/_next/static/chunks/chevron-right-_b48_Xnh.js",
+        "bytes": 127,
+        "gzipEstimateBytes": 140
+      },
+      {
+        "path": "/_next/static/chunks/customer-login-Dygf7hiY.js",
+        "bytes": 21925,
+        "gzipEstimateBytes": 7315
+      },
+      {
+        "path": "/_next/static/chunks/file-text-r13n7YsB.js",
+        "bytes": 382,
+        "gzipEstimateBytes": 251
+      },
+      {
+        "path": "/_next/static/chunks/forms-Dvp2-UEV.js",
+        "bytes": 37906,
+        "gzipEstimateBytes": 11317
+      },
+      {
+        "path": "/_next/static/chunks/framework-D_rUT4EX.js",
+        "bytes": 190152,
+        "gzipEstimateBytes": 58977
+      },
+      {
+        "path": "/_next/static/chunks/index-DEdY6hV9.js",
+        "bytes": 196417,
+        "gzipEstimateBytes": 56781
+      },
+      {
+        "path": "/_next/static/chunks/layout-segment-context-D6VniTTu.js",
+        "bytes": 494,
+        "gzipEstimateBytes": 342
+      },
+      {
+        "path": "/_next/static/chunks/loader-circle-DCTihnG8.js",
+        "bytes": 459,
+        "gzipEstimateBytes": 286
+      },
+      {
+        "path": "/_next/static/chunks/rolldown-runtime-C60lm6uB.js",
+        "bytes": 694,
+        "gzipEstimateBytes": 422
+      },
+      {
+        "path": "/_next/static/chunks/shield-check-xbYS2ZoI.js",
+        "bytes": 1046,
+        "gzipEstimateBytes": 565
+      },
+      {
+        "path": "/_next/static/chunks/shop-filters-C-ESxxEI.js",
+        "bytes": 11082,
+        "gzipEstimateBytes": 4038
+      },
+      {
+        "path": "/_next/static/chunks/sliders-horizontal-BRk5QJgh.js",
+        "bytes": 421,
+        "gzipEstimateBytes": 241
+      },
+      {
+        "path": "/_next/static/chunks/store-BpX12HWW.js",
+        "bytes": 49112,
+        "gzipEstimateBytes": 16276
+      },
+      {
+        "path": "/_next/static/chunks/streamed-icons-Dh0VjZc_.js",
+        "bytes": 772,
+        "gzipEstimateBytes": 490
+      },
+      {
+        "path": "/_next/static/css/layout.TF6efnec.css",
+        "bytes": 300392,
+        "gzipEstimateBytes": 51404
+      },
+      {
+        "path": "/favicon.svg",
+        "bytes": 344
+      },
+      {
+        "path": "/file.svg",
+        "bytes": 392
+      },
+      {
+        "path": "/fonts/OFL-Tajawal.txt",
+        "bytes": 4372
+      },
+      {
+        "path": "/fonts/SOURCES-Tajawal.txt",
+        "bytes": 2091
+      },
+      {
+        "path": "/fonts/tajawal-400.woff2",
+        "bytes": 20708
+      },
+      {
+        "path": "/fonts/tajawal-500.woff2",
+        "bytes": 20680
+      },
+      {
+        "path": "/fonts/tajawal-700.woff2",
+        "bytes": 20900
+      },
+      {
+        "path": "/globe.svg",
+        "bytes": 1036
+      },
+      {
+        "path": "/images/brand-favicon.png",
+        "bytes": 15145
+      },
+      {
+        "path": "/images/catalog/alarms.webp",
+        "bytes": 25548
+      },
+      {
+        "path": "/images/catalog/emergency.webp",
+        "bytes": 23670
+      },
+      {
+        "path": "/images/catalog/extinguishers.webp",
+        "bytes": 16284
+      },
+      {
+        "path": "/images/catalog/fire-pump.webp",
+        "bytes": 69234
+      },
+      {
+        "path": "/images/catalog/helmet.webp",
+        "bytes": 23160
+      },
+      {
+        "path": "/images/catalog/hose-reel.webp",
+        "bytes": 42792
+      },
+      {
+        "path": "/images/catalog/ppe.webp",
+        "bytes": 49718
+      },
+      {
+        "path": "/images/catalog/sprinkler.webp",
+        "bytes": 43272
+      },
+      {
+        "path": "/images/hero.webp",
+        "bytes": 108216
+      },
+      {
+        "path": "/images/safeplaces-logo.webp",
+        "bytes": 40652
+      },
+      {
+        "path": "/vinext-client-entry-manifest.json",
+        "bytes": 65
+      },
+      {
+        "path": "/window.svg",
+        "bytes": 386
+      }
+    ],
+    "totalFileBytes": 1534697,
+    "staticHeaders": "# Cache content-hashed assets immutably (generated by vinext)\n/_next/static/*\n  Cache-Control: public, max-age=31536000, immutable\n"
+  },
+  "assessment": {
+    "immutableRuleAlreadyGenerated": true,
+    "additionalCachePatchRequired": false,
+    "limits": "Build file sizes and gzip estimates are not observed browser transfer bytes, per-route downloads, live cache headers or field Core Web Vitals."
+  }
+}

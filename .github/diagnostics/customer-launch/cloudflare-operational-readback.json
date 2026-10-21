@@ -1,0 +1,119 @@
+{
+  "observedAt": "2026-10-21T21:18:52.150Z",
+  "readOnly": true,
+  "results": [
+    {
+      "name": "schedules",
+      "status": 200,
+      "success": true,
+      "projection": {
+        "schedules": []
+      },
+      "errors": []
+    },
+    {
+      "name": "r2Managed",
+      "status": 200,
+      "success": true,
+      "projection": {
+        "enabled": false
+      },
+      "errors": []
+    },
+    {
+      "name": "r2Custom",
+      "status": 200,
+      "success": true,
+      "projection": {
+        "domains": []
+      },
+      "errors": []
+    },
+    {
+      "name": "dnsTxt",
+      "status": 200,
+      "success": true,
+      "projection": [
+        {
+          "name": "_dmarc.safeplaces.sa",
+          "dmarc": {
+            "policy": "quarantine",
+            "hasAggregateReports": true
+          }
+        },
+        {
+          "name": "resend._domainkey.safeplaces.sa",
+          "dkim": {
+            "present": true,
+            "keyPresent": true,
+            "length": 218
+          }
+        },
+        {
+          "name": "safeplaces.sa",
+          "spf": "v=spf1 include:zohomail.com ~all"
+        },
+        {
+          "name": "safeplaces.sa",
+          "googleSiteVerification": true
+        },
+        {
+          "name": "zoho._domainkey.safeplaces.sa",
+          "dkim": {
+            "present": true,
+            "keyPresent": true,
+            "length": 413
+          }
+        }
+      ],
+      "errors": [],
+      "pagination": {
+        "page": 1,
+        "per_page": 100,
+        "count": 7,
+        "total_count": 7,
+        "total_pages": 1
+      }
+    },
+    {
+      "name": "dnsMx",
+      "status": 200,
+      "success": true,
+      "projection": [
+        {
+          "name": "safeplaces.sa",
+          "content": "mx3.zoho.com",
+          "priority": 50
+        },
+        {
+          "name": "safeplaces.sa",
+          "content": "mx2.zoho.com",
+          "priority": 20
+        },
+        {
+          "name": "safeplaces.sa",
+          "content": "mx.zoho.com",
+          "priority": 10
+        }
+      ],
+      "errors": [],
+      "pagination": {
+        "page": 1,
+        "per_page": 100,
+        "count": 3,
+        "total_count": 3,
+        "total_pages": 1
+      }
+    }
+  ],
+  "applicationSource": "06a52e446a7841be6c91ec8b708dd770c0b17c56",
+  "evidenceScope": "Cloudflare configuration metadata only; no customer records, object content, inbox, email delivery, task execution, or private-account isolation observed.",
+  "interpretation": {
+    "privateBucketPublicEndpointsDisabled": true,
+    "productionCronConfigured": false,
+    "businessNotificationSendingEnabled": false,
+    "providerDomainVerification": "NOT_OBSERVED",
+    "realInboxAcceptance": "PENDING",
+    "searchConsoleOwnershipAcceptance": "NOT_OBSERVED"
+  }
+}

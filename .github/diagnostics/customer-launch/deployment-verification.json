@@ -1,0 +1,946 @@
+{
+  "sourceHead": "fc48472fec8f0367a36acddf46248d746cf8be92",
+  "sourceTree": "5deb92037fe6596f2d602f8467eb941916fb162d",
+  "productionSourceBranch": "feature/auth-speed-seo-before-hosting",
+  "reviewBranch": "fix/customer-email-auth",
+  "observedAt": "2026-10-21T21:50:37.700Z",
+  "runs": [
+    {
+      "runId": 39680651741,
+      "role": "review before source promotion",
+      "url": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39680651741",
+      "sourceHead": "fc48472fec8f0367a36acddf46248d746cf8be92",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 119501948199,
+          "name": "validate / build",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Install dependencies without modifying deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "TypeScript",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Authentication policy",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Native password hashing inside SQLite Durable Objects",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Staff authorization policy",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Existing customer auth tests",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Protected staging host and Pages gateway",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Build",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Site integration checks",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Admin sessions and permissions",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verified email accounts, recovery, session security and ownership",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Request operations and notification reliability",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare browser verification",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Arabic and English pages and persistent guest cart",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Arabic and English admin workflows on mobile and desktop",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Customer email and password on Arabic and English mobile and desktop",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Save browser evidence and resolved dependency lock",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Cloudflare staging build without deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Validate staging release bundle without deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "runId": 39681125161,
+      "role": "production validation and deployment",
+      "url": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39681125161",
+      "sourceHead": "fc48472fec8f0367a36acddf46248d746cf8be92",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 119503558252,
+          "name": "validate / build",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Install dependencies without modifying deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "TypeScript",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Authentication policy",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Native password hashing inside SQLite Durable Objects",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Staff authorization policy",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Existing customer auth tests",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Protected staging host and Pages gateway",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Build",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Site integration checks",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Admin sessions and permissions",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verified email accounts, recovery, session security and ownership",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Request operations and notification reliability",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare browser verification",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Arabic and English pages and persistent guest cart",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Arabic and English admin workflows on mobile and desktop",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Customer email and password on Arabic and English mobile and desktop",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Save browser evidence and resolved dependency lock",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Cloudflare staging build without deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Validate staging release bundle without deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "id": 119504997970,
+          "name": "deploy",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run pnpm install --frozen-lockfile --ignore-scripts",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Compile and protect release settings",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify the exact schema and existing credential names before deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Deploy verified Google linking and customer launch improvements",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Protect authentication diagnostics after deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify live customer forms and password RPC without sending mail",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify public login labels, SEO and quotation page",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "runId": 39681125158,
+      "role": "protected staging validation, readiness and deployment",
+      "url": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39681125158",
+      "sourceHead": "fc48472fec8f0367a36acddf46248d746cf8be92",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 119503558640,
+          "name": "validate / build",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Install dependencies without modifying deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "TypeScript",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Authentication policy",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Native password hashing inside SQLite Durable Objects",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Staff authorization policy",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Existing customer auth tests",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Protected staging host and Pages gateway",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Build",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Site integration checks",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Admin sessions and permissions",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verified email accounts, recovery, session security and ownership",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Request operations and notification reliability",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare browser verification",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Arabic and English pages and persistent guest cart",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Arabic and English admin workflows on mobile and desktop",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Customer email and password on Arabic and English mobile and desktop",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Save browser evidence and resolved dependency lock",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Cloudflare staging build without deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Validate staging release bundle without deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "id": 119504895194,
+          "name": "Check staging schema without applying changes",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify readiness guard with local fixtures",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify OAuth log protection and failure recovery with local fixtures",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Read approved migration evidence from the exact staging database",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Save staging readiness evidence",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "id": 119505008187,
+          "name": "deploy-staging",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Install dependencies",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Validate TypeScript",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Build isolated staging bundle",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Check Cloudflare bundle before deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Ensure Cloudflare deployment token exists",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify staging authentication and safe logging in source and bundle",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Recheck approved schema and exact built target before deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify existing Google secrets and log-settings access without changing them",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify the additive authentication schema before deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Deploy staging Worker only",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Enable query redaction before restoring OAuth request logs",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify protected canonical preview and deny a historical alternate host",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Save final pre-deployment schema verification",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "runId": 39681132485,
+      "role": "website continuous integration",
+      "url": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39681132485",
+      "sourceHead": "fc48472fec8f0367a36acddf46248d746cf8be92",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 119503583580,
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Install dependencies without modifying deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "TypeScript",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Authentication policy",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Native password hashing inside SQLite Durable Objects",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Staff authorization policy",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Existing customer auth tests",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Protected staging host and Pages gateway",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Build",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Site integration checks",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Admin sessions and permissions",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verified email accounts, recovery, session security and ownership",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Request operations and notification reliability",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare browser verification",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Arabic and English pages and persistent guest cart",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Arabic and English admin workflows on mobile and desktop",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Customer email and password on Arabic and English mobile and desktop",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Save browser evidence and resolved dependency lock",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Cloudflare staging build without deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Validate staging release bundle without deployment",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run pnpm/action-setup@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "deployedWorkers": [
+    {
+      "name": "safeplaces-production",
+      "deploymentId": "a87cc385-8c92-4b04-b318-2188e4170244",
+      "createdOn": "2026-10-21T21:47:40.723482Z",
+      "versions": [
+        {
+          "version_id": "b9e8d5c6-e097-432e-8a29-62941d21acb1",
+          "percentage": 100
+        }
+      ],
+      "settingsStatus": 200,
+      "deploymentStatus": 200
+    },
+    {
+      "name": "safeplaces-staging",
+      "deploymentId": "8db10b9a-3686-41d8-b223-aecdda9a3efc",
+      "createdOn": "2026-10-21T21:47:50.24692Z",
+      "versions": [
+        {
+          "version_id": "6112ee9f-5f2b-4d1b-8aec-f9c42fd1de0c",
+          "percentage": 100
+        }
+      ],
+      "settingsStatus": 200,
+      "deploymentStatus": 200
+    }
+  ],
+  "deploymentLogEvidence": [
+    {
+      "worker": "safeplaces-production",
+      "jobId": 119504997970,
+      "passLines": [
+        "2026-10-21T21:47:31.5194268Z PASS: public bilingual quote-only site, indexable, no prices or payments",
+        "2026-10-21T21:47:33.8741565Z PASS: production public OAuth settings match the compiled release",
+        "2026-10-21T21:47:33.8742083Z PASS: exact production database, additive session schema, migration fingerprint, recovery evidence and required secret names",
+        "2026-10-21T21:47:42.6643226Z PASS: fixed auth diagnostics enabled, query strings redacted, invocation logs and traces disabled",
+        "2026-10-21T21:47:51.0194270Z PASS: production bilingual customer forms, private cache policy, Google-only administration, email capability and live password RPC; no accounts created or emails sent",
+        "2026-10-21T21:47:55.1554995Z PASS: public site/login/quote and bilingual search indexing"
+      ],
+      "versionLine": "2026-10-21T21:47:41.9055252Z Current Version ID: b9e8d5c6-e097-432e-8a29-62941d21acb1"
+    },
+    {
+      "worker": "safeplaces-staging",
+      "jobId": 119505008187,
+      "passLines": [
+        "2026-10-21T21:47:41.7939028Z PASS: source and bundle enable Google only on protected staging, with safe logging fallback",
+        "2026-10-21T21:47:42.9689293Z PASS: READY: The exact staging target, operations schema and migration fingerprint are verified by read-only queries.",
+        "2026-10-21T21:47:43.4425616Z PASS: PREFLIGHT_READY: The exact staging settings endpoint and required OAuth secret names were verified without changes.",
+        "2026-10-21T21:47:44.2281209Z PASS: exact staging database, additive session schema, migration fingerprint, recovery evidence and required secret names",
+        "2026-10-21T21:47:53.0665947Z PASS: PROTECTED: OAuth query-string redaction and the approved log settings were read back successfully; traces remain disabled.",
+        "2026-10-21T21:47:53.6927214Z PASS: canonical preview requires Access; historical alternate host cannot reach staging"
+      ],
+      "versionLine": "2026-10-21T21:47:51.9901934Z Current Version ID: 6112ee9f-5f2b-4d1b-8aec-f9c42fd1de0c"
+    }
+  ],
+  "directRuntimeReadback": "post-deploy-runtime.json",
+  "verificationScope": [
+    "Root independently read all completed final jobs and production/staging deployment logs.",
+    "Root independently matched all 20 changed source paths to the final Git blob hashes.",
+    "Cloudflare returned HTTP 200 for both settings and deployments reads for each Worker.",
+    "Both reported Worker versions were independently observed serving 100 percent.",
+    "Expected D1, private R2 and password-hasher bindings were verified through metadata.",
+    "Query-string redaction remained enabled; invocation logs and traces remained disabled.",
+    "Production public quote-only settings, Google and password authentication and runtime secret-name metadata were retained.",
+    "The established live smoke probe explicitly created no accounts and sent no email."
+  ],
+  "limits": [
+    "The production log label 'bilingual search indexing' represents robots/sitemap availability and indexability checks, not proof of Google indexing.",
+    "Fixture Google callbacks and mail capture do not prove a real affected-account callback or inbox delivery.",
+    "Business notifications remain disabled. No real email was sent by this verification.",
+    "No live customer-record queries, object content, two-account production isolation, independent restore, Search Console acceptance or field performance result was obtained.",
+    "The migration recovery evidence verified by the workflow is not an independently exported and restored backup.",
+    "Protected staging has no RESEND_API_KEY in the inspected binding metadata; staging mail capability was not claimed."
+  ]
+}

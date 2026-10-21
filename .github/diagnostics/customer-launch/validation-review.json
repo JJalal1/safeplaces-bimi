@@ -1,0 +1,256 @@
+{
+  "sourceHead": "fc48472fec8f0367a36acddf46248d746cf8be92",
+  "sourceTree": "5deb92037fe6596f2d602f8467eb941916fb162d",
+  "review": {
+    "runId": 39680651741,
+    "jobId": 119501948199,
+    "conclusion": "success",
+    "observedAt": "2026-10-21T21:43:31Z",
+    "allSteps": [
+      {
+        "name": "Set up job",
+        "conclusion": "success"
+      },
+      {
+        "name": "Run actions/checkout@v4",
+        "conclusion": "success"
+      },
+      {
+        "name": "Run actions/setup-node@v4",
+        "conclusion": "success"
+      },
+      {
+        "name": "Run pnpm/action-setup@v4",
+        "conclusion": "success"
+      },
+      {
+        "name": "Install dependencies without modifying deployment",
+        "conclusion": "success"
+      },
+      {
+        "name": "TypeScript",
+        "conclusion": "success"
+      },
+      {
+        "name": "Authentication policy",
+        "conclusion": "success"
+      },
+      {
+        "name": "Native password hashing inside SQLite Durable Objects",
+        "conclusion": "success"
+      },
+      {
+        "name": "Staff authorization policy",
+        "conclusion": "success"
+      },
+      {
+        "name": "Existing customer auth tests",
+        "conclusion": "success"
+      },
+      {
+        "name": "Protected staging host and Pages gateway",
+        "conclusion": "success"
+      },
+      {
+        "name": "Build",
+        "conclusion": "success"
+      },
+      {
+        "name": "Site integration checks",
+        "conclusion": "success"
+      },
+      {
+        "name": "Admin sessions and permissions",
+        "conclusion": "success"
+      },
+      {
+        "name": "Verified email accounts, recovery, session security and ownership",
+        "conclusion": "success"
+      },
+      {
+        "name": "Request operations and notification reliability",
+        "conclusion": "success"
+      },
+      {
+        "name": "Prepare browser verification",
+        "conclusion": "success"
+      },
+      {
+        "name": "Arabic and English pages and persistent guest cart",
+        "conclusion": "success"
+      },
+      {
+        "name": "Arabic and English admin workflows on mobile and desktop",
+        "conclusion": "success"
+      },
+      {
+        "name": "Customer email and password on Arabic and English mobile and desktop",
+        "conclusion": "success"
+      },
+      {
+        "name": "Save browser evidence and resolved dependency lock",
+        "conclusion": "success"
+      },
+      {
+        "name": "Cloudflare staging build without deployment",
+        "conclusion": "success"
+      },
+      {
+        "name": "Validate staging release bundle without deployment",
+        "conclusion": "success"
+      },
+      {
+        "name": "Post Run pnpm/action-setup@v4",
+        "conclusion": "success"
+      },
+      {
+        "name": "Post Run actions/setup-node@v4",
+        "conclusion": "success"
+      },
+      {
+        "name": "Post Run actions/checkout@v4",
+        "conclusion": "success"
+      },
+      {
+        "name": "Complete job",
+        "conclusion": "success"
+      }
+    ],
+    "url": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39680651741"
+  },
+  "committedPaths": [
+    {
+      "path": "website/app/(site)/[lang]/layout.tsx",
+      "gitBlob": "1df9e7775d2a7b7d53d0aee2068038b38d489798"
+    },
+    {
+      "path": "website/app/sign-out-confirmation.css",
+      "gitBlob": "841d069daa44a245ccbe14b16c92b0cb53955903"
+    },
+    {
+      "path": "website/components/admin.tsx",
+      "gitBlob": "9929a067bf6310ba64d2d189c3a92852af77d0f5"
+    },
+    {
+      "path": "website/components/forms.tsx",
+      "gitBlob": "70f486ce08ddcbbb79d03f74fa598a28ae852060"
+    },
+    {
+      "path": "website/components/sign-out-confirmation.tsx",
+      "gitBlob": "ea10ade1a842f5018729e21367851656a5db57e8"
+    },
+    {
+      "path": "website/components/store.tsx",
+      "gitBlob": "0296eb3737239c12d930a721edb2a8c5d5948335"
+    },
+    {
+      "path": "website/scripts/check-admin-browser.mjs",
+      "gitBlob": "84c6bea1d08bc782ccc4e69260a128586ea79bf5"
+    },
+    {
+      "path": "website/scripts/check-email-password-browser.mjs",
+      "gitBlob": "45516677fcd4ff79527ad54b71619b8b146c5e4a"
+    },
+    {
+      "path": "website/lib/site-routes.ts",
+      "gitBlob": "4f967cbbcb3b7f9bcb7afe535fe622dbfd135510"
+    },
+    {
+      "path": "website/app/(site)/[lang]/[[...slug]]/page.tsx",
+      "gitBlob": "d0f730f87350337453ff56cafd3a516a43e3da6a"
+    },
+    {
+      "path": "website/scripts/check-site.mjs",
+      "gitBlob": "3a6d003141118816c2f23fd5cb7e98f1e90c5c9b"
+    },
+    {
+      "path": "website/lib/google-link-policy.ts",
+      "gitBlob": "c45f94530ec01bb7548ea3b61ae8a812fd78c3ad"
+    },
+    {
+      "path": "website/lib/better-auth-server.ts",
+      "gitBlob": "cfb07f71d0fdb2d771c17cac186ff951e8eec6df"
+    },
+    {
+      "path": "website/app/api/auth/[...all]/route.ts",
+      "gitBlob": "a391fa4c39c14a6e5144a05b53033128c9f53d26"
+    },
+    {
+      "path": "website/components/customer-sign-in-methods.tsx",
+      "gitBlob": "0cfa1f7a95f47824a14778b6b4d2b69341284686"
+    },
+    {
+      "path": "website/components/customer-login.tsx",
+      "gitBlob": "c2cce09b8df37c8ad19f9a4a283aed543fc11817"
+    },
+    {
+      "path": "website/app/customer-account.css",
+      "gitBlob": "8d92a393826e64ede5a22d493434873d872d8ea6"
+    },
+    {
+      "path": "website/scripts/check-standalone-auth-policy.mjs",
+      "gitBlob": "2c9bfded22526f84fe912cd3a410c435207602ac"
+    },
+    {
+      "path": "website/scripts/check-email-password-auth.mjs",
+      "gitBlob": "d7247b1bca569c82e7af0d9ff92c1fee0a15595c"
+    },
+    {
+      "path": ".github/workflows/safeplaces-auth-buttons-deploy.yml",
+      "gitBlob": "d726e0620a2c004379f78f410167c184f725a499"
+    }
+  ],
+  "focusedPasses": [
+    "2026-10-21T21:41:02.5383564Z PASS: 46 invalid bilingual route shapes return 404 without content canonicals",
+    "2026-10-21T21:41:02.9911068Z PASS: 48 Arabic/English pages, RTL/LTR, headings, canonical, hreflang, sitemap, redirects, 404 and demo-price disclosure",
+    "2026-10-21T21:41:10.0125506Z PASS: Google linking rejects anonymous, unverified, stale, cross-origin, token, alternate-provider and arbitrary-callback requests; implicit linking stays disabled",
+    "2026-10-21T21:41:10.7471420Z PASS: Google callback rechecks the same live fresh session; revoked, switched, stale and unverified sessions, mismatched Google email and other-user provider bindings are rejected",
+    "2026-10-21T21:41:11.0425699Z PASS: explicit link keeps UUID, password hash, session method, quotes and files; replay/duplicate/unlink denied; subsequent Google and password logins both access the original customer account",
+    "2026-10-21T21:41:57.9223683Z PASS: 42 bilingual route visits and 100 viewport checks",
+    "2026-10-21T21:42:25.2433187Z PASS: admin browser suite, 60 viewport checks and 64 screenshots; no email sends or cart tests",
+    "2026-10-21T21:42:32.6568491Z PASS: ar-390: actionable Google linking, account security, same-user reauthentication without loops and safe provider cancellation",
+    "2026-10-21T21:42:34.6182792Z PASS: ar-390 account: cancel/Escape preserve the session, focus is restored, failure is retryable and confirmation revokes once",
+    "2026-10-21T21:42:37.3240321Z PASS: ar-390 header: cancel/Escape preserve the session, focus is restored, failure is retryable and confirmation revokes once",
+    "2026-10-21T21:42:44.1983217Z PASS: ar-1440: actionable Google linking, account security, same-user reauthentication without loops and safe provider cancellation",
+    "2026-10-21T21:42:46.2228919Z PASS: ar-1440 account: cancel/Escape preserve the session, focus is restored, failure is retryable and confirmation revokes once",
+    "2026-10-21T21:42:49.0011175Z PASS: ar-1440 header: cancel/Escape preserve the session, focus is restored, failure is retryable and confirmation revokes once",
+    "2026-10-21T21:42:55.6222090Z PASS: en-390: actionable Google linking, account security, same-user reauthentication without loops and safe provider cancellation",
+    "2026-10-21T21:42:57.5343737Z PASS: en-390 account: cancel/Escape preserve the session, focus is restored, failure is retryable and confirmation revokes once",
+    "2026-10-21T21:43:00.2303945Z PASS: en-390 header: cancel/Escape preserve the session, focus is restored, failure is retryable and confirmation revokes once",
+    "2026-10-21T21:43:06.9797559Z PASS: en-1440: actionable Google linking, account security, same-user reauthentication without loops and safe provider cancellation",
+    "2026-10-21T21:43:09.0064403Z PASS: en-1440 account: cancel/Escape preserve the session, focus is restored, failure is retryable and confirmation revokes once",
+    "2026-10-21T21:43:11.7430047Z PASS: en-1440 header: cancel/Escape preserve the session, focus is restored, failure is retryable and confirmation revokes once",
+    "2026-10-21T21:43:11.9970681Z PASS: all four bilingual email/password browser lifecycles; zero live email sends."
+  ],
+  "previousCombinedRun": {
+    "head": "976b905eb07fce4a9f9c24a4db505d86b0889c31",
+    "runId": 39679464856,
+    "jobId": 119497840243,
+    "status": "completed",
+    "conclusion": "failure",
+    "failure": "explicit Google linking request boundary / private_response_not_cached",
+    "failedSteps": [
+      "Verified email accounts, recovery, session security and ownership"
+    ],
+    "browserSteps": [
+      {
+        "name": "Arabic and English pages and persistent guest cart",
+        "conclusion": "success"
+      },
+      {
+        "name": "Arabic and English admin workflows on mobile and desktop",
+        "conclusion": "success"
+      },
+      {
+        "name": "Customer email and password on Arabic and English mobile and desktop",
+        "conclusion": "success"
+      }
+    ],
+    "explanation": "The local Miniflare getWorker proxy rejected the hostile Origin before forwarding to the app. The fixture was corrected to route those requests to the Google-configured Worker. Origin and no-store assertions were retained, and INVALID_ORIGIN response checks were added. Production application code was not changed by the fixture correction."
+  },
+  "limits": [
+    "Google and mail integration uses intercepted local provider fixtures.",
+    "Browser verification uses local Chromium at Arabic/English mobile/desktop viewport sizes.",
+    "This report does not assert real Google linking, inbox receipt, independent backup restoration, physical-device acceptance or search indexing."
+  ]
+}
