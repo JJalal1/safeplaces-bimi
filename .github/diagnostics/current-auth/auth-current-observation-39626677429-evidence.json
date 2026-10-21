@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "workflowRunId": 39626677429,
+    "jobId": 119313616944,
+    "runAttempt": 1,
+    "headCommit": "5cc9178d72e9939954aedf139fb2daa74a71f07c",
+    "workflowPath": ".github/workflows/current-auth-observation.yml"
+  },
+  "status": {
+    "job": "completed",
+    "conclusion": "failure",
+    "offlineChecks": "success",
+    "observationStep": "failure",
+    "sanitizedArtifactUpload": "success"
+  },
+  "logReads": {
+    "active": {
+      "attempts": 1,
+      "status": "unavailable",
+      "httpStatus": 404
+    },
+    "completion": {
+      "attempts": 1,
+      "status": "success",
+      "sanitizedReportsFound": 1
+    }
+  },
+  "readiness": [
+    {
+      "stage": "observation",
+      "code": "tail_ready",
+      "timestamp": "2026-10-21T15:33:00.767Z",
+      "count": 1
+    }
+  ],
+  "cleanup": {
+    "attempted": true,
+    "confirmed": true,
+    "code": "deleted",
+    "timestamp": "2026-10-21T15:35:03.013Z"
+  },
+  "counts": {
+    "framesReceived": 0,
+    "framesWithDiagnostics": 0,
+    "currentOAuthCategories": 0
+  },
+  "collection": {
+    "readyAt": "2026-10-21T15:33:00.767Z",
+    "transportFailureAt": "2026-10-21T15:35:03.013Z",
+    "completedNormally": false
+  },
+  "artifact": {
+    "id": 12357456466,
+    "name": "auth-current-observation",
+    "expired": false,
+    "createdAt": "2026-10-21T15:35:03Z",
+    "archiveDigest": "sha256:b123b20ac2c9b6eae6889ef8602a4174777385991d3919bf193949d72a261977",
+    "downloaded": false,
+    "reportSource": "strict_projection_of_completed_job_log"
+  },
+  "interpretation": {
+    "result": "INCONCLUSIVE",
+    "humanAttemptConfirmed": false,
+    "googleLoginVerified": false,
+    "transportCauseProven": false
+  }
+}

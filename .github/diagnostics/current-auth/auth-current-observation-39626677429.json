@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "stage": "cleanup",
+      "code": "attempted",
+      "firstTimestamp": "2026-10-21T15:35:02.054Z",
+      "lastTimestamp": "2026-10-21T15:35:02.054Z",
+      "count": 1
+    },
+    {
+      "stage": "cleanup",
+      "code": "deleted",
+      "firstTimestamp": "2026-10-21T15:35:03.013Z",
+      "lastTimestamp": "2026-10-21T15:35:03.013Z",
+      "count": 1
+    },
+    {
+      "stage": "observation",
+      "code": "frames_received",
+      "firstTimestamp": "2026-10-21T15:35:03.013Z",
+      "lastTimestamp": "2026-10-21T15:35:03.013Z",
+      "count": 0
+    },
+    {
+      "stage": "observation",
+      "code": "frames_with_diagnostics",
+      "firstTimestamp": "2026-10-21T15:35:03.014Z",
+      "lastTimestamp": "2026-10-21T15:35:03.014Z",
+      "count": 0
+    },
+    {
+      "stage": "observation",
+      "code": "no_fixed_diagnostic_observed",
+      "firstTimestamp": "2026-10-21T15:35:03.014Z",
+      "lastTimestamp": "2026-10-21T15:35:03.014Z",
+      "count": 1
+    },
+    {
+      "stage": "observation",
+      "code": "tail_connection_failed",
+      "firstTimestamp": "2026-10-21T15:35:03.013Z",
+      "lastTimestamp": "2026-10-21T15:35:03.013Z",
+      "count": 1
+    },
+    {
+      "stage": "observation",
+      "code": "tail_ready",
+      "firstTimestamp": "2026-10-21T15:33:00.767Z",
+      "lastTimestamp": "2026-10-21T15:33:00.767Z",
+      "count": 1
+    }
+  ]
+}
