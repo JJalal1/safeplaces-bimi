@@ -1,0 +1,180 @@
+{
+  "offline": true,
+  "checks": 43,
+  "passed": 43,
+  "failed": 0,
+  "results": [
+    {
+      "check": "exact diagnostic projection discards all private canaries",
+      "passed": true
+    },
+    {
+      "check": "unrelated stale future oversized malformed and partial matches are rejected",
+      "passed": true
+    },
+    {
+      "check": "binary native WebSocket event is safely projected",
+      "passed": true
+    },
+    {
+      "check": "no network for guard: outside GitHub Actions",
+      "passed": true
+    },
+    {
+      "check": "no network for guard: wrong repository",
+      "passed": true
+    },
+    {
+      "check": "no network for guard: wrong ref",
+      "passed": true
+    },
+    {
+      "check": "no network for guard: wrong supplied account",
+      "passed": true
+    },
+    {
+      "check": "no network for guard: wrong Node major",
+      "passed": true
+    },
+    {
+      "check": "no network for guard: missing token",
+      "passed": true
+    },
+    {
+      "check": "no network for guard: before fixed UTC window",
+      "passed": true
+    },
+    {
+      "check": "no network for guard: after fixed UTC window",
+      "passed": true
+    },
+    {
+      "check": "create access denial is sanitized: 401",
+      "passed": true
+    },
+    {
+      "check": "create access denial is sanitized: 403",
+      "passed": true
+    },
+    {
+      "check": "ambiguous create is not retried or followed by broad cleanup",
+      "passed": true
+    },
+    {
+      "check": "unknown or unsafe returned tail ID is never used as a delete path",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup after transport guard: untrusted host",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup after transport guard: plaintext websocket",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup after transport guard: nondefault port",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup after transport guard: userinfo",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup after transport guard: hash",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup after transport guard: malformed URL",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup after transport guard: missing URL",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup after transport guard: short expiration",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup on post-create failure: constructor throw",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup on post-create failure: protocol mismatch",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup on post-create failure: initialization throw",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup on post-create failure: socket error",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup on post-create failure: socket close",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup on post-create failure: ready output throw",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup on post-create failure: timer throw",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup on post-create failure: cancel after create",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup on post-create failure: cancel while connected",
+      "passed": true
+    },
+    {
+      "check": "own tail cleanup on post-create failure: window elapsed during creation",
+      "passed": true
+    },
+    {
+      "check": "socket close failure cannot bypass deletion",
+      "passed": true
+    },
+    {
+      "check": "artifact write failure happens after cleanup and fails collection status",
+      "passed": true
+    },
+    {
+      "check": "bounded deletion result: network throw",
+      "passed": true
+    },
+    {
+      "check": "bounded deletion result: forbidden",
+      "passed": true
+    },
+    {
+      "check": "bounded deletion result: already absent",
+      "passed": true
+    },
+    {
+      "check": "bounded deletion result: already expired",
+      "passed": true
+    },
+    {
+      "check": "bounded deletion result: no-content confirmation",
+      "passed": true
+    },
+    {
+      "check": "frame ceiling closes collection and still deletes only own tail",
+      "passed": true
+    },
+    {
+      "check": "collection is shortened at fixed UTC window end",
+      "passed": true
+    },
+    {
+      "check": "pure projector has no fallback from object fields or untrusted message text",
+      "passed": true
+    }
+  ]
+}

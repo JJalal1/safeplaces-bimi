@@ -1,30 +1,103 @@
 {
-  "status": "LIVE_READBACK_NOT_EXECUTED",
-  "checkedAtUtc": "2026-10-21 14:26:19 UTC",
+  "status": "READBACK_COMPLETED",
+  "checkedAtUtc": "2026-10-21T14:31:49.290Z",
   "repository": "JJalal1/safeplaces-bimi",
   "diagnosticCommit": "297166ae48c8c3598bd3a8968b57c8d8a836817d",
-  "productionBranchHead": "b50b0775a7f0f084e808d601b34984dc6bffa193",
-  "productionCodeChanged": false,
-  "googleSecretChanged": false,
+  "correctionOfArchiveCommit": "af9d5375dbcd9cc19608bc899e2a7829944f8ae9",
+  "productionCodeChangedByDiagnostic": false,
+  "googleSecretChangedByDiagnostic": false,
+  "googleSecretValueRead": false,
   "googleSignInVerified": false,
   "signInTestPerformed": false,
-  "cloudflareConnector": {
-    "status": "INTERNAL_ERROR",
-    "code": -32603
-  },
-  "cloudBrowser": {
-    "status": "ACCESS_BLOCKED",
-    "message": "Forbidden. Calls to this URL are not allowed."
-  },
   "githubReadback": {
     "localPrivacyAndReadOnlyChecks": "PASSED",
-    "workflowRunsObserved": 0,
-    "liveCloudflareRequestsFromRunner": 0
+    "runId": 39617569452,
+    "jobId": 119282446044,
+    "runUrl": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39617569452",
+    "jobUrl": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39617569452/job/119282446044",
+    "runCreatedAtUtc": "2026-10-21T14:31:41Z",
+    "conclusion": "success",
+    "workflowRunsObserved": 1,
+    "liveCloudflareRequestsFromRunner": 2,
+    "methods": [
+      "GET",
+      "GET"
+    ],
+    "resources": [
+      "safeplaces-production deployments",
+      "safeplaces-production settings"
+    ]
   },
-  "lastConfirmedProduction": {
-    "version": "e52b6904-cf5e-457a-bb27-504cd46f7264",
-    "readAtUtc": "2026-10-21T00:21:23.889Z",
-    "notReconfirmed": true
+  "readbackWindow": {
+    "from": "2026-10-21T14:20:00.000Z",
+    "to": "2026-10-21T14:31:49.290Z",
+    "maximumMinutes": 30
   },
-  "nextStep": "Confirm the GOOGLE_CLIENT_SECRET update was deployed through the authorized Cloudflare dashboard, then complete a fresh Google sign-in and session persistence check."
+  "productionAtReadback": {
+    "worker": "safeplaces-production",
+    "deployments": {
+      "ok": true,
+      "createdAt": "2026-10-20T23:20:11.322Z",
+      "versions": [
+        {
+          "id": "e52b6904-cf5e-457a-bb27-504cd46f7264",
+          "percentage": 100
+        }
+      ],
+      "shapeValid": true,
+      "matchesKnownVersion": true
+    },
+    "settings": {
+      "ok": true,
+      "googleClientIdMatchesKnownPublicId": true,
+      "betterAuthUrlMatchesExpected": true,
+      "expectedBetterAuthUrl": "https://safeplaces.sa",
+      "googleClientSecret": {
+        "present": true,
+        "type": "secret_text"
+      }
+    }
+  },
+  "freshness": {
+    "latestUserSecretUpdateVerified": false,
+    "couldPredateLatestUserSecretUpdate": true,
+    "explanation": "This result describes configuration read on 2026-10-21 at 14:31:49 UTC. It may predate the user's latest GOOGLE_CLIENT_SECRET update. Binding presence and type do not establish the secret value, its validity, or successful sign-in."
+  },
+  "supersededObservation": {
+    "superseded": true,
+    "supersededByRunId": 39617569452,
+    "explanation": "The earlier check at 14:26:19 UTC did not yet observe a run. The run was created later at 14:31:41 UTC and completed this readback successfully. The earlier LIVE_READBACK_NOT_EXECUTED status and zero-request count describe only that earlier observation; they are not the final outcome.",
+    "record": {
+      "status": "LIVE_READBACK_NOT_EXECUTED",
+      "checkedAtUtc": "2026-10-21 14:26:19 UTC",
+      "repository": "JJalal1/safeplaces-bimi",
+      "diagnosticCommit": "297166ae48c8c3598bd3a8968b57c8d8a836817d",
+      "productionBranchHead": "b50b0775a7f0f084e808d601b34984dc6bffa193",
+      "productionCodeChanged": false,
+      "googleSecretChanged": false,
+      "googleSignInVerified": false,
+      "signInTestPerformed": false,
+      "cloudflareConnector": {
+        "status": "INTERNAL_ERROR",
+        "code": -32603
+      },
+      "cloudBrowser": {
+        "status": "ACCESS_BLOCKED",
+        "message": "Forbidden. Calls to this URL are not allowed."
+      },
+      "githubReadback": {
+        "localPrivacyAndReadOnlyChecks": "PASSED",
+        "workflowRunsObserved": 0,
+        "liveCloudflareRequestsFromRunner": 0
+      },
+      "lastConfirmedProduction": {
+        "version": "e52b6904-cf5e-457a-bb27-504cd46f7264",
+        "readAtUtc": "2026-10-21T00:21:23.889Z",
+        "notReconfirmed": true
+      },
+      "nextStep": "Confirm the GOOGLE_CLIENT_SECRET update was deployed through the authorized Cloudflare dashboard, then complete a fresh Google sign-in and session persistence check."
+    }
+  },
+  "nextStep": "Read the runtime configuration after the user's latest secret update, then complete a fresh Google sign-in and verify that the resulting customer session persists after reloading the account page."
 }
+

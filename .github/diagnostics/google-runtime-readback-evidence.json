@@ -1,0 +1,112 @@
+{
+  "status": "READBACK_PARTIAL",
+  "observedAt": "2026-10-21T15:23:45.552Z",
+  "repository": "JJalal1/safeplaces-bimi",
+  "github": {
+    "runId": 39625234333,
+    "jobId": 119308598640,
+    "runUrl": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39625234333",
+    "jobUrl": "https://github.com/JJalal1/safeplaces-bimi/actions/runs/39625234333/job/119308598640"
+  },
+  "signInTestPerformed": false,
+  "googleSignInVerified": false,
+  "googleClientSecretValueRead": false,
+  "productionCodeOrConfigurationChangedByDiagnostic": false,
+  "requests": {
+    "cloudflareGetCount": 4,
+    "cloudflareReadOnlyQueryPostCount": 1,
+    "cloudflareRequestCount": 5,
+    "publicAnonymousGetCount": 1,
+    "retries": 0,
+    "alternateCredentialsUsed": false,
+    "cloudflareRequestsStoppedAfterAccessDenied": true
+  },
+  "workers": {
+    "safeplaces-production": {
+      "deployment": {
+        "createdAt": "2026-10-21T14:37:11.826Z",
+        "versions": [
+          {
+            "id": "0f58136e-71fb-43b0-b890-86ba533813cd",
+            "percentage": 100
+          }
+        ]
+      },
+      "settings": {
+        "googleClientIdMatchesProduction": true,
+        "betterAuthUrlMatchesProduction": true,
+        "standaloneAuthFlagEnabled": true,
+        "emailPasswordFlagEnabled": true,
+        "googleClientSecret": {
+          "present": true,
+          "type": "secret_text"
+        },
+        "ownerIdBindingPresent": true,
+        "ownerEmailBindingPresent": true,
+        "productionDbBindingMatchesExpected": true
+      }
+    },
+    "safeplaces-staging": {
+      "deployment": {
+        "createdAt": "2026-10-20T23:20:27.723Z",
+        "versions": [
+          {
+            "id": "6e5bb927-02c3-4dd3-838f-96cf82609cd3"
+          }
+        ]
+      },
+      "settings": {
+        "googleClientIdMatchesProduction": false,
+        "betterAuthUrlMatchesProduction": false,
+        "standaloneAuthFlagEnabled": true,
+        "emailPasswordFlagEnabled": true,
+        "googleClientSecret": {
+          "present": true,
+          "type": "secret_text"
+        },
+        "ownerIdBindingPresent": true,
+        "ownerEmailBindingPresent": true
+      }
+    }
+  },
+  "databaseCounters": {
+    "ok": false,
+    "availability": "UNAVAILABLE",
+    "httpStatus": 403,
+    "category": "cloudflare_api_access_denied",
+    "counts": null,
+    "creationTimestamps": null,
+    "explanation": "The read-only aggregate SELECT was denied. No counts or creation timestamps were obtained; null represents unavailable evidence, not zero accounts or sessions."
+  },
+  "publicSession": {
+    "url": "https://safeplaces.sa/api/session?scope=customer",
+    "httpStatus": 200,
+    "authConfigured": true,
+    "emailPasswordEnabled": true,
+    "socialProviders": [
+      "google"
+    ],
+    "userPresent": false,
+    "authorizationHeaderSent": false,
+    "cookiesSent": false
+  },
+  "githubIncidentContext": {
+    "id": "nms1dpzmh9d9",
+    "title": "Delays for Pull Requests and Webhook deliveries",
+    "url": "https://www.githubstatus.com/incidents/nms1dpzmh9d9",
+    "sourceApiUrl": "https://www.githubstatus.com/api/v2/incidents/unresolved.json",
+    "startedAt": "2026-10-21T14:52:49.969Z",
+    "observedStatus": "investigating",
+    "actionsUpdateCreatedAt": "2026-10-21T15:15:04.970Z",
+    "actionsUpdateSummary": "GitHub reported degraded Actions performance and continued investigation.",
+    "perRunCausationEstablished": false
+  },
+  "limitations": [
+    "Secret presence and binding type do not validate the secret value or prove which user update is active.",
+    "D1 counts, account verification statistics and session creation timestamps are unavailable because the query returned 403.",
+    "The anonymous public-session response does not test any signed-in browser session.",
+    "Owner binding presence does not validate owner identity or administration authorization.",
+    "Staging comparison flags use production constants; staging-specific expected values were not validated.",
+    "The GitHub incident is contemporaneous context; it is not proof of the cause of this run's delay."
+  ]
+}
