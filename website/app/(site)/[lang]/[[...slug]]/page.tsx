@@ -89,7 +89,6 @@ export async function generateMetadata({params,searchParams}:Props):Promise<Meta
   alternates:{canonical:pageUrl,languages:{ar:SITE_URL+'/ar'+suffix,en:SITE_URL+'/en'+suffix,'x-default':SITE_URL+'/ar'+suffix}},
   robots:{index,follow:index},
   openGraph:{type:'website',siteName:company.nameEn,title,description,url:pageUrl,locale:l==='ar'?'ar_SA':'en_US',alternateLocale:l==='ar'?'en_US':'ar_SA',images:[{url:SITE_URL+'/images/hero.webp',width:1920,height:692,alt:local(l,company.nameAr,company.nameEn)}]},
-  twitter:{card:'summary_large_image',title,description,images:[SITE_URL+'/images/hero.webp']},
   twitter:{card:'summary_large_image',title,description,images:[SITE_URL+'/images/hero.webp']}
  };
 }

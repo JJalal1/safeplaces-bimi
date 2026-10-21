@@ -114,6 +114,7 @@ export function getStandaloneAuth(){
     // presents the same email later. Never replace that identity by email.
     if(!state?.link){
      if(source.method!=='oauth'||source.oauth?.providerId!=='google'||user.emailVerified!==true)return {error:'email_not_verified'};
+     if(!user.id)return {error:'account_not_linked'};
      const existing=await context.context.internalAdapter.findUserById(user.id);
      if(!existing||!existing.emailVerified||existing.email.toLowerCase()!==user.email?.toLowerCase())return {error:'account_not_linked'};
      const accounts=await context.context.internalAdapter.findAccounts(existing.id);
