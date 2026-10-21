@@ -92,6 +92,50 @@ async function captureBoth(target,lang,name,{bottom=false}={}){
  }
  await target.setViewportSize(previous);await stable(target);
 }
+async function reviewSignOut(target,lang){
+ const previous=target.viewportSize(),originalURL=target.url();
+ const lex={logout:lang==='ar'?'تسجيل الخروج':'Sign out',question:lang==='ar'?'تسجيل الخروج؟':'Sign out?',cancel:lang==='ar'?'إلغاء':'Cancel'};
+ let logoutRequests=0,navigations=0;
+ const observe=request=>{
+  if(['/api/auth/sign-out','/api/auth/logout'].includes(new URL(request.url()).pathname))logoutRequests++;
+  if(request.isNavigationRequest()&&request.frame()===target.mainFrame())navigations++;
+ };
+ target.on('request',observe);
+ try{
+  for(const width of [390,1440]){
+   await target.setViewportSize({width,height:width<800?844:1000});await stable(target);
+   const profile=target.locator('.console-profile');
+   await profile.locator('summary').click();
+   const trigger=profile.getByRole('button',{name:lex.logout,exact:true});
+   const dialog=target.getByRole('alertdialog',{name:lex.question,exact:true});
+   const cancel=dialog.getByRole('button',{name:lex.cancel,exact:true});
+   for(const action of ['cancel','escape']){
+    await trigger.click();await dialog.waitFor({state:'visible'});
+    assert.ok(await cancel.evaluate(element=>element===document.activeElement),'Administration logout initially focuses Cancel');
+    assert.equal(await dialog.getAttribute('dir'),lang==='ar'?'rtl':'ltr');
+    const bounds=await dialog.boundingBox();
+    assert.ok(bounds&&bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=width+1&&bounds.y+bounds.height<=target.viewportSize().height+1,'Administration confirmation fits the viewport');
+    if(action==='cancel'){
+     const filename='admin-'+lang+'-logout-confirmation-'+width+'.png';
+     await target.screenshot({path:join(screenshots,filename),fullPage:false,animations:'disabled'});
+     report.screenshots.push('screenshots/'+filename);
+     await cancel.click();
+    }else await target.keyboard.press('Escape');
+    await dialog.waitFor({state:'detached'});
+    assert.ok(await trigger.evaluate(element=>element===document.activeElement),'Administration logout restores focus after dismissal');
+    assert.equal(target.url(),originalURL,'Dismissing administration logout stays in administration');
+    assert.ok(await profile.evaluate(element=>element.open),'The underlying profile menu remains open');
+    assert.equal(logoutRequests,0,'Administration dismissal never calls logout');
+    assert.equal(navigations,0,'Administration dismissal never follows the sign-out URL');
+   }
+   await profile.locator('summary').click();
+   pass(lang+'-'+width+': administration logout cancel/Escape retain the page and restore focus');
+  }
+ }finally{
+  target.off('request',observe);await target.setViewportSize(previous);await stable(target);
+ }
+}
+
 async function initializeDatabase(db){
  for(const migration of readdirSync('drizzle').filter(file=>file.endsWith('.sql')).sort()){
   for(const sql of readFileSync(join('drizzle',migration),'utf8').replace(/^\s*--.*$/gm,'').split(';').filter(sql=>sql.trim()))await db.prepare(sql).run();
@@ -230,6 +274,7 @@ try{
   await page.setViewportSize({width:lang==='ar'?390:1440,height:lang==='ar'?844:1000});
   await visit(page,main,'/'+lang+'/admin');await page.locator('.management-console').waitFor({state:'visible'});
   await captureBoth(page,lang,'overview');
+  await reviewSignOut(page,lang);
   await navigate(page,lang,'inbox');assert.equal(await page.locator('.inbox-record').count(),4);await captureBoth(page,lang,'inbox');
   await navigate(page,lang,'readiness');await page.locator('.readiness-card').first().waitFor({state:'visible'});
   assert.ok(await page.locator('.readiness-status-blocked').count()>0,'Missing services must appear as activation required');await captureBoth(page,lang,'readiness');
@@ -293,3 +338,4 @@ try{
   await instance.mf?.dispose();
  }
 }
+

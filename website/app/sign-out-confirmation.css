@@ -1,0 +1,18 @@
+html.sign-out-open{overflow:hidden}
+.console-profile > div > .sign-out-trigger{width:100%;min-height:44px}
+.sign-out-dialog{box-sizing:border-box;width:min(420px,calc(100vw - 32px));max-height:calc(100dvh - 32px);margin:auto;padding:28px;border:1px solid #dce4ee;border-radius:20px;background:#fff;color:#19334f;box-shadow:0 24px 80px #0b203e40;font:inherit;text-align:start;overflow:auto;overscroll-behavior:contain}
+.sign-out-dialog::backdrop{background:#0b203e99}
+.sign-out-dialog-icon{display:flex;align-items:center;justify-content:center;width:48px;height:48px;margin-bottom:18px;border-radius:14px;background:#edf3fa;color:#134981}
+.sign-out-dialog h2{margin:0 0 10px;color:#122c47;font-size:1.35rem;line-height:1.5;font-weight:800}
+.sign-out-dialog p{margin:0;color:#4c5e73;font-size:1rem;line-height:1.8}
+.sign-out-dialog .sign-out-dialog-error{margin-top:16px;padding:10px 12px;border:1px solid #f1c8c8;border-radius:10px;background:#fff4f4;color:#a62727;font-size:.9rem}
+.sign-out-dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:24px}
+.sign-out-dialog-actions button{display:flex;align-items:center;justify-content:center;min-height:48px;padding:10px 12px;border:1px solid transparent;border-radius:11px;font:inherit;font-weight:700;line-height:1.5;cursor:pointer}
+.sign-out-dialog-actions .sign-out-dialog-cancel{border-color:#c9d5e3;background:#fff;color:#19334f}
+.sign-out-dialog-actions .sign-out-dialog-confirm{background:#124b84;color:#fff}
+.sign-out-dialog-actions .sign-out-dialog-cancel:hover:not(:disabled){background:#f2f6fb}
+.sign-out-dialog-actions .sign-out-dialog-confirm:hover:not(:disabled){background:#0c3764}
+.sign-out-dialog-actions button:focus-visible{outline:3px solid #2471bc;outline-offset:3px}
+.sign-out-dialog-actions button:disabled{opacity:.65;cursor:wait}
+.sign-out-dialog-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:380px){.sign-out-dialog{padding:22px}.sign-out-dialog-actions{gap:8px}.sign-out-dialog-actions button{font-size:.9rem}}

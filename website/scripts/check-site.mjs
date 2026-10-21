@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import {readFileSync,readdirSync} from 'node:fs';
+import {readFileSync,readdirSync,statSync,existsSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {createRequire} from 'node:module';
+import {gzipSync} from 'node:zlib';
 import ts from 'typescript';
 const require=createRequire(import.meta.url);
 const requireWrangler=createRequire(require.resolve('wrangler/package.json'));
@@ -173,6 +174,16 @@ assert.match(csvText(['Name','Price'],[[' =1+1',35]]),/"' =1\+1","35"/);
 assert.match(csvText(['Name'],[['A "quoted" name']]),/"A ""quoted"" name"/);
 console.log('PASS: Saudi reporting boundaries, actual paid-order totals, customer aggregation and safe CSV export');
 
+// Report public build assets before optimizing caching. These are build/file
+// sizes, not observed HTTP transfer sizes or field performance measurements.
+const clientRoot=resolve('dist/client');
+const clientAssets=readdirSync(clientRoot,{recursive:true}).filter(path=>statSync(resolve(clientRoot,path)).isFile()).sort().map(path=>{
+ const file=readFileSync(resolve(clientRoot,path));
+ return {path:'/'+path.replaceAll('\\','/'),bytes:file.length,...(/\.(js|css)$/.test(path)?{gzipEstimateBytes:gzipSync(file,{level:9}).length}:{})};
+});
+const staticHeaders=resolve(clientRoot,'_headers');
+console.log('CLIENT_ASSET_INVENTORY '+JSON.stringify({assets:clientAssets,totalFileBytes:clientAssets.reduce((sum,file)=>sum+file.bytes,0),staticHeaders:existsSync(staticHeaders)?readFileSync(staticHeaders,'utf8'):null}));
+
 const serverRoot=resolve('dist/server');const modulePaths=['index.js',...readdirSync(serverRoot,{recursive:true}).filter(p=>p.endsWith('.js')&&p!=='index.js')];
 const mf=new Miniflare({name:'safeplaces-test',modulesRoot:serverRoot,modules:modulePaths.map(p=>({type:'ESModule',path:resolve(serverRoot,p)})),compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'test-db'},r2Buckets:['BUCKET'],bindings:{ADMIN_BOOTSTRAP_PRIVATE:'true',SITE_PUBLIC:'false',SITE_INDEXABLE:'false',SITE_DEMO_PRICES:'true'},port:0,host:'127.0.0.1'});
 try{
@@ -183,17 +194,38 @@ try{
  const other={'oai-authenticated-user-id':'test-other','oai-authenticated-user-email':'other@example.test'};
  const request=(path,body,identity={})=>mf.dispatchFetch(origin+path,{redirect:'manual',method:body===undefined?'GET':'POST',headers:{...identity,...(body===undefined?{}:{Origin:origin,'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
  const expectJSON=async(path,body,identity={},status=200)=>{const r=await request(path,body,identity);const value=await r.json();assert.equal(r.status,status,path+': '+JSON.stringify(value));return value;};
- const paths=['','/about','/services','/services/fire-alarm','/shop','/shop/category/ppe','/shop/fire-extinguishers','/quote','/contact','/projects','/certificates','/wishlist','/account','/admin','/privacy','/terms','/returns','/collection','/account/login','/account/register','/account/forgot','/account/confirm','/account/reset'];
+ const paths=['','/about','/services','/services/fire-alarm','/shop','/shop/category/ppe','/shop/fire-extinguishers','/quote','/contact','/projects','/certificates','/wishlist','/account','/admin','/privacy','/terms','/returns','/collection','/account/login','/account/register','/account/forgot','/account/confirm','/account/reset','/account/verify'];
  for(const lang of ['ar','en'])for(const path of paths){const r=await request('/'+lang+path);const html=await r.text();assert.equal(r.status,200,lang+path+': '+html.slice(0,600));assert.match(html,new RegExp('lang="'+lang+'"'));assert.match(html,new RegExp('dir="'+(lang==='ar'?'rtl':'ltr')+'"'));assert.match(html,/<h1/);assert.match(html,/rel="canonical"/);assert.match(html,/hreflang="ar"/);assert.match(html,/hreflang="en"/);assert.doesNotMatch(html,/Your site is taking shape/);}
  const root=await request('/');assert.equal(root.status,307);assert.equal(root.headers.get('location'),'/ar');
  assert.equal((await request('/ar/does-not-exist')).status,404);
+ // Catch-all suffixes must not create duplicate pages or redirects with bogus
+ // canonicals. Request the built Worker rather than mirroring the route helper.
+ const missingPage=async path=>{
+  const response=await request(path);const html=await response.text();
+  assert.equal(response.status,404,path+' must be a missing page');
+  assert.doesNotMatch(html,/rel="canonical"/,path+' must not advertise a canonical content page');
+  if(/^\/(ar|en)\/(account|admin|checkout|wishlist)(\/|$)/.test(path)){
+   assert.equal(response.headers.get('cache-control'),'private, no-store',path+' must remain private');
+   assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow',path+' must remain unindexable');
+  }
+ };
+ const invalidRoutePaths=[
+  '/about/extra','/quote/extra','/contact/extra','/certificates/extra',
+  '/privacy/extra','/terms/extra','/returns/extra','/collection/extra',
+  '/wishlist/extra','/cart/extra','/checkout/extra','/admin/extra',
+  '/services/fire-alarm/extra','/shop/fire-extinguishers/extra',
+  '/shop/category','/shop/category/ppe/extra','/account/unknown',
+  ...['login','register','forgot','confirm','reset','verify'].map(mode=>'/account/'+mode+'/extra'),
+ ];
+ for(const lang of ['ar','en'])for(const path of invalidRoutePaths)await missingPage('/'+lang+path);
+ console.log('PASS: '+invalidRoutePaths.length*2+' invalid bilingual route shapes return 404 without content canonicals');
  const sitemap=await request('/sitemap.xml');assert.equal(sitemap.status,200);const xml=await sitemap.text();assert.doesNotMatch(xml,/\/ar\/services\/fire-alarm/,'Private preview must not expose crawlable sitemap entries');assert.doesNotMatch(xml,/\/en\/shop\/fire-extinguishers/);
  const robots=await request('/robots.txt');assert.match(await robots.text(),/Disallow: \//);
  const loginPage=await request('/en/account/login?return_to=%2Fen%2Fcheckout&reason=checkout');const loginHtml=await loginPage.text();assert.match(loginHtml,/Sign in to continue your request\. Your selections are saved\./);assert.match(loginHtml,/Continue shopping without an account/);assert.doesNotMatch(loginHtml,/<fieldset disabled/);assert.equal(loginPage.headers.get('cache-control'),'private, no-store');assert.equal(loginPage.headers.get('referrer-policy'),'no-referrer');
  await expectJSON('/api/auth/login',{email:'customer@example.test',password:'Long test passphrase'}, {},503);
  await expectJSON('/api/wishlist',undefined,{},401);
  await expectJSON('/api/orders',{},{},409);
- for(const path of ['/cart','/checkout']){const res=await request('/en'+path);assert.equal(res.status,307);assert.equal(res.headers.get('location'),'/en/quote');}
+ for(const lang of ['ar','en'])for(const path of ['/cart','/checkout']){const res=await request('/'+lang+path);assert.equal(res.status,307);assert.equal(res.headers.get('location'),'/'+lang+'/quote');}
  const quoteInfo=await request('/en/quote');assert.match(await quoteInfo.text(),/does not commit you to a purchase/);
  const demoPage=await request('/en/shop/safety-helmets');const demoHtml=await demoPage.text();
  assert.match(demoHtml,/Request a quotation/);assert.match(demoHtml,/Add to quote request/);
@@ -238,7 +270,7 @@ try{
  }
  console.log('PASS: rendered bilingual company topics, reading links, six distinct service guides, scope, required inputs, boundaries, process and FAQ');
  const homePage=await request('/en');const homeHtml=await homePage.text();assert.match(homeHtml,/safety-hero/);assert.match(homeHtml,/\/images\/hero.webp/);assert.match(homeHtml,/fetchPriority="high"/i);assert.match(homeHtml,/Shop safety equipment/);assert.match(homeHtml,/Discuss your project/);assert.match(homeHtml,/Equipment and services/);assert.doesNotMatch(homeHtml,/<canvas\b|facility-explorer|facility-renderer|facility-device-menu|Start the 3D experience/,'The homepage must not load the cancelled 3D experience');
- console.log('PASS: 50 Arabic/English pages, RTL/LTR, headings, canonical, hreflang, sitemap, redirects, 404 and demo-price disclosure');
+ console.log('PASS: '+paths.length*2+' Arabic/English pages, RTL/LTR, headings, canonical, hreflang, sitemap, redirects, 404 and demo-price disclosure');
  await expectJSON('/api/admin/data',undefined,{},403);
  await expectJSON('/api/admin/bootstrap',{}, {},401);
  await expectJSON('/api/admin/bootstrap',{},owner);
@@ -246,6 +278,16 @@ try{
  const firstWishlist=await expectJSON('/api/wishlist',{id:'catalog-safety-helmets',action:'add'},owner);assert.deepEqual(firstWishlist.ids,['catalog-safety-helmets']);assert.deepEqual((await expectJSON('/api/wishlist',undefined,other)).ids,[]);await expectJSON('/api/wishlist',{id:'catalog-safety-helmets',action:'remove'},other);assert.deepEqual((await expectJSON('/api/wishlist',undefined,owner)).ids,['catalog-safety-helmets']);await expectJSON('/api/wishlist',{id:'catalog-safety-helmets',action:'remove'},owner);assert.deepEqual((await expectJSON('/api/wishlist',undefined,owner)).ids,[]);
  console.log('PASS: guest checkout route, signed-in favourites, private account caches and disabled unconfigured email registration');
  const admin=await expectJSON('/api/admin/data',undefined,owner);assert.equal(admin.products.length,8);assert.equal(admin.content.filter(r=>r.type==='service').length,6);
+ // A real, locally seeded project verifies that a valid detail remains reachable
+ // while an appended segment is rejected before metadata/content rendering.
+ await db.prepare('INSERT INTO content (id,type,slug,title_ar,title_en) VALUES (?,?,?,?,?)').bind('route-test-project','project','route-test-project','مشروع اختبار محلي','Local route test project').run();
+ for(const lang of ['ar','en']){
+  const path='/'+lang+'/projects/route-test-project';const response=await request(path);
+  assert.equal(response.status,200,path+' must remain reachable');
+  assert.match(await response.text(),/rel="canonical"/,path+' must retain its canonical');
+  await missingPage(path+'/extra');
+ }
+ console.log('PASS: bilingual project detail routes retain valid content and reject trailing segments');
  for(const lang of ['ar','en']){const response=await request('/'+lang+'/admin',undefined,owner);const html=await response.text();assert.equal(response.status,200);assert.match(response.headers.get('cache-control'),/no-store/);assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');assert.match(html,/management-console/);assert.match(html,/console-sidebar/);assert.match(html,/console-metrics/);assert.doesNotMatch(html,/marketplace-header/);assert.doesNotMatch(html,/footer-grid/);}
  assert.equal((await request('/ar/admin/unknown',undefined,owner)).status,404);
  const uuid=()=>crypto.randomUUID();

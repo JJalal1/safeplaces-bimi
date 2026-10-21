@@ -24,8 +24,8 @@ const instances=new Set();
 const allowedOrigins=new Set();
 let browser,activeContext,phase='setup';
 const words={
- ar:{name:'الاسم الكامل',email:'البريد الإلكتروني',password:'كلمة المرور',confirmation:'تأكيد كلمة المرور',create:'إنشاء حساب',login:'تسجيل الدخول',logout:'تسجيل الخروج',forgot:'نسيت كلمة المرور؟',recover:'إرسال رابط الاستعادة',verify:'إرسال رسالة التأكيد',resend:'إرسال رسالة تأكيد جديدة',save:'حفظ كلمة المرور',google:'المتابعة باستخدام Google',verified:'تم تأكيد بريدك',unverified:'أكّد بريدك',mismatch:'كلمتا المرور غير متطابقتين',invalid:'البريد الإلكتروني أو كلمة المرور غير صحيحة'},
- en:{name:'Full name',email:'Email address',password:'Password',confirmation:'Confirm password',create:'Create account',login:'Sign in',logout:'Sign out',forgot:'Forgot password?',recover:'Send recovery link',verify:'Send verification email',resend:'Send a new verification email',save:'Save password',google:'Continue with Google',verified:'Your email is verified',unverified:'Verify your email',mismatch:'The passwords do not match',invalid:'The email or password is incorrect'}
+ ar:{name:'الاسم الكامل',email:'البريد الإلكتروني',password:'كلمة المرور',confirmation:'تأكيد كلمة المرور',create:'إنشاء حساب',login:'تسجيل الدخول',logout:'تسجيل الخروج',logoutQuestion:'تسجيل الخروج؟',logoutCancel:'إلغاء',forgot:'نسيت كلمة المرور؟',recover:'إرسال رابط الاستعادة',verify:'إرسال رسالة التأكيد',resend:'إرسال رسالة تأكيد جديدة',save:'حفظ كلمة المرور',google:'المتابعة باستخدام Google',verified:'تم تأكيد بريدك',unverified:'أكّد بريدك',mismatch:'كلمتا المرور غير متطابقتين',invalid:'البريد الإلكتروني أو كلمة المرور غير صحيحة'},
+ en:{name:'Full name',email:'Email address',password:'Password',confirmation:'Confirm password',create:'Create account',login:'Sign in',logout:'Sign out',logoutQuestion:'Sign out?',logoutCancel:'Cancel',forgot:'Forgot password?',recover:'Send recovery link',verify:'Send verification email',resend:'Send a new verification email',save:'Save password',google:'Continue with Google',verified:'Your email is verified',unverified:'Verify your email',mismatch:'The passwords do not match',invalid:'The email or password is incorrect'}
 };
 const mime={'.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.jpg':'image/jpeg','.jpeg':'image/jpeg','.ico':'image/x-icon','.woff2':'font/woff2','.woff':'font/woff','.ttf':'font/ttf','.txt':'text/plain','.xml':'application/xml'};
 
@@ -277,14 +277,87 @@ async function customerGoogleNavigation(page,instance,lang,userId){
   await page.unroute(sessionMatch);await page.unroute(socialMatch);
  }
 }
-async function signOut(page,lang,db,userId){
- const pending=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/auth/sign-out'&&response.request().method()==='POST');void pending.catch(()=>{});
- await page.locator('.account-nav').getByRole('link',{name:words[lang].logout,exact:true}).click();
- assert.equal((await pending).status(),200,'The visible sign-out action must succeed');
- await page.waitForURL(url=>url.pathname==='/'+lang+'/account/login');
- assert.equal((await sessionState(page)).authenticated,false,'Sign-out must revoke the application session');
- assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM auth_session WHERE user_id=?').bind(userId).first()).count,0,'Sign-out must remove the server session');
- assert.equal((await page.context().cookies()).some(cookie=>cookie.name.includes('session_token')),false,'Sign-out must remove the session cookie');
+async function signOut(page,lang,db,userId,{source='account'}={}){
+ const lex=words[lang],width=page.viewportSize().width;
+ phase=lang+'-'+width+' '+source+' logout confirmation';
+ const match=url=>url.pathname==='/api/auth/sign-out';
+ let attempts=0,release;
+ const observe=request=>{if(['/api/auth/sign-out','/api/auth/logout'].includes(new URL(request.url()).pathname)&&request.method()==='POST')attempts++;};
+ const sessionCount=async()=>(await db.prepare('SELECT COUNT(*) AS count FROM auth_session WHERE user_id=?').bind(userId).first()).count;
+ const sessionCookies=async()=>JSON.stringify((await page.context().cookies()).filter(cookie=>cookie.name.includes('session_token')).map(cookie=>[cookie.name,cookie.value]).sort());
+ const originalCount=await sessionCount(),originalCookies=await sessionCookies();
+ assert.ok(originalCount>0,'The logout scenario starts with a real server session');
+ const mobile=source==='header'&&width<651;
+ if(mobile)await page.locator('.mobile-menu-toggle').click();
+ const trigger=source==='account'?page.locator('.account-nav').getByRole('button',{name:lex.logout,exact:true}):page.locator(mobile?'.mobile-account-actions .site-auth-signout':'.site-auth-topbar');
+ const dialog=page.getByRole('alertdialog',{name:lex.logoutQuestion,exact:true});
+ const cancel=dialog.getByRole('button',{name:lex.logoutCancel,exact:true});
+ const confirm=dialog.locator('.sign-out-dialog-confirm');
+ async function intact(label){
+  assert.equal((await sessionState(page)).userId,'customer:'+userId,label+' keeps the same signed-in customer');
+  assert.equal(await sessionCount(),originalCount,label+' must not revoke or create a server session');
+  assert.ok((await sessionCookies())===originalCookies,label+' preserves the session cookie');
+ }
+ page.on('request',observe);
+ try{
+  for(const action of ['cancel','escape']){
+   await trigger.click();await dialog.waitFor({state:'visible'});
+   assert.ok(await cancel.evaluate(element=>element===document.activeElement),'Cancel receives initial focus');
+   assert.equal(await dialog.getAttribute('dir'),lang==='ar'?'rtl':'ltr');
+   const bounds=await dialog.boundingBox();
+   assert.ok(bounds&&bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=width+1&&bounds.y+bounds.height<=page.viewportSize().height+1,'The confirmation fits the viewport');
+   await page.keyboard.press('Shift+Tab');
+   assert.ok(await confirm.evaluate(element=>element===document.activeElement),'Backward Tab stays in the confirmation');
+   await page.keyboard.press('Tab');
+   assert.ok(await cancel.evaluate(element=>element===document.activeElement),'Forward Tab wraps to Cancel');
+   if(action==='cancel'){
+    await capture(page,lang,width,source+'-logout-confirmation');
+    await cancel.click();
+   }else await page.keyboard.press('Escape');
+   await dialog.waitFor({state:'detached'});
+   assert.ok(await trigger.evaluate(element=>element===document.activeElement),'Dismissal restores focus to the logout control');
+   if(mobile)assert.ok(await page.locator('.mobile-more-sheet').isVisible(),'Escape closes only the confirmation, leaving the mobile menu available');
+   await intact(action);
+   assert.equal(attempts,0,'Cancel and Escape must never send a logout request');
+  }
+
+  // Exercise a recoverable transport response without touching the real session.
+  await page.route(match,route=>route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({code:'LOCAL_LOGOUT_RETRY',message:'Local sign-out retry fixture'})}));
+  await trigger.click();await dialog.waitFor({state:'visible'});
+  const failed=page.waitForResponse(response=>match(new URL(response.url()))&&response.request().method()==='POST');
+  void failed.catch(()=>{});
+  await confirm.click();assert.equal((await failed).status(),400);
+  await dialog.getByRole('alert').waitFor({state:'visible'});
+  assert.ok(await cancel.isEnabled()&&await confirm.isEnabled(),'A failed sign-out can be cancelled or retried');
+  await intact('The failed confirmation');
+  await capture(page,lang,width,source+'-logout-retry');
+  assert.equal(attempts,1,'One failed confirmation sends one request');
+  await page.unroute(match);
+
+  // Hold the real request so rapid clicks and Escape can be checked before revocation.
+  let sent=0;
+  const gate=new Promise(done=>{release=done;});
+  await page.route(match,async route=>{sent++;await gate;await route.continue();});
+  const pending=page.waitForResponse(response=>match(new URL(response.url()))&&response.request().method()==='POST');
+  void pending.catch(()=>{});
+  await confirm.click({clickCount:2});
+  await until(()=>sent>=1,'The confirmed server logout starts');
+  assert.ok(await cancel.isDisabled()&&await confirm.isDisabled(),'Both actions are locked while logout is pending');
+  await page.keyboard.press('Escape');
+  assert.ok(await dialog.isVisible(),'Escape cannot dismiss an in-flight logout');
+  assert.equal(sent,1,'Rapid confirmation clicks do not duplicate the server request');
+  release();
+  assert.equal((await pending).status(),200,'The visible sign-out action must succeed');
+  const destination='/'+lang+(source==='account'?'/account/login':'');
+  await page.waitForURL(url=>url.pathname===destination);
+  assert.equal((await sessionState(page)).authenticated,false,'Sign-out must revoke the application session');
+  assert.equal(await sessionCount(),0,'Sign-out must remove the server session');
+  assert.equal((await page.context().cookies()).some(cookie=>cookie.name.includes('session_token')),false,'Sign-out must remove the session cookie');
+  assert.equal(attempts,2,'Only the failed attempt and one successful confirmation submit logout');
+  pass(lang+'-'+width+' '+source+': cancel/Escape preserve the session, focus is restored, failure is retryable and confirmation revokes once');
+ }finally{
+  release?.();page.off('request',observe);await page.unroute(match);
+ }
 }
 
 try{
@@ -422,7 +495,7 @@ try{
   await page.getByRole('alert').filter({hasText:lex.invalid}).waitFor();
   assert.equal((await sessionState(page)).authenticated,false,'The old password must stop working');
   await signIn(page,instance,lang,email,newPassword);
-  await signOut(page,lang,instance.db,user.id);
+  await signOut(page,lang,instance.db,user.id,{source:'header'});
   await visit(page,instance,'/'+lang+'/account/reset');
   assert.equal(await page.locator('input[name="password"]').count(),0,'A reset page without its email token must not offer a working password form');
   assert.ok(await page.locator('.customer-auth-recovery a').isVisible());
@@ -453,3 +526,4 @@ try{
  for(const value of privateValues)if(value&&serialized.includes(value))throw new Error('Private fixture data was blocked from the browser report.');
  writeFileSync(join(output,'email-password-browser.json'),serialized+'\n');
 }
+

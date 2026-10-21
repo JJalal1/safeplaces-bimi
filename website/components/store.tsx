@@ -7,6 +7,7 @@ import {EquipmentPhoto,ProductPhoto,referencePhotoSrc} from './visuals';
 import {SearchBox} from './search';
 import {Brand} from './brand';
 import {useDialog} from './accessibility';
+import {SignOutConfirmation} from './sign-out-confirmation';
 import {customerLoginPath,type CustomerUser} from '../lib/customer-routes';
 import {CART_STORAGE_KEY,emptyStore,restoreStore,serializeStore,replayStoreActions,type StoredItem,type StoredState} from '../lib/cart-persistence';
 type Item=StoredItem;
@@ -85,7 +86,7 @@ export function StoreProvider({lang,children}:{lang:Lang;children:ReactNode}){
    setUser(null);applyWishlist([]);
    window.location.assign('/'+lang);
   }catch(error){
-   announce(errorText(error,lang));setSigningOut(false);
+   setSigningOut(false);throw error;
   }
  }
  useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(null),3500);return()=>clearTimeout(timer);},[toast]);
@@ -123,7 +124,7 @@ export function Header({path,phone,products,categories,query='',preview=false,ch
  const logoutLabel=local(lang,'تسجيل الخروج','Sign out');
  const backPath=productDetail||path==='quote'?root+'/shop':root;
  const entries=[['','الرئيسية','Home'],['shop','تسوق المنتجات','Shop'],['services','خدماتنا','Services'],['about','من نحن','About us'],['projects','المشاريع','Projects'],['contact','تواصل معنا','Contact']];
- return <><div className="topbar"><div className="container"><span>{local(lang,'معدات السلامة والحماية من الحريق · الخبر، السعودية','Safety & fire protection equipment · Al Khobar, Saudi Arabia')}</span><div className="topbar-links"><a href={'tel:'+phone} dir="ltr">{phone}</a><a href={languagePath} className="language">{lang==='ar'?'English':'العربية'}</a>{canSignOut?<button className="site-auth-signout site-auth-topbar" type="button" onClick={()=>void signOut()} disabled={signingOut}><LogOut size={14}/>{logoutLabel}</button>:<a className="site-auth-topbar-login" href={root+'/account'}>{accountLabel}</a>}</div></div></div>
+ return <><div className="topbar"><div className="container"><span>{local(lang,'معدات السلامة والحماية من الحريق · الخبر، السعودية','Safety & fire protection equipment · Al Khobar, Saudi Arabia')}</span><div className="topbar-links"><a href={'tel:'+phone} dir="ltr">{phone}</a><a href={languagePath} className="language">{lang==='ar'?'English':'العربية'}</a>{canSignOut?<SignOutConfirmation lang={lang} className="site-auth-signout site-auth-topbar" onConfirm={signOut} disabled={signingOut} formatError={error=>errorText(error,lang)}><LogOut size={14} aria-hidden="true"/>{logoutLabel}</SignOutConfirmation>:<a className="site-auth-topbar-login" href={root+'/account'}>{accountLabel}</a>}</div></div></div>
  <header ref={headerRef} className={'site-header marketplace-header'+(searchOpen?' is-search-open':'')}>
   <div className="container header-inner">
    <div className="mobile-header-leading"><a className="icon-button mobile-back" href={backPath} aria-label={local(lang,'العودة','Go back')}>{lang==='ar'?<ArrowRight size={23}/>:<ArrowLeft size={23}/>}</a><button type="button" className="icon-button mobile-menu-toggle" aria-label={local(lang,'القائمة والأقسام','Menu and categories')} aria-haspopup="dialog" aria-expanded={moreOpen} aria-controls="mobile-more-panel" onClick={()=>{setMoreOpen(true);setSearchOpen(false);}}><Menu size={24}/></button></div>
@@ -149,7 +150,7 @@ export function Header({path,phone,products,categories,query='',preview=false,ch
    <section className="mobile-more-sheet" id="mobile-more-panel" role="dialog" aria-modal="true" aria-label={local(lang,'المزيد من صفحات الموقع','More pages')} onClick={e=>e.stopPropagation()}>
      <div className="mobile-more-heading"><h2>{local(lang,'المؤسسة والخدمات','Company & services')}</h2><button type="button" aria-label={local(lang,'إغلاق القائمة','Close menu')} className="icon-button" onClick={()=>setMoreOpen(false)}><X size={22}/></button></div>
      <div className="mobile-menu-utilities"><a className="mobile-language" href={languagePath}>{lang==='ar'?'English':'العربية'}</a><a href={'tel:'+phone} dir="ltr">{phone}</a></div>
-      <div className="mobile-account-actions"><a href={root+'/account'}><UserRound size={18}/>{accountLabel}</a>{canSignOut&&<button type="button" className="site-auth-signout" onClick={()=>void signOut()} disabled={signingOut}><LogOut size={18}/>{logoutLabel}</button>}</div>
+      <div className="mobile-account-actions"><a href={root+'/account'}><UserRound size={18}/>{accountLabel}</a>{canSignOut&&<SignOutConfirmation lang={lang} className="site-auth-signout" onConfirm={signOut} disabled={signingOut} formatError={error=>errorText(error,lang)}><LogOut size={18} aria-hidden="true"/>{logoutLabel}</SignOutConfirmation>}</div>
      <nav className="mobile-more-links" aria-label={local(lang,'الخدمات والصفحات الأخرى','Services and other pages')}>
        {([['services','الخدمات','Services'],['projects','المشاريع','Projects'],['quote','طلب عرض سعر','Request a quote'],['wishlist','المفضلة','Wishlist'],['contact','تواصل معنا','Contact'],['about','من نحن','About us'],['certificates','المستندات والشهادات','Documents & certificates']] as const).map(([slug,ar,en])=><a key={slug} href={root+'/'+slug} aria-current={path===slug?'page':undefined}>{local(lang,ar,en)}{lang==='ar'?<ArrowLeft size={16}/>:<ArrowRight size={16}/>}</a>)}
      </nav>
@@ -181,3 +182,4 @@ export function CartLines({compact=false,type='cart',items,selectable=false,onQu
  </div>)}</div>;
 }
 export function Wishlist({products}:{products:Product[]}){const {lang,state}=useStore();const rows=products.filter(p=>state.wish.includes(p.id));return rows.length?<div className="product-grid">{rows.map(p=><div className="product-card" key={p.id}><a href={'/'+lang+'/shop/'+p.slug}>{p.image?<div className="product-art"><img src={p.image} alt={productName(p,lang)} loading="lazy"/></div>:<EquipmentPhoto category={p.category} lang={lang} caption/>}<h3>{productName(p,lang)}</h3></a><p>{p.price===null?local(lang,'التسعير حسب الطلب','Pricing on request'):money(p.price,lang)}</p><ProductActions product={p} small/></div>)}</div>:<div className="empty-state"><Heart size={36}/><h3>{local(lang,'احتفظ بالمنتجات التي تهمك هنا','Keep your favourite products here')}</h3><a href={'/'+lang+'/shop'} className="button primary">{local(lang,'تصفح المنتجات','Browse products')}</a></div>;}
+
