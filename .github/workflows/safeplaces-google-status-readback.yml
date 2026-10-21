@@ -1,0 +1,41 @@
+name: Read current Google session configuration and counters
+on:
+  push:
+    branches: [fix/google-login-latest]
+    paths:
+      - .github/diagnostics/check-google-runtime-readback.mjs
+      - .github/diagnostics/check-google-runtime-readback.test.mjs
+      - .github/workflows/safeplaces-google-status-readback.yml
+permissions:
+  contents: read
+concurrency:
+  group: safeplaces-google-runtime-readback
+  cancel-in-progress: false
+jobs:
+  readback:
+    if: github.ref == 'refs/heads/fix/google-login-latest'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Validate request limits and private-data projection offline
+        run: |
+          node --check .github/diagnostics/check-google-runtime-readback.mjs
+          node .github/diagnostics/check-google-runtime-readback.test.mjs
+      - name: Read current deployments and aggregate authentication counters
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node .github/diagnostics/check-google-runtime-readback.mjs
+      - name: Save sanitized result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-runtime-readback
+          path: google-runtime-readback.json
+          if-no-files-found: error
+          retention-days: 3
