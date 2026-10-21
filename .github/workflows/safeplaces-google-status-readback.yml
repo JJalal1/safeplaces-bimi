@@ -1,0 +1,72 @@
+name: Read current production Google configuration
+on:
+  push:
+    branches: [fix/google-login-latest]
+    paths:
+      - .github/diagnostics/check-google-status-readback.mjs
+      - .github/workflows/safeplaces-google-status-readback.yml
+permissions:
+  contents: read
+concurrency:
+  group: safeplaces-google-status-readback
+  cancel-in-progress: false
+jobs:
+  readback:
+    if: github.ref == 'refs/heads/fix/google-login-latest'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Validate read-only requests and private-data projection
+        run: |
+          node --check .github/diagnostics/check-google-status-readback.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {runReadback} from './.github/diagnostics/check-google-status-readback.mjs';
+          const canary='PRIVATE_DATA_MUST_NOT_APPEAR';
+          const environment={GITHUB_ACTIONS:'true',GITHUB_REF:'refs/heads/fix/google-login-latest',CLOUDFLARE_API_TOKEN:'dummy_credential_for_offline_test'};
+          const now=Date.parse('2026-10-21T14:25:00Z');
+          const rows=[
+            {deployments:[{created_on:'2026-10-20T23:20:11.322Z',versions:[{version_id:'e52b6904-cf5e-457a-bb27-504cd46f7264',percentage:100}],metadata:canary}]},
+            {bindings:[{name:'GOOGLE_CLIENT_ID',type:'plain_text',text:canary},{name:'BETTER_AUTH_URL',type:'plain_text',text:canary},{name:'GOOGLE_CLIENT_SECRET',type:'secret_text',text:canary},{name:'OTHER_SECRET',type:'secret_text',text:canary}]}
+          ];
+          const requests=[];
+          const result=await runReadback({now,environment,fetchImpl:async(url,options)=>{
+            requests.push({url,method:options.method,body:options.body,redirect:options.redirect});
+            return new Response(JSON.stringify({success:true,result:rows.shift()}),{status:200});
+          }});
+          assert.deepEqual(requests.map(r=>r.url),[
+            'https://api.cloudflare.com/client/v4/accounts/b67109c9489a46ae25fb36370c4ba880/workers/scripts/safeplaces-production/deployments',
+            'https://api.cloudflare.com/client/v4/accounts/b67109c9489a46ae25fb36370c4ba880/workers/scripts/safeplaces-production/settings'
+          ]);
+          assert.ok(requests.every(r=>r.method==='GET'&&r.body===undefined&&r.redirect==='error'));
+          assert.equal(result.requestCount,2);
+          assert.equal(result.status,'READBACK_COMPLETED');
+          assert.equal(result.deployments.matchesKnownVersion,true);
+          assert.equal(result.settings.googleClientId,'mismatch');
+          assert.equal(JSON.stringify(result).includes(canary),false);
+          assert.equal(JSON.stringify(result).includes(environment.CLOUDFLARE_API_TOKEN),false);
+          assert.equal(result.signInTestPerformed,false);
+          assert.equal(result.googleSignInVerified,false);
+          let calls=0;
+          const blocked=await runReadback({now:Date.parse('2026-10-21T14:51:00Z'),environment,fetchImpl:()=>{calls++;throw new Error(canary);}});
+          assert.equal(blocked.status,'BLOCKED');assert.equal(calls,0);
+          console.log('Read-only requests, output projection, and expiry checks passed.');
+          NODE
+      - name: Read current deployment and public configuration
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node .github/diagnostics/check-google-status-readback.mjs
+      - name: Save sanitized result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-status-readback
+          path: google-status-readback.json
+          if-no-files-found: error
+          retention-days: 3
