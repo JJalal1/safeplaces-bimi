@@ -1,0 +1,49 @@
+{
+  "repository": "JJalal1/safeplaces-bimi",
+  "applicationRevision": "06a52e446a7841be6c91ec8b708dd770c0b17c56",
+  "sourceCommit": "261fac3798f3ca10b9697c1b6d4db503caece49a",
+  "workflowRun": 39670461221,
+  "jobId": 119466659417,
+  "workflowConclusion": "success",
+  "expectedProductionVersion": "d48a65ff-dffa-4529-a383-b6b31568bbb7",
+  "report": {
+    "status": "READBACK_COMPLETED",
+    "observedAt": "2026-10-21T20:27:38.538Z",
+    "allowedRequestWindow": {
+      "from": "2026-10-21T20:26:00.000Z",
+      "to": "2026-10-21T20:45:00.000Z"
+    },
+    "sourcePolicyVerified": true,
+    "signInTestPerformed": false,
+    "ownerIdentityMatchVerified": false,
+    "adminAccessVerified": false,
+    "cloudflareRequestCount": 2,
+    "cloudflareAccessDenied": false,
+    "deployments": {
+      "ok": true,
+      "matchesExpectedRuntime": true
+    },
+    "settings": {
+      "ok": true,
+      "ownerUserId": {
+        "count": 1,
+        "type": "secret_text",
+        "valueReadable": false,
+        "exactPolicyValid": null,
+        "surroundingWhitespace": null,
+        "customerPrefixAfterTrim": null,
+        "prefixedValidUuid": null,
+        "numericProviderSubject": null,
+        "validAfterTrim": null
+      },
+      "ownerEmail": {
+        "count": 1,
+        "type": "secret_text",
+        "valueReadable": false,
+        "exactPolicyValid": null,
+        "surroundingWhitespace": null,
+        "validAfterTrim": null
+      }
+    }
+  }
+}

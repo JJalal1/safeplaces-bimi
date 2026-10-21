@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-10-21T20:12:34Z",
+  "recordedAtLocal": "2026-10-21T23:12:34.000+03:00",
+  "localTimezone": "Asia/Aden",
+  "timestampMeaning": "Documentation capture time, not the OAuth callback or sign-in time.",
+  "initialScreenshotReview": {
+    "approximateDate": "2026-10-21",
+    "approximateTimeUtc": "20:10",
+    "approximateTimeAsiaAden": "23:10",
+    "precision": "approximate minute"
+  },
+  "applicationRevision": "0127fa866a95f45300c15f1c8decaa2d5115f71a",
+  "baselineCheckpointRevision": "ee9409bae30518c3a3410b3a0fa0aa9e3e3b022a",
+  "customerGoogleSignIn": {
+    "status": "PASSED_USER_REPORTED",
+    "source": "User confirms Google sign-in now works.",
+    "originalCustomerLoginIssueAcceptedResolvedByUser": true,
+    "independentProviderTracePerformed": false,
+    "reportPrecedesAdministrationDeployment": true,
+    "newProviderTraceAfterAdministrationDeployment": false
+  },
+  "customerAccountScreenshot": {
+    "source": "Root visual review of the user-supplied mobile screenshot.",
+    "accountPageDisplayed": true,
+    "accountNavigationDisplayed": true,
+    "signOutControlDisplayed": true,
+    "ordersEmptyStateDisplayed": true,
+    "screenshotPublished": false,
+    "accountDetailsRetained": false,
+    "attachmentIdentifiersRetained": false
+  },
+  "administrationSignIn": {
+    "status": "ADMIN_LOGIN_LOOP_USER_REPORTED",
+    "source": "Subsequent user report relayed by the root.",
+    "symptom": "Opening administration returns to login; completing Google sign-in still returns to login.",
+    "independentlyReproduced": false,
+    "rootCauseVerified": false,
+    "ownerIdentityVerified": false,
+    "privilegeAssignmentInferredFromScreenshot": false,
+    "investigationStage": "UI_REPAIR_DEPLOYED_AND_READBACK_VERIFIED_OWNER_ACCESS_UNKNOWN",
+    "sourceReview": {
+      "callbackDestinationPreservesAdministrationPath": true,
+      "confirmedUiDefect": "A verified signed-in customer rejected by adminUser was shown the anonymous sign-in gate.",
+      "implication": "The UI fails to distinguish successful customer authentication from missing administrator authorization.",
+      "authorizationFailureCauseVerified": false
+    },
+    "candidateRepair": {
+      "revision": "06a52e446a7841be6c91ec8b708dd770c0b17c56",
+      "branch": "fix/customer-email-auth",
+      "scope": "Clear access-denied state for the current signed-in customer; own email and collapsed customer:<UUID> support-reference format; existing Google/session/account authorization retained.",
+      "administratorAccessGranted": false,
+      "ownerBindingsChanged": false,
+      "ci": {
+        "runId": 39669132833,
+        "jobId": 119461996606,
+        "source": "All review CI steps independently verified successful by the root.",
+        "reportedSuccessfulGates": [
+          "TypeScript",
+          "build",
+          "bilingual built-Worker administration-session regressions",
+          "email security",
+          "full browser suite",
+          "dry run"
+        ],
+        "fullResult": "SUCCESS",
+        "adminSessionRegressionPassedAtUtc": "2026-10-21T20:19:09.891Z"
+      },
+      "productionDeployment": "SUCCESS",
+      "sourceBranchPromotion": {
+        "branch": "feature/auth-speed-seo-before-hosting",
+        "previousRevision": "0127fa866a95f45300c15f1c8decaa2d5115f71a",
+        "newRevision": "06a52e446a7841be6c91ec8b708dd770c0b17c56",
+        "approximateTimeUtc": "2026-10-21T20:22:00Z",
+        "expectedPreviousRevisionChecked": true
+      },
+      "deploymentRuns": {
+        "production": {
+          "runId": 39669671327,
+          "validationJobId": 119463901754,
+          "deploymentJobId": 119465409545,
+          "status": "SUCCESS",
+          "allRequiredStepsSucceeded": true,
+          "versionReportedByDeploymentLog": "d48a65ff-dffa-4529-a383-b6b31568bbb7",
+          "versionReportedAtUtc": "2026-10-21T20:25:41.667Z",
+          "preflightPassedAtUtc": "2026-10-21T20:25:33.174Z",
+          "logProtectionsPassedAtUtc": "2026-10-21T20:25:42.544Z",
+          "liveCustomerFormPrivateCacheGoogleOnlyAdminPasswordRpcChecksPassedAtUtc": "2026-10-21T20:25:49.959Z",
+          "publicSiteLoginQuoteSeoChecksPassedAtUtc": "2026-10-21T20:25:53.829Z",
+          "customerAccountCreatedByChecks": false,
+          "emailSentByChecks": false
+        },
+        "staging": {
+          "runId": 39669671405,
+          "validationJobId": 119463901681,
+          "readinessJobId": 119465537909,
+          "deploymentJobId": 119465655225,
+          "status": "SUCCESS",
+          "allRequiredStepsSucceeded": true,
+          "versionReportedByDeploymentLog": "a3405b4b-6429-45dd-adc1-422e2940c3e2",
+          "versionReportedAtUtc": "2026-10-21T20:26:16.784Z",
+          "logProtectionAccessAndOldHostDenialPassedAtUtc": "2026-10-21T20:26:18.637Z"
+        },
+        "websiteValidation": {
+          "runId": 39669683382,
+          "jobId": 119463942350,
+          "status": "SUCCESS",
+          "allRequiredStepsSucceeded": true
+        }
+      },
+      "deploymentEvidenceSource": "Exact revision, jobs, all-step success and deployment-log versions independently verified by the root."
+    },
+    "actualLiveOwnerAccess": "UNKNOWN",
+    "reportedLoopAcceptance": "PENDING_VERIFICATION_WITH_INTENDED_OWNER",
+    "nextOwnerEvidence": "Signed-in user own email and support reference from the new administration access-denied page, supplied privately for verified intended-owner comparison. Actual identity values are not included in this repository record."
+  },
+  "separateChecks": {
+    "explicitPageReloadPersistence": "NOT_SEPARATELY_REPORTED",
+    "logoutAndRelogin": "NOT_SEPARATELY_REPORTED",
+    "sessionExpiry": "NOT_OBSERVED",
+    "realEmailVerificationAndRecoveryInbox": "PENDING",
+    "ownerAuthorization": "UNDER_INVESTIGATION"
+  },
+  "scope": {
+    "historicalReadbackEvidenceModified": false,
+    "fullAuthenticationStageAccepted": false,
+    "wholeWordPlanComplete": false,
+    "nextGate": "Verify the intended owner using privately supplied own email/support reference, verify actual live administrator access, then complete remaining authentication acceptance in Word-plan order."
+  },
+  "updatedAtUtc": "2026-10-21T20:28:53Z",
+  "updatedAtLocal": "2026-10-21T23:28:53.000+03:00",
+  "ownerBindingReadback": {
+    "sourceRevision": "401a9c88362028d420e1766023cbff716139e38d",
+    "runId": 39669272088,
+    "jobId": 119462492839,
+    "status": "READBACK_COMPLETED",
+    "observedAtUtc": "2026-10-21T20:19:24.073Z",
+    "observedAtLocal": "2026-10-21T23:19:24.073+03:00",
+    "offlineChecksPassed": 65,
+    "cloudflareRequestCount": 2,
+    "cloudflareAccessDenied": false,
+    "d1QueryPerformed": false,
+    "activeRuntimeVersion": "6e83c238-894f-4f07-ade5-90e0ed6a2cb0",
+    "activeRuntimeTrafficPercentage": 100,
+    "matchesLastConfirmedCustomerRepairRuntime": true,
+    "ownerId": {
+      "count": 1,
+      "type": "secret_text",
+      "valueReadable": false,
+      "exactPolicyValid": null,
+      "formatAssessment": "UNKNOWN"
+    },
+    "ownerEmail": {
+      "count": 1,
+      "type": "secret_text",
+      "valueReadable": false,
+      "exactPolicyValid": null,
+      "formatAssessment": "UNKNOWN"
+    },
+    "interpretation": "Presence and type only; owner identity, exact format and signed-in account match cannot be determined from unreadable secret values.",
+    "workflowRemoval": "REMOVED_WITH_EVIDENCE_ARCHIVE",
+    "archive": {
+      "source": "Root-confirmed diagnostic archive and workflow deletion.",
+      "revision": "bae0719ccb02d33ad8f1dd53653a248d37b835e4",
+      "tree": "d858d6756c2deedacdc7ca5e040badcd2e51e94f",
+      "readbackEvidencePath": ".github/diagnostics/admin-owner/owner-binding-readback-evidence.json",
+      "offlineVerificationPath": ".github/diagnostics/admin-owner/offline-verification.json",
+      "additionalTokenOrD1CallsPerformed": false
+    },
+    "runtimeObservationScope": "Historical observation at 20:19:24.073 UTC, before the new administration deployment; not a current-runtime assertion after that deployment."
+  },
+  "diagnosticAccessLimits": {
+    "administrationPageInSessionBrowser": "BROWSER_ACCESS_POLICY_FORBIDDEN",
+    "cloudflareConnector": "INTERNAL_ERROR",
+    "administratorFailureIndependentlyReproducedByTheseTools": false
+  },
+  "applicationRevisionMeaning": "Customer acceptance baseline from the earlier deployed repair; not an assertion of current production revision after the administration deployment.",
+  "postAdministrationDeploymentReadback": {
+    "sourceRevision": "261fac3798f3ca10b9697c1b6d4db503caece49a",
+    "runId": 39670461221,
+    "status": "READBACK_COMPLETED",
+    "targetRuntimeVersion": "d48a65ff-dffa-4529-a383-b6b31568bbb7",
+    "offlineChecksPassed": 65,
+    "requestPlan": "Two production GETs for deployment/settings only; no D1 query.",
+    "windowStartUtc": "2026-10-21T20:26:00Z",
+    "windowEndUtc": "2026-10-21T20:45:00Z",
+    "workflowRemoval": "REMOVED_AS_PART_OF_THIS_CHECKPOINT_COMMIT",
+    "jobId": 119466659417,
+    "allWorkflowStepsSucceeded": true,
+    "observedAtUtc": "2026-10-21T20:27:38.538Z",
+    "observedAtLocal": "2026-10-21T23:27:38.538+03:00",
+    "cloudflareRequestCount": 2,
+    "cloudflareAccessDenied": false,
+    "d1QueryPerformed": false,
+    "matchesExpectedRuntime": true,
+    "activeRuntimeVersion": "d48a65ff-dffa-4529-a383-b6b31568bbb7",
+    "activeRuntimeTrafficPercentage": 100,
+    "source": "Exact run, job, safe result and active runtime independently verified by the root.",
+    "ownerId": {
+      "count": 1,
+      "type": "secret_text",
+      "valueReadable": false,
+      "exactPolicyValid": null,
+      "formatAssessment": "UNKNOWN"
+    },
+    "ownerEmail": {
+      "count": 1,
+      "type": "secret_text",
+      "valueReadable": false,
+      "exactPolicyValid": null,
+      "formatAssessment": "UNKNOWN"
+    },
+    "ownerInterpretation": "Presence and type only; unreadable secret values do not establish owner identity, format, policy validity or signed-in account match.",
+    "archive": {
+      "commitReference": "This checkpoint commit, with publisher verification of the temporary workflow deletion.",
+      "readbackEvidencePath": ".github/diagnostics/admin-owner/admin-entry-post-deploy-readback-evidence.json",
+      "offlineVerificationPath": ".github/diagnostics/admin-owner/offline-postdeploy-verification.json",
+      "historicalRawReadbackEvidenceModified": false
+    }
+  }
+}
