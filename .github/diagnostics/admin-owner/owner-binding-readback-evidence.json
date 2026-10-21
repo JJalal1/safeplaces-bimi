@@ -1,0 +1,47 @@
+{
+  "repository": "JJalal1/safeplaces-bimi",
+  "sourceCommit": "401a9c88362028d420e1766023cbff716139e38d",
+  "workflowRun": 39669272088,
+  "jobId": 119462492839,
+  "workflowConclusion": "success",
+  "report": {
+    "status": "READBACK_COMPLETED",
+    "observedAt": "2026-10-21T20:19:24.073Z",
+    "allowedRequestWindow": {
+      "from": "2026-10-21T20:17:00.000Z",
+      "to": "2026-10-21T21:05:00.000Z"
+    },
+    "sourcePolicyVerified": true,
+    "signInTestPerformed": false,
+    "ownerIdentityMatchVerified": false,
+    "adminAccessVerified": false,
+    "cloudflareRequestCount": 2,
+    "cloudflareAccessDenied": false,
+    "deployments": {
+      "ok": true,
+      "matchesExpectedRuntime": true
+    },
+    "settings": {
+      "ok": true,
+      "ownerUserId": {
+        "count": 1,
+        "type": "secret_text",
+        "valueReadable": false,
+        "exactPolicyValid": null,
+        "surroundingWhitespace": null,
+        "customerPrefixAfterTrim": null,
+        "prefixedValidUuid": null,
+        "numericProviderSubject": null,
+        "validAfterTrim": null
+      },
+      "ownerEmail": {
+        "count": 1,
+        "type": "secret_text",
+        "valueReadable": false,
+        "exactPolicyValid": null,
+        "surroundingWhitespace": null,
+        "validAfterTrim": null
+      }
+    }
+  }
+}
