@@ -5,10 +5,10 @@ import { pathToFileURL } from 'node:url';
 // Read-only, temporary inspection. This never reads users, sessions or secrets.
 const ROOT = 'https://api.cloudflare.com/client/v4/accounts/b67109c9489a46ae25fb36370c4ba880/workers/scripts/safeplaces-production';
 const URLS = Object.freeze({ deployments: ROOT + '/deployments', settings: ROOT + '/settings' });
-const EXPECTED_VERSION = '6e83c238-894f-4f07-ade5-90e0ed6a2cb0';
+const EXPECTED_VERSION = 'd48a65ff-dffa-4529-a383-b6b31568bbb7';
 const POLICY_BLOB = 'e8c4267191f4fd5c25da666928212f9af4a16cbc';
-const START = Date.parse('2026-10-21T20:17:00Z');
-const END = Date.parse('2026-10-21T21:05:00Z');
+const START = Date.parse('2026-10-21T20:26:00Z');
+const END = Date.parse('2026-10-21T20:45:00Z');
 const OUTPUT = 'admin-owner-binding-readback.json';
 
 // These are the exact validators in the POLICY_BLOB guarded by the workflow.

@@ -7,10 +7,10 @@ const ID = '12a45678-1234-4123-8123-123456789abc';
 const EMAIL = 'fixture-owner-unique@example.invalid';
 const SUBJECT = '998877665544332211009';
 const ACCOUNT = 'b67109c9489a46ae25fb36370c4ba880';
-const EXPECTED = '6e83c238-894f-4f07-ade5-90e0ed6a2cb0';
-const START = Date.parse('2026-10-21T20:17:00Z');
-const NOW = Date.parse('2026-10-21T20:25:00Z');
-const END = Date.parse('2026-10-21T21:05:00Z');
+const EXPECTED = 'd48a65ff-dffa-4529-a383-b6b31568bbb7';
+const START = Date.parse('2026-10-21T20:26:00Z');
+const NOW = Date.parse('2026-10-21T20:30:00Z');
+const END = Date.parse('2026-10-21T20:45:00Z');
 const urls = ['deployments', 'settings'].map(kind => 'https://api.cloudflare.com/client/v4/accounts/' + ACCOUNT + '/workers/scripts/safeplaces-production/' + kind);
 const environment = {
   GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'JJalal1/safeplaces-bimi',
