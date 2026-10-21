@@ -1,0 +1,75 @@
+name: Read latest production Google authentication diagnostics
+on:
+  push:
+    branches: [fix/google-login-latest]
+    paths:
+      - .github/diagnostics/check-google-latest-readback.mjs
+      - .github/workflows/safeplaces-google-latest-readback.yml
+permissions:
+  contents: read
+concurrency:
+  group: safeplaces-google-latest-readback
+  cancel-in-progress: false
+jobs:
+  readback:
+    if: github.ref == 'refs/heads/fix/google-login-latest'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Check syntax and private-data projection without credentials
+        run: |
+          node --check .github/diagnostics/check-google-latest-readback.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {runReadback} from './.github/diagnostics/check-google-latest-readback.mjs';
+          const canary = 'PRIVATE_DATA_MUST_NOT_APPEAR';
+          const now = Date.parse('2026-10-21T00:15:00Z');
+          const rows = [
+            {deployments:[{created_on:'2026-10-21T00:10:00Z',versions:[{version_id:'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',percentage:100}]}]},
+            {bindings:[
+              {name:'GOOGLE_CLIENT_ID',type:'plain_text',text:canary},
+              {name:'BETTER_AUTH_URL',type:'plain_text',text:canary},
+              {name:'GOOGLE_CLIENT_SECRET',type:'secret_text',text:canary}
+            ]},
+            {run:{status:'COMPLETED'},events:{count:2,events:[
+              {dataset:'cloudflare-workers',timestamp:now-1000,$metadata:{service:'safeplaces-production',message:'Safe Places auth diagnostic oauth_token/invalid_client',url:canary},source:canary},
+              {dataset:'cloudflare-workers',timestamp:now-500,$metadata:{service:'safeplaces-production',message:canary},source:canary}
+            ]}}
+          ];
+          const requests=[];
+          const result=await runReadback({
+            now,environment:{GITHUB_ACTIONS:'true',GITHUB_REF:'refs/heads/fix/google-login-latest',CLOUDFLARE_API_TOKEN:'dummy_credential_for_offline_test'},
+            fetchImpl:async(url,options)=>{
+              requests.push({url,options});
+              return new Response(JSON.stringify({success:true,result:rows.shift()}),{status:200});
+            }
+          });
+          assert.equal(requests.length,3);
+          assert.deepEqual(requests.map(r=>r.options.method),['GET','GET','POST']);
+          assert.ok(requests.every(r=>r.url.startsWith('https://api.cloudflare.com/client/v4/accounts/b67109c9489a46ae25fb36370c4ba880/')));
+          assert.equal(JSON.parse(requests[2].options.body).dry,true);
+          assert.equal(JSON.parse(requests[2].options.body).limit,25);
+          assert.equal(result.deployments.matchesKnownVersion,false);
+          assert.deepEqual(result.telemetry.events,[{timestamp:new Date(now-1000).toISOString(),stage:'oauth_token',code:'invalid_client'}]);
+          assert.equal(result.telemetry.discardedCount,1);
+          assert.equal(result.status,'READBACK_INCOMPLETE');
+          assert.equal(JSON.stringify(result).includes(canary),false);
+          assert.equal(JSON.stringify(result).includes('dummy_credential_for_offline_test'),false);
+          console.log('Bounded readback projection passed without network access or credentials.');
+          NODE
+      - name: Read deployment, public configuration, and bounded diagnostic logs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node .github/diagnostics/check-google-latest-readback.mjs
+      - name: Save sanitized diagnostic result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-latest-readback
+          path: google-latest-readback.json
+          if-no-files-found: error
+          retention-days: 3
