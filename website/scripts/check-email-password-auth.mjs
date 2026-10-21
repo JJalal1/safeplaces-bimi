@@ -4,13 +4,14 @@ import {createRequire} from 'node:module';
 import {join,resolve} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 
-// Local fixtures only. Both application Workers use the built production code,
+// Local fixtures only. All application Workers use the built production code,
 // the same temporary D1/R2 resources and the real internal password Durable
 // Object. Every outbound request is intercepted; no real email or Google call
 // can leave this test. Private fixture values are never printed or saved.
 const require=createRequire(import.meta.url);
 const {Miniflare,Log,LogLevel}=createRequire(require.resolve('wrangler/package.json'))('miniflare');
 const origin='https://safeplaces-email-test.example';
+const googleDispatchPrefix='/__local_google_fixture__';
 const authSecret=randomBytes(48).toString('base64url');
 const resendKey='local-resend-'+randomUUID();
 const alice={email:'alice@safeplaces-auth.example.test',name:'Local customer Alice',password:'Local first passphrase '+randomUUID()};
@@ -19,7 +20,7 @@ const fakeOwnerId=randomUUID();
 const messages=[],mockFailures=[];
 const googleClientId='local-google-link-fixture.apps.googleusercontent.com',googleClientSecret='local-google-link-'+randomUUID();
 const googleFixtures=new Map(),{privateKey:googleSigningKey}=generateKeyPairSync('rsa',{modulusLength:2048});
-let outboundAttempts=0,signInSequence=0,googleSequence=0,phase='setup',failureCode='',mf,peer,googlePeer,db,bucket;
+let outboundAttempts=0,signInSequence=0,googleSequence=0,phase='setup',failureCode='',mf,peer,db,bucket;
 function check(condition,code){if(!condition){failureCode=code;throw new Error('LOCAL_AUTH_ASSERTION_FAILED');}}
 function pass(name){console.log('PASS: '+name);}
 function exceptionCategory(error){
@@ -87,7 +88,9 @@ async function send(path,{body,raw,stream=false,cookie='',ip='192.0.2.10',worker
   payload=new ReadableStream({start(controller){controller.enqueue(bytes.subarray(0,8192));controller.enqueue(bytes.subarray(8192));controller.close();}});
  }
  const options={method,redirect:'manual',headers:h,...(method==='POST'?{body:payload,...(stream?{duplex:'half'}:{})}:{})};
- return worker?(worker===2?googlePeer:peer).fetch(new URL(path,origin).href,options):mf.dispatchFetch(new URL(path,origin).href,options);
+ const target=new URL(path,origin);
+ if(worker===2){target.pathname=googleDispatchPrefix+target.pathname;return mf.dispatchFetch(target.href,options);}
+ return worker?peer.fetch(target.href,options):mf.dispatchFetch(target.href,options);
 }
 async function reply(path,options={},status=200){
  const response=await send(path,options);
@@ -186,8 +189,16 @@ try{
  // getWorker().fetch uses Miniflare's protected /cdn-cgi proxy. Register the
  // exact fixture origin so that proxy accepts its POST Origin before forwarding
  // to the peer; the application's own origin and shared-D1 checks still run.
- mf=new Miniflare({workers:[{name:'email-auth-primary',...common,routes:[origin+'/*']},{name:'email-auth-peer',...common},{name:'email-auth-google',...common,bindings:{...common.bindings,GOOGLE_CLIENT_ID:googleClientId,GOOGLE_CLIENT_SECRET:googleClientSecret}}],d1Persist:false,r2Persist:false,durableObjectsPersist:false,cf:false,host:'127.0.0.1',port:0,log:new FixtureLog()});
- db=await mf.getD1Database('DB','email-auth-primary');bucket=await mf.getR2Bucket('BUCKET','email-auth-primary');peer=await mf.getWorker('email-auth-peer');googlePeer=await mf.getWorker('email-auth-google');
+ // Dispatch Google tests through an ordinary routed fixture and a service
+ // binding. getWorker().fetch would reject a hostile Origin at Miniflare's
+ // /cdn-cgi proxy before the application could exercise its own HTTP boundary.
+ // The bridge changes only the fixture path; request/response headers and body
+ // pass through unchanged, so the application's no-store requirement is tested.
+ const googleDispatch={name:'email-auth-google-dispatch',modules:true,compatibilityDate:'2026-05-15',
+  routes:[origin+googleDispatchPrefix+'/*'],serviceBindings:{GOOGLE:'email-auth-google'},outboundService:outbound,
+  script:`export default {fetch(request,env){const url=new URL(request.url);url.pathname=url.pathname.slice(${googleDispatchPrefix.length});return env.GOOGLE.fetch(new Request(url,request));}};`};
+ mf=new Miniflare({workers:[{name:'email-auth-primary',...common,routes:[origin+'/*']},{name:'email-auth-peer',...common},{name:'email-auth-google',...common,bindings:{...common.bindings,GOOGLE_CLIENT_ID:googleClientId,GOOGLE_CLIENT_SECRET:googleClientSecret}},googleDispatch],d1Persist:false,r2Persist:false,durableObjectsPersist:false,cf:false,host:'127.0.0.1',port:0,log:new FixtureLog()});
+ db=await mf.getD1Database('DB','email-auth-primary');bucket=await mf.getR2Bucket('BUCKET','email-auth-primary');peer=await mf.getWorker('email-auth-peer');
  for(const migration of readdirSync('drizzle').filter(name=>name.endsWith('.sql')).sort())
   for(const sql of readFileSync(join('drizzle',migration),'utf8').replace(/^\s*--.*$/gm,'').split(';').filter(sql=>sql.trim()))await db.prepare(sql).run();
  await db.prepare("INSERT INTO settings (key,value) VALUES ('catalog-ready','true'),('orderEnabled','false')").run();
@@ -337,21 +348,29 @@ try{
   await result.response.body?.cancel();
  }
  let linkLogin=await signIn(alice,changedPassword);
+ phase='Google link boundary / disabled provider';
  await reply('/api/auth/link-social',{body:linkBody,cookie:linkLogin.cookie},404);
+ phase='Google link boundary / anonymous session';
  await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody},401,'GOOGLE_LINK_REAUTH_REQUIRED');
- await reply('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie,headers:{origin:'https://untrusted.example'}},403);
- await reply('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie,headers:{origin:''}},403);
+ phase='Google link boundary / foreign origin';
+ await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie,headers:{origin:'https://untrusted.example'}},403,'INVALID_ORIGIN');
+ phase='Google link boundary / missing origin';
+ await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie,headers:{origin:''}},403,'INVALID_ORIGIN');
+ phase='Google link boundary / invalid payload';
  for(const body of [
   {...linkBody,provider:'github'}, {...linkBody,idToken:{token:'not-an-identity-proof'}},
   {...linkBody,callbackURL:'https://untrusted.example/return'}, {...linkBody,errorCallbackURL:'/ar/admin'},
   {...linkBody,additionalData:{serverContext:{googleLink:{userId:alice.id}}}},
   {...linkBody,scopes:['openid','email']}, {...linkBody,userId:fakeOwnerId}, {...linkBody,disableRedirect:false}
  ])await errorCode('/api/auth/link-social',{...googleOptions(),body,cookie:linkLogin.cookie},400,'GOOGLE_LINK_INVALID_REQUEST');
+ phase='Google link boundary / unverified session';
  await db.prepare('UPDATE auth_user SET email_verified=0 WHERE id=?').bind(alice.id).run();
  await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie},403,'GOOGLE_LINK_REAUTH_REQUIRED');
  await db.prepare('UPDATE auth_user SET email_verified=1 WHERE id=?').bind(alice.id).run();
+ phase='Google link boundary / stale session';
  await db.prepare('UPDATE auth_session SET created_at=? WHERE id=?').bind(Date.now()-11*60000,linkLogin.sessionId).run();
  await errorCode('/api/auth/link-social',{...googleOptions(),body:linkBody,cookie:linkLogin.cookie},403,'GOOGLE_LINK_REAUTH_REQUIRED');
+ phase='Google link boundary / implicit linking disabled';
  linkLogin=await signIn(alice,changedPassword);
  const implicit=await beginGoogle(googleIdentity,'',false);
  await denyGoogle(implicit,'','account_not_linked');
