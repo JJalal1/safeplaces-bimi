@@ -24,6 +24,8 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Check application and build dependency advisories
         run: pnpm audit --audit-level high
+      - name: Patched build dependency regression checks
+        run: node scripts/check-build-dependencies.mjs
       - name: TypeScript
         run: pnpm exec tsc --noEmit --incremental false
       - name: Read-only live-notification evidence fixtures
