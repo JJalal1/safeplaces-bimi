@@ -128,7 +128,7 @@ html[lang=en] .market-hero h1 { line-height: 1.13; font-size: 39px; }
 .card-save.saved svg { fill: #ffcda9; }
 .market-product-card .product-card-body { padding: 15px; }
 .market-product-card .product-card-body > small { font-size: 9px; color: #768697; }
-.market-product-card h3 { font-size: 13px; line-height: 1.75; margin: 6px 0 10px; min-height: 46px; }
+.market-product-card :is(h2,h3) { font-size: 13px; line-height: 1.75; margin: 6px 0 10px; min-height: 46px; }
 .price-block { margin-bottom: 16px; }
 .product-price { display: flex; gap: 10px; align-items: baseline; margin: 0; color: var(--ink); font-weight: normal; }
 .product-price strong { font-size: 20px; font-family: Arial,Tahoma,sans-serif; line-height: 1.5; letter-spacing: -.3px; }
@@ -442,7 +442,7 @@ footer { background: var(--navy-deep); }
  .market-product-card .product-art { height: 158px; }
  .market-product-card .product-card-body { padding: 12px; }
  .market-product-card .product-card-body > small { font-size: 8px; }
- .market-product-card h3 { font-size: 11px; min-height: 39px; margin-block: 6px 9px; }
+ .market-product-card :is(h2,h3) { font-size: 11px; min-height: 39px; margin-block: 6px 9px; }
  .product-price strong { font-size: 17px; }
  .price-block { margin-bottom: 13px; }
  .demo-price-label { font-size: 8px; }
@@ -528,7 +528,7 @@ footer { background: var(--navy-deep); }
  .product-grid.marketplace-products, .shop-products { grid-template-columns: 1fr; }
  .product-rail { grid-auto-columns: 82%; }
  .market-product-card .product-art { height: 235px; }
- .market-product-card h3 { min-height: 0; font-size: 15px; }
+ .market-product-card :is(h2,h3) { min-height: 0; font-size: 15px; }
  .market-product-card .product-actions.small > .button { font-size: 12px; }
  .product-price strong { font-size: 22px; }
  .market-product-card .product-card-body > small, .demo-price-label { font-size: 9px; }
@@ -596,7 +596,8 @@ footer { background: var(--navy-deep); }
  .shop-products, .product-grid.marketplace-products { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
  .market-product-card .product-art { height: 144px; }
  .market-product-card .product-card-body { padding: 9px; }
- .market-product-card h3 { font-size: 11px; min-height: 37px; }
+ .market-product-card :is(h2,h3) { font-size: 11px; min-height: 37px; }
  .market-product-card .product-actions.small > .button { font-size: 9px; min-height: 36px; }
  .market-product-card .product-price strong { font-size: 16px; }
 }
+

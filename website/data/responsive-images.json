@@ -1,0 +1,12 @@
+[
+ {"src":"/images/hero.webp","name":"hero","widths":[480,768,1213],"quality":78},
+ {"src":"/images/safeplaces-logo.webp","name":"logo","widths":[80,160,240,360],"quality":90},
+ {"src":"/images/catalog/extinguishers.webp","name":"extinguishers","widths":[240,480,720,960],"quality":78},
+ {"src":"/images/catalog/alarms.webp","name":"alarms","widths":[240,480,720,960],"quality":78},
+ {"src":"/images/catalog/fire-pump.webp","name":"fire-pump","widths":[240,480,720,960],"quality":78},
+ {"src":"/images/catalog/sprinkler.webp","name":"sprinkler","widths":[240,480,720,960],"quality":78},
+ {"src":"/images/catalog/hose-reel.webp","name":"hose-reel","widths":[240,480,720,960],"quality":78},
+ {"src":"/images/catalog/helmet.webp","name":"helmet","widths":[240,480,720,960],"quality":78},
+ {"src":"/images/catalog/ppe.webp","name":"ppe","widths":[240,480,720,960],"quality":78},
+ {"src":"/images/catalog/emergency.webp","name":"emergency","widths":[240,480,720,960],"quality":78}
+]

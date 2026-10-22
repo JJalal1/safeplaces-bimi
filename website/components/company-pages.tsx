@@ -22,7 +22,7 @@ function ServiceTile({lang,s,heading='h3',compact=false}:{lang:Lang;s:Service;he
   <div className="company-service-title"><span className="company-service-icon" aria-hidden="true"><Icon name={s.icon} size={24}/></span><Heading>{local(lang,s.ar,s.en)}</Heading></div>
   <p>{local(lang,s.descAr,s.descEn)}</p>
   {!compact&&scope.length>0&&<ul className="company-service-scope">{scope.slice(0,3).map((item,index)=><li key={index}>{item}</li>)}</ul>}
-  <a className="text-link" href={'/'+lang+'/services/'+encodeURIComponent(s.slug)} aria-label={local(lang,'نطاق وتفاصيل '+s.ar,'Scope and details: '+s.en)}>{local(lang,'النطاق والتفاصيل','Scope & details')}<Arrow lang={lang}/></a>
+  <a className="text-link" href={'/'+lang+'/services/'+encodeURIComponent(s.slug)} aria-label={local(lang,'نطاق وتفاصيل '+s.ar,'Scope & details: '+s.en)}>{local(lang,'النطاق والتفاصيل','Scope & details')}<Arrow lang={lang}/></a>
  </article>;
 }
 
@@ -139,3 +139,4 @@ export function ServiceOverview({lang,service,categories}:{lang:Lang;service:Ser
   </div>
  </div>;
 }
+

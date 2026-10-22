@@ -4,6 +4,7 @@ import { runWithConnectorBinding } from "../lib/connector-context";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 import { stagingHostResponse } from "../lib/staging-access";
 import { productionLaunchGate } from "../lib/production-launch-gate";
+import { responsePolicy } from "../lib/response-policy";
 import { runOperationalMaintenance,processNotificationOutbox } from "../lib/notifications";
 import type { OperationsBindings } from "../lib/operations-types";
 
@@ -13,9 +14,9 @@ export default {
   },
   async fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext<{ CONNECTORS?: ConnectorBinding }>) {
     const denied = stagingHostResponse(request, env as unknown as Record<string, unknown>);
-    if (denied) return denied;
+    if (denied) return responsePolicy(request,denied,env as unknown as Record<string,unknown>);
     const launchGate = productionLaunchGate(request, env as unknown as Record<string, unknown>);
-    if (launchGate) return launchGate;
+    if (launchGate) return responsePolicy(request,launchGate,env as unknown as Record<string,unknown>);
     let binding = ctx.props?.CONNECTORS;
     // Local preview emulates the same request-scoped capability. This branch and
     // the auxiliary service binding are absent from production builds.
@@ -36,20 +37,8 @@ export default {
       };
     }
     const result = await runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx));
-    const response = new Response(result.body, result);
     if(request.method==='POST'&&new URL(request.url).pathname.startsWith('/api/admin/')&&result.status<300)ctx.waitUntil(processNotificationOutbox(env as unknown as OperationsBindings,fetch,2).catch(()=>{console.error('Safe Places notification diagnostic outbox/unavailable');}));
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    // Staging and private previews must never be indexed, even for 404s or API responses.
-    if ((env as unknown as Record<string, unknown>).SITE_INDEXABLE !== 'true') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    const pathname = new URL(request.url).pathname;
-    if (/^\/(ar|en)\/admin(?:\/|$)/.test(pathname) || pathname.startsWith('/api/admin/') || /^\/(ar|en)\/(account|checkout|wishlist)(\/|$)/.test(pathname) || pathname.startsWith('/api/auth/') || ['/api/session','/api/account','/api/profile','/api/wishlist'].includes(pathname)) {
-      response.headers.set('Cache-Control', 'private, no-store');
-      response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-      response.headers.set('Referrer-Policy', 'no-referrer');
-    }
-    if (!response.headers.has('Content-Security-Policy')) response.headers.set('Content-Security-Policy', "object-src 'none'; base-uri 'self'; form-action 'self'");
+    const response=responsePolicy(request,result,env as unknown as Record<string,unknown>);
     return response;
   },
 };

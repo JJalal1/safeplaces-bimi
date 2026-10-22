@@ -9,6 +9,7 @@ const live=process.argv.includes('--live');
 const origin='https://safeplaces.sa';
 let mf;
 const report={mode:live?'live':'isolated-public-worker',pages:[],checks:[],status:'running'};
+const internalLinks=new Set();
 const decode=value=>value.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#x([\da-f]+);/gi,(_,v)=>String.fromCodePoint(parseInt(v,16))).replace(/&#(\d+);/g,(_,v)=>String.fromCodePoint(Number(v)));
 function attributes(tag){return Object.fromEntries([...tag.matchAll(/([\w:-]+)="([^"]*)"/g)].map(m=>[m[1],decode(m[2])]));}
 const tags=(html,name)=>[...html.matchAll(new RegExp('<'+name+'\\b[^>]*>','g'))].map(m=>attributes(m[0]));
@@ -19,8 +20,9 @@ async function page(url){
  assert.equal(response.status,200,path+' must be an actual public page');
  assert.doesNotMatch(response.headers.get('x-robots-tag')||'',/noindex/i,path+' must be indexable in headers');
  const html=await response.text(),lang=path.split('/')[1];
- const title=decode(html.match(/<title>([\s\S]*?)<\/title>/)?.[1]||'');
- const meta=tags(html,'meta'),links=tags(html,'link');
+ const head=html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/)?.[1]||'';
+ const title=decode(head.match(/<title>([\s\S]*?)<\/title>/)?.[1]||'');
+ const meta=tags(head,'meta'),links=tags(head,'link');
  const description=meta.find(m=>m.name==='description')?.content||'';
  assert.ok(title.length>=12&&title.length<=130,path+' needs a descriptive title');
  assert.ok(description.length>=45&&description.length<=260,path+' needs a useful unique description');
@@ -28,6 +30,21 @@ async function page(url){
  for(const code of ['ar','en','x-default'])assert.equal(links.find(l=>l.rel==='alternate'&&l.hrefLang===code||l.rel==='alternate'&&l.hreflang===code)?.href,origin+path.replace(/^\/(ar|en)(?=\/|$)/,'/'+(code==='x-default'?'ar':code)),path+' language alternative '+code);
  assert.ok(meta.some(m=>m.name==='robots'&&m.content.includes('index')&&!m.content.includes('noindex')),path+' robots must permit indexing');
  assert.ok(!meta.some(m=>m.name==='keywords'),'Do not publish keyword stuffing meta tags');
+ assert.ok(meta.some(m=>m.property==='og:title'&&m.content),'Open Graph belongs in the initial head');
+ assert.ok(meta.some(m=>m.property==='og:description'&&m.content),'Open Graph needs a description');
+ assert.equal(response.headers.get('x-frame-options'),'DENY');
+ assert.match(response.headers.get('content-security-policy')||'',/frame-ancestors 'none'/);
+ for(const image of tags(html,'img'))assert.ok(Object.hasOwn(image,'alt'),path+' image needs an ALT attribute');
+ for(const anchor of tags(html,'a')){
+  if(!anchor.href||anchor.href==='#')continue;
+  const target=new URL(anchor.href,url);
+  if(target.origin!==origin||!['https:','http:'].includes(target.protocol))continue;
+  if(target.pathname===path&&target.hash){
+   const id=decodeURIComponent(target.hash.slice(1));
+   assert.ok(tags(html,'section').concat(tags(html,'div'),tags(html,'h2'),tags(html,'h3'),tags(html,'main')).some(t=>t.id===id),path+' broken section link '+target.hash);
+  }
+  internalLinks.add(target.pathname+target.search);
+ }
  const main=html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/)?.[1]||'';
  assert.equal([...main.matchAll(/<h1\b/g)].length,1,path+' needs exactly one main heading');
  const schema=[...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m=>JSON.parse(m[1]));
@@ -79,12 +96,22 @@ try{
  for(const lang of ['ar','en'])for(const path of ['eastern-province','privacy','terms','returns','collection'])assert.ok(urls.includes(origin+'/'+lang+'/'+path));
  for(let i=0;i<urls.length;i+=3)await Promise.all(urls.slice(i,i+3).map(page));
  for(const field of ['title','description'])assert.equal(new Set(report.pages.map(p=>p[field])).size,report.pages.length,'Every sitemap page needs a unique '+field);
+ for(const path of internalLinks){
+  const linked=await request(path);
+  assert.ok([200,301,302,303,307,308].includes(linked.status),'Broken internal link '+path+' returned '+linked.status);
+  const location=linked.headers.get('location');
+  if(location)assert.equal(new URL(location,origin).origin,origin,'Internal links must remain on the canonical site');
+  await linked.body?.cancel();
+ }
+ report.internalLinksChecked=internalLinks.size;
  for(const lang of ['ar','en']){
   const filtered=await request('/'+lang+'/shop?q=helmet'),html=await filtered.text();
   const robots=tags(html,'meta').find(m=>m.name==='robots')?.content||'';
   assert.ok(robots.includes('noindex')&&robots.includes('follow')&&!robots.includes('nofollow'),'Filtered catalog stays out of the index while following product links');
   assert.equal(tags(html,'link').find(l=>l.rel==='canonical')?.href,origin+'/'+lang+'/shop');
   const missing=await request('/'+lang+'/eastern-province/not-a-branch');assert.equal(missing.status,404);
+  const missingHtml=await missing.text();assert.ok(missingHtml.includes(lang==='ar'?'الصفحة غير موجودة':'Page not found'));
+  assert.equal(missing.headers.get('x-robots-tag'),'noindex, nofollow');
  }
  report.status='passed';report.checks.push('All sitemap URLs: status, unique title/description, canonical, reciprocal hreflang, indexing, one H1 and consistent structured data','Regional guide, deep breadcrumbs, no invented offers, private-route exclusions, readable query-page noindex and real 404s');
  console.log('PASS: '+urls.length+' '+report.mode+' sitemap pages, bilingual metadata, canonical/hreflang, breadcrumbs, organisation/service/product schemas and regional content');

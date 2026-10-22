@@ -251,6 +251,9 @@ try{
    if(screenshotPages.has(route)&&((lang==='ar'&&width===390)||(lang==='en'&&width===1440)))await screenshot(page,lang+'-'+(route||'home').replaceAll('/','-')+'-'+width);
   }
   if(critical.has(route))for(const width of [360,768])await layout(page,path,width);
+  assert.equal(await page.locator('head meta[name=\"description\"]').count(),1,'Page description belongs in head after hydration: '+path);
+  assert.ok(await page.locator('head link[rel=canonical]').count()===1,'One canonical survives hydration: '+path);
+  assert.match(await page.locator('.brand-logo').first().evaluate(image=>image.currentSrc),/\/images\/responsive\/logo-/,'Use the responsive logo at the current viewport');
   if(route==='about'){
    const text=await page.locator('main .company-article-section p').allTextContents();
    assert.ok(text.length>=12&&text.join(' ').length>=3500,'About needs a substantive company profile in '+lang);
@@ -262,6 +265,30 @@ try{
  }
  report.checks.push({name:'Arabic/English routes, four viewport sizes, one heading, substantial About content, and unavailable attachment UX',status:'passed'});
  console.log('PASS: '+paths.length*2+' bilingual route visits and '+report.pages.length+' viewport checks');
+
+ // A failed non-JSON response must preserve the enquiry and its idempotency key.
+ for(const lang of ['ar','en']){
+  const attempts=[];
+  await page.route('**/api/contact',async route=>{
+   attempts.push(route.request().postDataJSON());
+   await route.fulfill(attempts.length===1?{status:502,contentType:'text/html',body:'Temporary upstream failure'}:{status:200,contentType:'application/json',body:JSON.stringify({reference:'SPC-RECOVERY-FIXTURE'})});
+  });
+  try{
+   await visit(page,'/'+lang+'/contact');
+   const form=page.locator('main form');
+   await form.locator('input[name=name]').fill('Recovery fixture');
+   await form.locator('input[name=email]').fill('recovery@example.test');
+   await form.locator('textarea[name=message]').fill('Keep the enquiry after an interrupted response.');
+   await form.locator('input[type=checkbox]').check();
+   await form.locator('button[type=submit],button:not([type])').last().click();
+   await form.locator('[role=alert]').waitFor();
+   assert.equal(await form.locator('textarea[name=message]').inputValue(),'Keep the enquiry after an interrupted response.');
+   await form.locator('button[type=submit],button:not([type])').last().click();
+   await page.getByText('SPC-RECOVERY-FIXTURE',{exact:true}).waitFor();
+   assert.equal(attempts.length,2);assert.deepEqual(attempts[1],attempts[0],'The customer retries the exact same enquiry key and contents');
+  }finally{await page.unroute('**/api/contact');}
+ }
+ report.checks.push({name:'Bilingual contact form retains data and idempotency key after a non-JSON server error; explicit retry succeeds',status:'passed'});
 
  // Exercise the documented-registration state without inventing an address or VAT ID.
  const identityKeys=['cr','businessIdentityVerified','nationalAddressVerified','vatRegistrationVerified'];

@@ -70,7 +70,7 @@
   font-size: 11px;
   line-height: 1.6;
 }
-.market-product-card h3 {
+.market-product-card :is(h2,h3) {
   min-height: 3.1em;
   margin: 6px 0 12px;
   color: var(--brand-deep);
@@ -78,7 +78,7 @@
   font-weight: 700;
   line-height: 1.55;
 }
-.market-product-card .product-card-body > a:hover h3 { color: var(--brand-blue); }
+.market-product-card .product-card-body > a:hover :is(h2,h3) { color: var(--brand-blue); }
 .market-product-card .price-block {
   margin-top: auto;
   margin-bottom: 12px;
@@ -457,7 +457,7 @@
 @media (max-width: 1100px) {
   .market-product-card .product-art { height: 185px; }
   .market-product-card .product-card-body { padding: 14px; }
-  .market-product-card h3 { font-size: 14px; }
+  .market-product-card :is(h2,h3) { font-size: 14px; }
   .product-page .product-detail { gap: 28px; padding: 25px; }
   .product-page .product-info h1 { font-size: 29px; }
   .product-page .product-info .product-actions > .button { padding-inline: 12px; font-size: 13px; }
@@ -493,7 +493,7 @@
   .market-product-card .product-art img { padding: 5px; }
   .market-product-card .product-card-body { padding: 12px; }
   .market-product-card .product-card-body > small { font-size: 10px; }
-  .market-product-card h3 { min-height: 3.1em; margin-block: 6px 10px; font-size: 14px; line-height: 1.55; }
+  .market-product-card :is(h2,h3) { min-height: 3.1em; margin-block: 6px 10px; font-size: 14px; line-height: 1.55; }
   .market-product-card .product-price strong { font-size: 20px; }
   .market-product-card .price-block { padding-top: 8px; margin-bottom: 11px; }
   .market-product-card .demo-price-label { font-size: 10px; }
@@ -603,7 +603,7 @@
 @media (max-width: 380px) {
   .market-product-card .product-art { height: 145px; }
   .market-product-card .product-card-body { padding: 10px; }
-  .market-product-card h3 { font-size: 13px; }
+  .market-product-card :is(h2,h3) { font-size: 13px; }
   .market-product-card .product-price strong { font-size: 18px; }
   .market-product-card .product-actions.small > .button { font-size: 11px; padding-inline: 5px; }
   .market-product-card .product-actions.small > .button svg { width: 14px; height: 14px; }
@@ -630,3 +630,6 @@
 @media (prefers-reduced-motion: reduce) {
   .market-product-card { transition: none; }
 }
+
+
+.product-card h2{letter-spacing:normal}

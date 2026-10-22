@@ -96,3 +96,8 @@
 .support-registration h2 { font-size:21px; line-height:1.7; color:var(--brand-blue); margin-block:5px 12px; }
 .support-registration p { margin:8px 0 16px; line-height:1.9; }
 @media(max-width:640px) { .support-registration { flex-direction:column; padding:21px 18px; gap:12px; } .support-registration h2 { font-size:19px; } }
+
+/* Keep small form guidance and company details readable on their actual surfaces. */
+.upload-zone > small{color:#536c81}
+.contact-details .business-details dt{color:#c7d8e9}
+.contact-details .business-details dd,.contact-details .business-details bdi{color:#fff}
