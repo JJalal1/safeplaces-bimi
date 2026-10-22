@@ -24,11 +24,13 @@ jobs:
           p.dependencies.next='16.4.1';
           p.devDependencies['eslint-config-next']='16.4.1';
           p.devDependencies.sharp='0.35.5';
-          p.overrides={...p.overrides,miniflare:{sharp:'0.35.5'},'@babel/core':'7.29.6',browserslist:'4.28.7','baseline-browser-mapping':'2.11.0','fast-uri':'3.1.8','source-map-js':'1.2.2',esbuild:'0.28.1'};
+          p.dependencies.react='19.2.8';p.dependencies['react-dom']='19.2.8';
+          p.devDependencies['react-server-dom-webpack']='19.2.8';p.devDependencies.vite='8.1.6';
+          const overrides={'miniflare>sharp':'0.35.5','@babel/core':'7.29.6',browserslist:'4.28.7','baseline-browser-mapping':'2.11.0','fast-uri':'3.1.8','source-map-js':'1.2.2',esbuild:'0.28.1',react:'19.2.8','react-dom':'19.2.8','react-server-dom-webpack':'19.2.8','undici@^7':'7.29.1','ws@^8':'8.21.0','image-size':'2.0.3','js-yaml@^4':'4.3.2','brace-expansion@^1':'1.1.20','brace-expansion@^4':'5.0.11'};
+          p.overrides=overrides;
           writeFileSync(file,JSON.stringify(p,null,2)+'\n');
           const workspace='pnpm-workspace.yaml',w=readFileSync(workspace,'utf8');
-          const overrides={'miniflare>sharp':'0.35.5','@babel/core':'7.29.6',browserslist:'4.28.7','baseline-browser-mapping':'2.11.0','fast-uri':'3.1.8','source-map-js':'1.2.2',esbuild:'0.28.1'};
-          writeFileSync(workspace,w.slice(0,w.indexOf('overrides:'))+'overrides:\n'+Object.entries(overrides).map(([k,v])=>'  '+JSON.stringify(k)+': '+JSON.stringify(v)).join('\n')+'\n');
+          writeFileSync(workspace,w.slice(0,w.indexOf('overrides:'))+'overrides:\n'+Object.entries(overrides).map(([k,v])=>'  '+JSON.stringify(k)+': '+JSON.stringify(v)).join('\n')+'\npatchedDependencies:\n  braces@3.0.3: patches/braces@3.0.3.patch\nauditConfig:\n  ignoreGhsas:\n    # No upstream release exists; bounded string/AST walkers are patched and tested.\n    - GHSA-vfj7-8cjw-p6xm\n');
           NODE
           pnpm install --lockfile-only --ignore-scripts
       - name: Record production advisory results
@@ -36,6 +38,8 @@ jobs:
           set +e
           pnpm audit --prod --json > dependency-audit.json
           test -s dependency-audit.json
+          pnpm audit --json > all-dependency-audit.json
+          test -s all-dependency-audit.json
       - uses: actions/upload-artifact@v4
         with:
           name: safeplaces-patched-dependency-lock
@@ -44,4 +48,5 @@ jobs:
             website/pnpm-lock.yaml
             website/pnpm-workspace.yaml
             website/dependency-audit.json
+            website/all-dependency-audit.json
           retention-days: 14
