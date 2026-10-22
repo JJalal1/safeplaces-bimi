@@ -133,7 +133,7 @@ export function Header({path,phone,products,categories,query='',preview=false,ch
  <header ref={headerRef} className={'site-header marketplace-header'+(searchOpen?' is-search-open':'')}>
   <div className="container header-inner">
    <div className="mobile-header-leading"><a className="icon-button mobile-back" href={backPath} aria-label={local(lang,'العودة','Go back')}>{lang==='ar'?<ArrowRight size={23}/>:<ArrowLeft size={23}/>}</a><button type="button" className="icon-button mobile-menu-toggle" aria-label={local(lang,'القائمة والأقسام','Menu and categories')} aria-haspopup="dialog" aria-expanded={moreOpen} aria-controls="mobile-more-panel" onClick={()=>{setMoreOpen(true);setSearchOpen(false);}}><Menu size={24}/></button></div>
-   <Brand lang={lang}/>
+   <Brand lang={lang} logoSizes="(max-width: 650px) 41px, (max-width: 1000px) 48px, 68px"/>
    <div className="header-search" id="store-header-search"><SearchBox lang={lang} products={products} categories={categories} query={query}/></div>
    <div className="header-tools">
     <button type="button" className="icon-button mobile-search-toggle" aria-label={searchOpen?local(lang,'إغلاق البحث','Close search'):local(lang,'البحث في المنتجات','Search products')} aria-expanded={searchOpen} aria-controls="store-header-search" onClick={()=>setSearchOpen(!searchOpen)}>{searchOpen?<X size={23}/>:<Search size={23}/>}</button>

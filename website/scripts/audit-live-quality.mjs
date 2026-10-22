@@ -43,7 +43,7 @@ try{
   });
   const coverage=await page.coverage.stopCSSCoverage();
   const css=coverage.map(s=>({url:s.url,bytes:s.text.length,usedBytes:s.ranges.reduce((n,r)=>n+r.end-r.start,0)}));
-  report.pages.push({path,headers:Object.fromEntries(Object.entries(await response.allHeaders()).filter(([k])=>['content-security-policy','x-content-type-options','x-frame-options','referrer-policy','permissions-policy','strict-transport-security','cache-control','x-robots-tag','content-encoding'].includes(k))),...result,css,errors});
+  report.pages.push({path,headers:Object.fromEntries(Object.entries(await response.allHeaders()).filter(([k])=>['content-security-policy','x-content-type-options','x-frame-options','referrer-policy','permissions-policy','strict-transport-security','cache-control','x-safeplaces-cache','x-robots-tag','content-encoding'].includes(k))),...result,css,errors});
   console.log(JSON.stringify({path,violations:result.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.length})),missingAlt:result.missingAlt.length,overflow:result.overflow,errors:errors.length}));
   await context.close();
  }

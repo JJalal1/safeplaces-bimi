@@ -67,6 +67,10 @@ export default defineConfig(async ({ command }) => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    define: {
+      // Public commit ID only. Local/private builds leave HTML caching disabled.
+      'import.meta.env.SAFEPLACES_RELEASE': JSON.stringify(process.env.GITHUB_SHA||'local'),
+    },
     server: {
       ...(managedLinux
         ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] }
@@ -112,3 +116,4 @@ export default defineConfig(async ({ command }) => {
     ],
   };
 });
+

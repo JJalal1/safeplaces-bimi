@@ -5,6 +5,8 @@ import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 import { stagingHostResponse } from "../lib/staging-access";
 import { productionLaunchGate } from "../lib/production-launch-gate";
 import { responsePolicy } from "../lib/response-policy";
+import { siteIndexable } from "../lib/site-origin";
+import { publicHtmlCacheKey,publicHtmlCacheEntry,cachedPublicHtml } from "../lib/public-html-cache";
 import { runOperationalMaintenance,processNotificationOutbox } from "../lib/notifications";
 import type { OperationsBindings } from "../lib/operations-types";
 
@@ -17,6 +19,13 @@ export default {
     if (denied) return responsePolicy(request,denied,env as unknown as Record<string,unknown>);
     const launchGate = productionLaunchGate(request, env as unknown as Record<string, unknown>);
     if (launchGate) return responsePolicy(request,launchGate,env as unknown as Record<string,unknown>);
+    const cacheKey=publicHtmlCacheKey(request,siteIndexable(),import.meta.env.SAFEPLACES_RELEASE);
+    if(cacheKey){
+      try{
+        const cached=await caches.default.match(cacheKey);
+        if(cached)return responsePolicy(request,cachedPublicHtml(cached),env as unknown as Record<string,unknown>);
+      }catch{console.error('Safe Places cache diagnostic read/unavailable');}
+    }
     let binding = ctx.props?.CONNECTORS;
     // Local preview emulates the same request-scoped capability. This branch and
     // the auxiliary service binding are absent from production builds.
@@ -39,6 +48,13 @@ export default {
     const result = await runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx));
     if(request.method==='POST'&&new URL(request.url).pathname.startsWith('/api/admin/')&&result.status<300)ctx.waitUntil(processNotificationOutbox(env as unknown as OperationsBindings,fetch,2).catch(()=>{console.error('Safe Places notification diagnostic outbox/unavailable');}));
     const response=responsePolicy(request,result,env as unknown as Record<string,unknown>);
+    if(cacheKey){
+      const entry=publicHtmlCacheEntry(response);
+      if(entry){
+        response.headers.set('X-SafePlaces-Cache','MISS');
+        ctx.waitUntil(caches.default.put(cacheKey,entry).catch(()=>{console.error('Safe Places cache diagnostic write/unavailable');}));
+      }
+    }
     return response;
   },
 };

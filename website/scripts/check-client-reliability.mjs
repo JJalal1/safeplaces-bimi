@@ -31,3 +31,26 @@ const pdf=responsePolicy(new Request('https://safeplaces.sa/api/media/public-doc
 const preview=responsePolicy(new Request('https://preview.example/ar'),new Response('preview'),{SITE_PUBLIC:'false',SITE_INDEXABLE:'false'});assert.equal(preview.headers.get('x-frame-options'),null);assert.equal(preview.headers.get('x-robots-tag'),'noindex, nofollow');
 const missing=responsePolicy(new Request('https://safeplaces.sa/ar/missing'),new Response('404',{status:404}),bindings);assert.equal(missing.headers.get('x-robots-tag'),'noindex, nofollow');
 console.log('PASS: nested private routes, cookies, public image caching, file CSP, public frame protection, preview embedding and 404 indexing');
+
+const {publicHtmlCacheKey,publicHtmlCacheEntry,cachedPublicHtml}=await load('lib/public-html-cache.ts');
+const release='a'.repeat(40),otherRelease='b'.repeat(40);
+const htmlRequest=(path,extra={})=>new Request('https://safeplaces.sa'+path,{headers:{Accept:'text/html',...extra}});
+for(const path of ['/ar','/en','/ar/shop','/en/shop/fire-extinguishers','/ar/shop/category/ppe','/en/services/fire-alarm','/ar/privacy']){
+ const key=publicHtmlCacheKey(htmlRequest(path),true,release);
+ assert.ok(key,path+' should be eligible');assert.equal(new URL(key.url).pathname,path);
+ assert.notEqual(key.url,publicHtmlCacheKey(htmlRequest(path),true,otherRelease).url,'Releases cannot share obsolete HTML');
+}
+for(const path of ['/ar/account','/en/admin','/ar/quote','/en/contact','/api/session','/api/media/private-file','/api/admin/data','/ar/shop?q=helmet','/ar/shop?__rsc=1','/ar/shop/category/ppe/extra'])assert.equal(publicHtmlCacheKey(htmlRequest(path),true,release),null,path+' must bypass shared HTML caching');
+for(const extra of [{Cookie:'fixture=1'},{Authorization:'Bearer fixture'},{RSC:'1'},{'Next-Router-Prefetch':'1'},{'X-Nextjs-Data':'1'},{Range:'bytes=0-20'},{'If-None-Match':'fixture'},{'Cache-Control':'no-cache'},{Pragma:'no-cache'},{Accept:'text/x-component'}])assert.equal(publicHtmlCacheKey(htmlRequest('/ar',extra),true,release),null,JSON.stringify(extra));
+assert.equal(publicHtmlCacheKey(htmlRequest('/ar'),false,release),null);
+assert.equal(publicHtmlCacheKey(htmlRequest('/ar'),true,'local'),null);
+assert.equal(publicHtmlCacheKey(new Request('https://preview.example/ar',{headers:{Accept:'text/html'}}),true,release),null);
+assert.equal(publicHtmlCacheKey(new Request('https://safeplaces.sa/ar',{method:'POST',headers:{Accept:'text/html'}}),true,release),null);
+const html=()=>new Response('<html>Public content</html>',{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store, must-revalidate'}});
+const entry=publicHtmlCacheEntry(html());assert.ok(entry);assert.equal(entry.headers.get('cache-control'),'public, max-age=60');
+const hit=cachedPublicHtml(entry);assert.match(hit.headers.get('cache-control'),/no-store/);assert.equal(await hit.text(),'<html>Public content</html>');
+for(const [name,value]of [['Set-Cookie','session=fixture'],['Cache-Control','private, no-store'],['X-Robots-Tag','noindex, nofollow'],['Vary','Cookie'],['Vary','*'],['Content-Type','text/x-component']]){
+ const privateResult=html();privateResult.headers.set(name,value);assert.equal(publicHtmlCacheEntry(privateResult),null,name+' must prevent storage');
+}
+for(const status of [302,404,500])assert.equal(publicHtmlCacheEntry(new Response('failure',{status,headers:{'Content-Type':'text/html'}})),null);
+console.log('PASS: anonymous HTML cache isolation across cookies, auth, RSC, queries, private/form routes, deployments and error responses; one-minute edge TTL with no browser HTML storage');
