@@ -263,6 +263,31 @@ try{
  report.checks.push({name:'Arabic/English routes, four viewport sizes, one heading, substantial About content, and unavailable attachment UX',status:'passed'});
  console.log('PASS: '+paths.length*2+' bilingual route visits and '+report.pages.length+' viewport checks');
 
+ // Exercise the documented-registration state without inventing an address or VAT ID.
+ const identityKeys=['cr','businessIdentityVerified','nationalAddressVerified','vatRegistrationVerified'];
+ const savedIdentity=(await db.prepare("SELECT key,value FROM settings WHERE key IN ('cr','businessIdentityVerified','nationalAddressVerified','vatRegistrationVerified')").all()).results;
+ try{
+  await setSetting('cr','7000000000');await setSetting('businessIdentityVerified',true);
+  await setSetting('nationalAddressVerified',false);await setSetting('vatRegistrationVerified',false);
+  for(const lang of ['ar','en'])for(const width of [390,1440]){
+   const path='/'+lang+'/certificates';await visit(page,path);await layout(page,path,width);
+   assert.equal(await page.locator('.support-registration').count(),1,'A documented registration must be visible independently of address/VAT proof');
+   assert.ok((await page.locator('.support-registration .business-details').innerText()).includes('7000000000'));
+   const rows=await page.locator('.support-registration .business-details > div').count();assert.equal(rows,1,'Only the supported registration should be shown');
+   assert.equal(await page.locator('.support-registration a[href="https://mc.gov.sa/ar/eservices/Pages/Commercial-data.aspx"]').count(),1);
+   assert.ok((await page.locator('footer .business-details').innerText()).includes('7000000000'));
+   await screenshot(page,lang+'-verified-registration-'+width);
+  }
+  await setSetting('businessIdentityVerified',false);await visit(page,'/ar/certificates');
+  assert.equal(await page.locator('.support-registration').count(),0,'Revoked registration approval must hide the record');
+  assert.equal(await page.locator('footer .business-details').count(),0);
+ }finally{
+  const saved=new Map(savedIdentity.map(row=>[row.key,row.value]));
+  for(const key of identityKeys){if(saved.has(key))await db.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(key,saved.get(key)).run();else await db.prepare('DELETE FROM settings WHERE key=?').bind(key).run();}
+ }
+ report.checks.push({name:'Verified registration without unsupported address/VAT at Arabic/English 390/1440; revoked approval hides public details',status:'passed'});
+ console.log('PASS: independently documented registration card and footer at Arabic/English mobile and desktop; unsupported address/VAT and revoked approvals stay hidden');
+
  await page.setViewportSize({width:390,height:844});await visit(page,'/ar/shop/safety-helmets');
  const menu=page.locator('.mobile-menu-toggle[aria-controls="mobile-more-panel"]');
  await menu.click();await page.locator('#mobile-more-panel').waitFor({state:'visible'});
@@ -302,3 +327,4 @@ try{
  if(server)await new Promise(resolve=>{server.close(resolve);server.closeAllConnections();});
  await mf?.dispose();
 }
+

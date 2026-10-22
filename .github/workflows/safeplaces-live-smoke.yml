@@ -42,7 +42,7 @@ jobs:
               const response=await fetch('https://safeplaces.sa/'+lang+'/'+policy,{signal:AbortSignal.timeout(15000)});
               assert.equal(response.status,200);const html=await response.text();
               assert.match(html,/2026-10-22/);assert.match(html,/id="policy-provider"/);
-              assert.doesNotMatch(html,/3148287585|7027770788/);
+              assert.doesNotMatch(html,/3148287585/); // A private authority TIN is not a public VAT ID.
               if(policy==='privacy'){assert.match(html,/Cloudflare/);assert.match(html,/Resend/);assert.match(html,/id="policy-rights"/);}
             }
             for(const path of ['quote','contact']){
