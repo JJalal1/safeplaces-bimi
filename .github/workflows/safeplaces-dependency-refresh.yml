@@ -26,7 +26,7 @@ jobs:
           p.devDependencies.sharp='0.35.5';
           p.dependencies.react='19.2.8';p.dependencies['react-dom']='19.2.8';
           p.devDependencies['react-server-dom-webpack']='19.2.8';p.devDependencies.vite='8.1.6';
-          const overrides={'miniflare>sharp':'0.35.5','@babel/core':'7.29.6',browserslist:'4.28.7','baseline-browser-mapping':'2.11.0','fast-uri':'3.1.8','source-map-js':'1.2.2',esbuild:'0.28.1',react:'19.2.8','react-dom':'19.2.8','react-server-dom-webpack':'19.2.8','undici@^7':'7.29.1','ws@^8':'8.21.0','image-size':'2.0.3','js-yaml@^4':'4.3.2','brace-expansion@^1':'1.1.20','brace-expansion@^4':'5.0.11'};
+          const overrides={'miniflare>sharp':'0.35.5','@babel/core':'7.29.6',browserslist:'4.28.7','baseline-browser-mapping':'2.11.0','fast-uri':'3.1.8','source-map-js':'1.2.2',esbuild:'0.28.1',react:'19.2.8','react-dom':'19.2.8','react-server-dom-webpack':'19.2.8','undici@^7':'7.29.1','ws@^8':'8.21.0','image-size':'2.0.3','js-yaml@^4':'4.3.2','brace-expansion@^1':'1.1.21','brace-expansion@^4':'5.0.12','brace-expansion@^5':'5.0.12','fflate@^0.7':'0.7.5'};
           p.overrides=overrides;
           writeFileSync(file,JSON.stringify(p,null,2)+'\n');
           const workspace='pnpm-workspace.yaml',w=readFileSync(workspace,'utf8');
