@@ -8,7 +8,7 @@ Reviewed updates include matching React/React DOM/RSC 19.2.8, Next.js 16.4.1, Vi
 
 GHSA-vfj7-8cjw-p6xm affects `braces@3.0.3`; no upstream fixed release was listed at review time. `website/patches/braces@3.0.3.patch` caps parser nesting, including parenthesis nodes, and validates AST depth iteratively before compile, expand and stringify walkers run. It also bounds the number of visited AST nodes. Direct AST inputs and string inputs are both covered.
 
-`website/scripts/check-build-dependencies.mjs` exercises normal brace expansion, 20,000-level nested brace and parenthesis strings, 1,000-level direct AST inputs, and normal glob matching across the installed minimatch versions. The production and browser test suites run with the patched dependency graph.
+`website/scripts/check-build-dependencies.mjs` exercises normal brace expansion, 2,000-level nested brace and parenthesis strings, 1,000-level direct AST inputs, and normal glob matching across the installed minimatch versions. The production and browser test suites run with the patched dependency graph.
 
 The single advisory ID is excluded from the package-version audit only because the version scanner cannot recognise a local patch. This is a documented mitigation, not an upstream fixed package or an assertion that no advisory ever existed. Do not remove the patch while retaining the audit exception. Replace both with the upstream fix when a suitable release becomes available. Keep all other advisory checks enabled.
 

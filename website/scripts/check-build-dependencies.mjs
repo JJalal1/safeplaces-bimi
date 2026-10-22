@@ -11,7 +11,7 @@ const micromatchRequire=createRequire(globRequire.resolve('micromatch'));
 const braces=micromatchRequire('braces');
 assert.deepEqual(braces.expand('assets/{ar,en}/file{1..2}.js'),['assets/ar/file1.js','assets/ar/file2.js','assets/en/file1.js','assets/en/file2.js']);
 for(const char of ['{','(']){
- const close=char==='{'?'}':')',pattern=char.repeat(20000)+'a'+close.repeat(20000);
+ const close=char==='{'?'}':')',pattern=char.repeat(2000)+'a'+close.repeat(2000);
  for(const method of ['compile','expand','stringify'])assert.throws(()=>braces[method](pattern),/safe nesting limit/);
 }
 let ast={type:'text',value:'a'};

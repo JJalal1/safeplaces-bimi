@@ -47,6 +47,8 @@ jobs:
       - name: Build
         id: site-build
         run: pnpm run build
+      - name: Generated responsive asset integrity
+        run: node scripts/check-responsive-images.mjs
       - name: Site integration checks
         run: node scripts/check-site.mjs
       - name: Public bilingual SEO, sitemap and structured data

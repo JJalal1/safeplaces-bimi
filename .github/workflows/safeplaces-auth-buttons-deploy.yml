@@ -66,6 +66,8 @@ jobs:
           console.log('PASS: public bilingual quote-only site, indexable, no prices or payments');
           NODE
           pnpm exec wrangler deploy --dry-run --keep-vars --config dist/server/wrangler.json
+      - name: Verify responsive assets in the production build
+        run: node scripts/check-responsive-images.mjs
       - name: Verify the exact schema and existing credential names before deployment
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
