@@ -20,9 +20,11 @@ export default {
     const launchGate = productionLaunchGate(request, env as unknown as Record<string, unknown>);
     if (launchGate) return responsePolicy(request,launchGate,env as unknown as Record<string,unknown>);
     const cacheKey=publicHtmlCacheKey(request,siteIndexable(),import.meta.env.SAFEPLACES_RELEASE);
+    let publicCache:Cache|undefined;
     if(cacheKey){
       try{
-        const cached=await caches.default.match(cacheKey);
+        publicCache=await caches.open('safeplaces-public-html');
+        const cached=await publicCache.match(cacheKey);
         if(cached)return responsePolicy(request,cachedPublicHtml(cached),env as unknown as Record<string,unknown>);
       }catch{console.error('Safe Places cache diagnostic read/unavailable');}
     }
@@ -48,11 +50,11 @@ export default {
     const result = await runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx));
     if(request.method==='POST'&&new URL(request.url).pathname.startsWith('/api/admin/')&&result.status<300)ctx.waitUntil(processNotificationOutbox(env as unknown as OperationsBindings,fetch,2).catch(()=>{console.error('Safe Places notification diagnostic outbox/unavailable');}));
     const response=responsePolicy(request,result,env as unknown as Record<string,unknown>);
-    if(cacheKey){
+    if(cacheKey&&publicCache){
       const entry=publicHtmlCacheEntry(response);
       if(entry){
         response.headers.set('X-SafePlaces-Cache','MISS');
-        ctx.waitUntil(caches.default.put(cacheKey,entry).catch(()=>{console.error('Safe Places cache diagnostic write/unavailable');}));
+        ctx.waitUntil(publicCache.put(cacheKey,entry).catch(()=>{console.error('Safe Places cache diagnostic write/unavailable');}));
       }
     }
     return response;
