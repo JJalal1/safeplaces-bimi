@@ -1,0 +1,43 @@
+name: Prepare patched Safe Places dependency lock
+on:
+  push:
+    branches: [feature/auth-speed-seo-before-hosting]
+    paths: ['.github/workflows/safeplaces-dependency-refresh.yml']
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    defaults:
+      run: {working-directory: website}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: pnpm/action-setup@v4
+        with: {version: '11.25.0'}
+      - name: Resolve reviewed patch versions without deploying
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const file='package.json',p=JSON.parse(readFileSync(file,'utf8'));
+          p.dependencies.next='16.4.2';
+          p.devDependencies['eslint-config-next']='16.4.2';
+          p.devDependencies.sharp='0.35.5';
+          p.overrides={...p.overrides,miniflare:{sharp:'0.35.5'},'@babel/core':'7.29.6',browserslist:'4.28.7','baseline-browser-mapping':'2.11.0','fast-uri':'3.1.8','source-map-js':'1.2.2',esbuild:'0.28.1'};
+          writeFileSync(file,JSON.stringify(p,null,2)+'\n');
+          NODE
+          pnpm install --lockfile-only --ignore-scripts
+      - name: Record production advisory results
+        run: |
+          set +e
+          pnpm audit --prod --json > dependency-audit.json
+          test -s dependency-audit.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: safeplaces-patched-dependency-lock
+          path: |
+            website/package.json
+            website/pnpm-lock.yaml
+            website/dependency-audit.json
+          retention-days: 14
