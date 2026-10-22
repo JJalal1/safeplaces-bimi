@@ -61,6 +61,27 @@ jobs:
           if(!indexable)process.exitCode=1;
           NODE
 
+      - name: Verify live Google sign-in redirect without accessing an account
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const origin='https://safeplaces.sa';
+          for(const lang of ['ar','en']){
+            const response=await fetch(origin+'/api/auth/sign-in/social',{
+              method:'POST',redirect:'manual',signal:AbortSignal.timeout(20000),
+              headers:{Origin:origin,'Content-Type':'application/json'},
+              body:JSON.stringify({provider:'google',callbackURL:'/'+lang+'/account',newUserCallbackURL:'/'+lang+'/account',errorCallbackURL:'/'+lang+'/account/login',disableRedirect:true})
+            });
+            assert.equal(response.status,200,'Google initiation must accept the normal customer flow');
+            const data=await response.json();assert.ok(typeof data.url==='string');const url=new URL(data.url);
+            assert.equal(url.origin,'https://accounts.google.com');assert.equal(url.pathname,'/o/oauth2/v2/auth');
+            assert.equal(url.searchParams.get('redirect_uri'),origin+'/api/auth/callback/google');
+            assert.equal(url.searchParams.get('code_challenge_method'),'S256');
+            assert.ok(url.searchParams.get('state')?.length>=16&&url.searchParams.get('code_challenge')?.length>=43);
+            assert.ok(!url.searchParams.has('client_secret'));
+          }
+          console.log('PASS: both live Google buttons initiate the official authorization redirect with canonical callback, state and PKCE; no account accessed');
+          NODE
       - name: Read provider acceptance for deployed release f193adf without sending mail
         env:
           CLOUDFLARE_D1_READ_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN }}
