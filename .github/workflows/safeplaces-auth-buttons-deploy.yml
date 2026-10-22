@@ -1,4 +1,4 @@
-name: Deploy Safe Places patched runtime and image performance
+name: Deploy Safe Places validated performance and security
 on:
   push:
     branches: [feature/auth-speed-seo-before-hosting]

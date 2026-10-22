@@ -52,6 +52,7 @@ jobs:
       - name: Site integration checks
         run: node scripts/check-site.mjs
       - name: Public bilingual SEO, sitemap and structured data
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
         run: node scripts/check-seo.mjs
       - name: Admin sessions and permissions
         if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
