@@ -24,6 +24,8 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: TypeScript
         run: pnpm exec tsc --noEmit --incremental false
+      - name: Read-only live-notification evidence fixtures
+        run: node scripts/check-live-notifications-fixture.mjs
       - name: Authentication policy
         run: node scripts/check-standalone-auth-policy.mjs
       - name: Native password hashing inside SQLite Durable Objects
@@ -78,3 +80,4 @@ jobs:
         run: pnpm run build:staging
       - name: Validate staging release bundle without deployment
         run: pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.json
+

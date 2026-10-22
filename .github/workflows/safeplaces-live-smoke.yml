@@ -12,10 +12,18 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    environment: staging
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Verify notification evidence fixtures without network access
+        working-directory: website
+        run: node scripts/check-live-notifications-fixture.mjs
       - name: Inspect live DNS and HTTPS without submitting forms
         run: |
           node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
           const dns=[['NS','safeplaces.sa'],['DS','safeplaces.sa'],['A','safeplaces.sa'],['AAAA','safeplaces.sa'],['MX','safeplaces.sa'],['A','www.safeplaces.sa']];
           for(const [type,name] of dns){
             const u=new URL('https://dns.google/resolve');u.searchParams.set('name',name);u.searchParams.set('type',type);
@@ -29,6 +37,21 @@ jobs:
               console.log(JSON.stringify({url:path,status:r.status,location:r.headers.get('location'),type:r.headers.get('content-type'),robots:r.headers.get('x-robots-tag'),body_start:txt.replace(/[\r\n]/g,' ')}));
             }catch(e){console.log(JSON.stringify({url:path,error:String(e)}));}
           }
+          for(const lang of ['ar','en']){
+            for(const policy of ['privacy','terms','returns','collection']){
+              const response=await fetch('https://safeplaces.sa/'+lang+'/'+policy,{signal:AbortSignal.timeout(15000)});
+              assert.equal(response.status,200);const html=await response.text();
+              assert.match(html,/2026-10-22/);assert.match(html,/id="policy-provider"/);
+              assert.doesNotMatch(html,/3148287585|7027770788/);
+              if(policy==='privacy'){assert.match(html,/Cloudflare/);assert.match(html,/Resend/);assert.match(html,/id="policy-rights"/);}
+            }
+            for(const path of ['quote','contact']){
+              const response=await fetch('https://safeplaces.sa/'+lang+'/'+path,{signal:AbortSignal.timeout(15000)});
+              assert.equal(response.status,200);const html=await response.text();
+              assert.ok(html.includes('/'+lang+'/privacy'));assert.ok(html.includes(lang==='ar'?'للتواصل':'Contact us'));
+            }
+          }
+          console.log('PASS: live bilingual revised policies, privacy links, footer and unverified-ID publication guards');
           const robots=await fetch('https://safeplaces.sa/robots.txt');
           const robotText=await robots.text();
           const sitemap=await fetch('https://safeplaces.sa/sitemap.xml');
@@ -36,4 +59,28 @@ jobs:
           const indexable=robots.status===200 && robotText.includes('Allow: /') && !robotText.includes('Disallow: /\\n') && sitemap.status===200 && sitemapText.includes('https://safeplaces.sa/ar') && sitemapText.includes('https://safeplaces.sa/en') && robots.headers.get('x-robots-tag')!=='noindex, nofollow';
           console.log(JSON.stringify({seo_live_indexable:indexable,robots_status:robots.status,sitemap_status:sitemap.status,robots_preview:robotText.slice(0,400),sitemap_has_ar:sitemapText.includes('https://safeplaces.sa/ar'),sitemap_has_en:sitemapText.includes('https://safeplaces.sa/en')}));
           if(!indexable)process.exitCode=1;
+          NODE
+
+      - name: Read provider acceptance for deployed release f193adf without sending mail
+        env:
+          CLOUDFLARE_D1_READ_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {createHash} from 'node:crypto';
+          const sha='f193adf5e4ead6b0f880fa86a0bf282a9c2ebe0e';
+          const hex=createHash('sha256').update('safeplaces-notification-check:'+sha).digest('hex');
+          const key=hex.slice(0,8)+'-'+hex.slice(8,12)+'-4'+hex.slice(13,16)+'-8'+hex.slice(17,20)+'-'+hex.slice(20,32);
+          const token=(process.env.CLOUDFLARE_D1_READ_TOKEN||'').replace(/\s+/g,'');assert.ok(token.length>=20);
+          const response=await fetch('https://api.cloudflare.com/client/v4/accounts/b67109c9489a46ae25fb36370c4ba880/d1/database/da06d822-b7ee-4a14-b3a5-7bcbc5839821/query',{
+            method:'POST',redirect:'error',signal:AbortSignal.timeout(20000),
+            headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+            body:JSON.stringify({sql:'SELECT n.kind,n.status,n.last_error,n.attempts,n.sender,c.status AS fixture_status FROM notification_outbox n JOIN contacts c ON c.id=n.request_id WHERE n.request_type=? AND c.idempotency_key=? ORDER BY n.kind',params:['contacts',key]})
+          });
+          assert.equal(response.status,200);const data=await response.json();assert.equal(data.success,true);
+          const rows=data.result.flatMap(item=>item.results||[]);
+          assert.equal(rows.length,2);assert.ok(rows.every(row=>row.status==='sent'&&row.sender==='info@safeplaces.sa'));
+          assert.ok(rows.some(row=>row.kind==='customer_confirmation')&&rows.some(row=>row.kind==='staff_notification'));
+          console.log('PASS: existing customer/staff notification accepted by provider; read-only evidence, no additional email sent');
+          console.log(JSON.stringify({release:sha,status:'provider_accepted',notifications:rows}));
           NODE

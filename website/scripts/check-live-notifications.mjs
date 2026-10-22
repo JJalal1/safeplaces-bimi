@@ -34,8 +34,8 @@ try{
  }
  assert.equal(evidence.notifications.length,2,'Both customer and staff notifications must be recorded');
  assert.ok(evidence.notifications.every(row=>row.status==='sent'&&row.sender==='info@safeplaces.sa'),'Provider acceptance of both notifications was not confirmed');
- // Close this exact synthetic fixture; retain the auditable provider evidence.
- await query("UPDATE contacts SET status='closed' WHERE idempotency_key=?",[key]);
+ // Evidence queries use the deliberately read-only D1 credential. Closing a
+ // synthetic request is a separate administrative write, not a mail result.
  evidence.status='provider_accepted';
  console.log('PASS: customer acknowledgement and staff notification accepted by provider from info@safeplaces.sa; this does not assert inbox delivery');
 }catch{
