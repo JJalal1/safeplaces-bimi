@@ -17,13 +17,25 @@ export const seoText=(copy:SeoCopy,lang:Lang)=>copy[lang==='ar'?0:1];
  * Each page targets one subject rather than a block of repeated keywords.
  */
 export const homeSeo:SeoGuide={
- title:['معدات السلامة ومكافحة الحريق في الخبر','Fire protection & safety equipment in Al Khobar'],
- description:['مؤسسة المناطق الآمنة في الخبر لتوريد معدات السلامة وطفايات الحريق وأنظمة الإنذار والمكافحة، مع خدمات التركيب والصيانة وطلبات عروض الأسعار.','Safe Places in Al Khobar provides safety equipment and fire protection supply, installation and maintenance enquiries. Request a tailored quotation.'],
+ title:['معدات السلامة ومكافحة الحريق بالخبر والشرقية','Fire & safety equipment in Al Khobar | Eastern Province'],
+ description:['المناطق الآمنة في الخبر لمعدات السلامة وطفايات وأنظمة الحريق والوقاية الشخصية. أرسل احتياج مشروعك بالخبر أو الدمام أو الظهران لمراجعة نطاق العمل وعرض السعر.','Safe Places, Al Khobar: fire extinguishers, alarms, firefighting equipment and PPE. Discuss project enquiries in Dammam, Dhahran and the Eastern Province.'],
  introduction:['تبحث عن معدات السلامة في الخبر أو حلول مكافحة الحريق لمنشأتك؟ تساعدك مؤسسة المناطق الآمنة في استعراض معدات الإطفاء والإنذار والوقاية الشخصية، وتحديد متطلبات التوريد أو التركيب أو الصيانة ضمن نطاق مشروعك.','Looking for safety equipment in Al Khobar or fire protection solutions for a facility? Explore firefighting equipment, fire alarms and personal protective equipment, then discuss supply, installation or maintenance for your project.'],
  detail:['ابدأ بالقسم المناسب، ثم أضف المنتجات والكميات إلى طلب عرض السعر دون دفع إلكتروني. يمكن مشاركة الموقع والمواصفات والمخططات المتاحة ليحدد الفريق تفاصيل العرض قبل أي اتفاق.','Choose the right category and add requested quantities to a quotation enquiry—there is no online payment. Share your site, specifications and available drawings so the team can review the scope before an agreement.'],
  questions:[
   {question:['كيف أطلب عرض سعر لمعدات السلامة في الخبر؟','How do I request a safety equipment quote in Al Khobar?'],answer:['اختر المنتجات والكميات من المتجر، ثم أرسل طلب عرض السعر مع بيانات التواصل والمواصفات المتاحة.','Choose products and quantities in the catalog, then submit a quote request with your contact details and available specifications.']},
-  {question:['هل تعرضون أسعارًا ثابتة أو دفعًا مباشرًا؟','Are there fixed online prices or checkout payments?'],answer:['لا؛ يتم تحديد السعر بعد مراجعة الصنف والمواصفات والكمية ونطاق التوريد.','No. Pricing is confirmed after reviewing the item, specification, quantity and supply scope.']}
+  {question:['هل تعرضون أسعارًا ثابتة أو دفعًا مباشرًا؟','Are there fixed online prices or checkout payments?'],answer:['لا؛ يتم تحديد السعر بعد مراجعة الصنف والمواصفات والكمية ونطاق التوريد.','No. Pricing is confirmed after reviewing the item, specification, quantity and supply scope.']},
+  {question:['كيف أرسل طلبًا لمشروع في الدمام أو الظهران؟','How do I enquire about a project in Dammam or Dhahran?'],answer:['مقرنا في الخبر؛ أضف مدينة المشروع ونوع المنشأة إلى طلبك، ويؤكد الفريق نطاق العمل وترتيبات الموقع بعد المراجعة.','We are based in Al Khobar. Include the project city and facility type so the team can confirm the work scope and site arrangements after review.']}
+ ]
+};
+export const regionalSeo:SeoGuide={
+ title:['معدات وخدمات السلامة لطلبات المشاريع في الشرقية','Fire & safety project enquiries in the Eastern Province'],
+ description:['من مقرنا بالخبر، أرسل طلب معدات السلامة أو أنظمة الحريق لمشروعك في الدمام أو الظهران والشرقية. دليل المواصفات والكميات ومراجعة نطاق التوريد والخدمة.','Based in Al Khobar. Enquire about safety equipment and fire systems for Dammam, Dhahran and Eastern Province projects, with scope and location reviewed first.'],
+ introduction:['يساعد جمع بيانات المشروع قبل طلب عرض السعر على تحديد معدات السلامة المناسبة ونطاق خدمة أنظمة الحريق. ابدأ بموقع المنشأة ونوع النشاط، ثم حدد الأصناف والكميات أو النظام المطلوب فحصه.','Gathering project information helps define suitable safety equipment and the scope of fire system services. Start with the facility location and activity, then list quantities or the system requiring inspection.'],
+ detail:['يمكن إرسال قائمة تجمع طفايات الحريق وأجهزة الإنذار والخراطيم ومعدات الوقاية الشخصية في طلب واحد. أرفق جدول الكميات BOQ أو المواصفات المتاحة، وحدد ما إذا كان الطلب للتوريد أو للتركيب أو للصيانة.','A single enquiry can combine extinguishers, alarm devices, hoses and PPE. Include an available bill of quantities (BOQ) or specification, and say whether you need supply, installation or maintenance.'],
+ questions:[
+  {question:['هل لديكم فرع في الدمام أو الظهران؟','Do you have branches in Dammam or Dhahran?'],answer:['الموقع المعلن حاليًا هو الخبر. أرسل مدينة مشروعك لبحث نطاق العمل والترتيبات المناسبة مع الفريق.','Our currently published location is Al Khobar. Share your project city to discuss the work scope and arrangements with the team.']},
+  {question:['هل يمكن طلب معدات سلامة من مدينة أخرى في السعودية؟','Can I enquire from another Saudi city?'],answer:['يمكنك إرسال استفسارك مع المدينة والكميات والمواصفات؛ يؤكد الفريق إمكانية التوريد وترتيبات الاستلام أو التسليم في العرض.','Send the city, quantities and specifications. Supply feasibility and collection or delivery arrangements are confirmed in the quotation.']},
+  {question:['ما الفرق بين طلب التوريد وطلب صيانة أنظمة الحريق؟','How do supply and fire maintenance enquiries differ?'],answer:['التوريد يحتاج الأصناف والمواصفات والكميات. الصيانة تحتاج أيضًا نوع النظام القائم وحالته وملاحظات الفحص وموقع المنشأة لتحديد نطاق العمل.','Supply needs item specifications and quantities. Maintenance also needs the existing system type, condition, inspection issues and facility location to define the work scope.']}
  ]
 };
 export const shopSeo:SeoGuide={
@@ -199,3 +211,4 @@ export const productSeo:Record<string,SeoGuide>={
   questions:[{question:['هل تختلف لوحات السلامة حسب الموقع؟','Do safety sign requirements depend on the site?'],answer:['نعم؛ يتحدد الشكل والمقاس والمحتوى وفق وظيفة المكان ومتطلبات المشروع.','Yes. Design, size and messaging depend on the site and project requirements.']}]
  }
 };
+

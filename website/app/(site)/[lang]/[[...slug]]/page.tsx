@@ -9,8 +9,9 @@ import {resolveCategories,resolveServices,resolveClients} from '../../../../lib/
 import {company,local,money,langOf,type Lang} from '../../../../lib/config';
 import {siteOrigin,siteIndexable} from '../../../../lib/site-origin';
 import {isSupportedSiteRoute} from '../../../../lib/site-routes';
-import {homeSeo,shopSeo,categorySeo,serviceSeo,productSeo,seoText} from '../../../../lib/seo-content';
+import {homeSeo,shopSeo,regionalSeo,categorySeo,serviceSeo,productSeo,seoText} from '../../../../lib/seo-content';
 import {SeoGuideSection} from '../../../../components/seo-guide';
+import {RegionalEnquiries} from '../../../../components/regional-enquiries';
 const SITE_URL=siteOrigin();
 import {categories,services,clients,industries,productName,type Product} from '../../../../lib/catalog';
 import {getChatGPTUser,chatGPTSignInPath,chatGPTSignOutPath} from '../../../chatgpt-auth';
@@ -35,7 +36,7 @@ import {CustomerLogin,type LoginMode} from '../../../../components/customer-logi
 import {parseShopFilters,filterShopProducts,shopUrl} from '../../../../lib/shop-filters';
 export const dynamic='force-dynamic';
 type Props={params:Promise<{lang:string;slug?:string[]}>;searchParams:Promise<Record<string,string|string[]|undefined>>};
-const names:Record<string,[string,string]>={'':['الحماية من الحريق ومعدات السلامة في الخبر','Fire protection & safety equipment in Al Khobar'],about:['من نحن','About us'],services:['حلول وخدمات السلامة','Safety solutions & services'],shop:['متجر معدات السلامة','Safety equipment shop'],projects:['مشاريعنا','Our projects'],contact:['تواصل معنا','Contact us'],quote:['طلب عرض سعر','Request a quote'],cart:['سلة المشتريات','Shopping cart'],checkout:['إتمام الطلب','Checkout'],wishlist:['المفضلة','Wishlist'],account:['حسابي','My account'],admin:['لوحة الإدارة','Administration'],certificates:['مستندات الشركة وشهاداتها','Company documents & certificates'],privacy:['سياسة الخصوصية','Privacy policy'],terms:['الشروط والأحكام','Terms & conditions'],returns:['الإلغاء والاسترجاع','Cancellation & returns'],collection:['استلام المشتريات','Purchase collection']};
+const names:Record<string,[string,string]>={'':['الحماية من الحريق ومعدات السلامة في الخبر','Fire protection & safety equipment in Al Khobar'],'eastern-province':['طلبات المشاريع في الشرقية','Eastern Province enquiries'],about:['من نحن','About us'],services:['حلول وخدمات السلامة','Safety solutions & services'],shop:['متجر معدات السلامة','Safety equipment shop'],projects:['مشاريعنا','Our projects'],contact:['تواصل معنا','Contact us'],quote:['طلب عرض سعر','Request a quote'],cart:['سلة المشتريات','Shopping cart'],checkout:['إتمام الطلب','Checkout'],wishlist:['المفضلة','Wishlist'],account:['حسابي','My account'],admin:['لوحة الإدارة','Administration'],certificates:['مستندات الشركة وشهاداتها','Company documents & certificates'],privacy:['سياسة الخصوصية','Privacy policy'],terms:['الشروط والأحكام','Terms & conditions'],returns:['الإلغاء والاسترجاع','Cancellation & returns'],collection:['استلام المشتريات','Purchase collection']};
 export async function generateMetadata({params,searchParams}:Props):Promise<Metadata>{
  const {lang,slug=[]}=await params;
  if(!isSupportedSiteRoute(slug))notFound();
@@ -54,6 +55,7 @@ export async function generateMetadata({params,searchParams}:Props):Promise<Meta
  };
  let description=pageDescriptions[key]?.[l==='ar'?0:1]||seoText(homeSeo.description,l);
  if(!key){title=seoText(homeSeo.title,l);}
+ if(key==='eastern-province'){title=seoText(regionalSeo.title,l);description=seoText(regionalSeo.description,l);}
  if(key==='shop'){
   if(slug[1]==='category'&&slug[2]){
    const category=categoryList.find(c=>c.slug===slug[2]);const guide=categorySeo[slug[2]];
@@ -65,7 +67,7 @@ export async function generateMetadata({params,searchParams}:Props):Promise<Meta
   }else{title=seoText(shopSeo.title,l);description=seoText(shopSeo.description,l);}
  }else if(key==='services'){
   const service=slug[1]?serviceList.find(s=>s.slug===slug[1]):null;
-  if(service){title=local(l,service.ar+' | خدمات بالخبر',service.en+' | Services in Al Khobar');description=serviceSeo[service.slug]?seoText(serviceSeo[service.slug].description,l):local(l,service.descAr,service.descEn);}
+  if(service){title=serviceSeo[service.slug]?seoText(serviceSeo[service.slug].title,l):local(l,service.ar+' | خدمات بالخبر',service.en+' | Services in Al Khobar');description=serviceSeo[service.slug]?seoText(serviceSeo[service.slug].description,l):local(l,service.descAr,service.descEn);}
   else if(!slug[1]){title=local(l,'خدمات الحماية من الحريق والسلامة بالخبر','Fire protection and safety services in Al Khobar');description=local(l,'توريد وتركيب وصيانة أنظمة الحريق والإنذار وفحص المعدات وخدمات الطوارئ والتدريب في الخبر. اطلب عرض سعر حسب نطاق مشروعك.','Fire protection supply, alarm installation, inspection, maintenance and safety training enquiries in Al Khobar. Request a project quotation.');}
  }else if(key==='quote'){
   title=local(l,'طلب عرض سعر معدات السلامة ومكافحة الحريق بالخبر','Request a fire protection and safety equipment quote');
@@ -87,7 +89,7 @@ export async function generateMetadata({params,searchParams}:Props):Promise<Meta
  return {
   title,description,
   alternates:{canonical:pageUrl,languages:{ar:SITE_URL+'/ar'+suffix,en:SITE_URL+'/en'+suffix,'x-default':SITE_URL+'/ar'+suffix}},
-  robots:{index,follow:index},
+  robots:{index,follow:siteIndexable()&&!['account','admin','cart','checkout','wishlist'].includes(key)},
   openGraph:{type:'website',siteName:company.nameEn,title,description,url:pageUrl,locale:l==='ar'?'ar_SA':'en_US',alternateLocale:l==='ar'?'en_US':'ar_SA',images:[{url:SITE_URL+'/images/hero.webp',width:1920,height:692,alt:local(l,company.nameAr,company.nameEn)}]},
   twitter:{card:'summary_large_image',title,description,images:[SITE_URL+'/images/hero.webp']}
  };
@@ -98,11 +100,12 @@ const PageHeading=PageIntro;
 function ClientStrip({lang,rows}:{lang:Lang;rows:any[]}){const data=rows;return <div className="client-grid">{data.map(c=><div key={c.id}>{c.image?<img src={c.image} alt={local(lang,c.titleAr,c.titleEn)} loading="lazy" width={150} height={60}/>:<span dir="ltr">{local(lang,c.titleAr,c.titleEn)}</span>}</div>)}</div>;}
 function CTA({lang}:{lang:Lang}){return <section className="cta-section"><div className="container cta-inner"><div><span className="eyebrow">PROJECT ENQUIRIES</span><h2>{local(lang,'حلول سلامة تبدأ بفهم احتياجك.','A safer place starts with your needs.')}</h2><p>{local(lang,'منتجات لموقعك أو نظام متكامل لمنشأتك؟ حدثنا عن مشروعك.','Equipment for your site or a complete system for your facility? Tell us about your project.')}</p></div><a className="button white" href={'/'+lang+'/quote'}>{local(lang,'اطلب عرض سعر','Request a quote')}<Arrow lang={lang}/></a></div></section>;}
 export default async function Page({params,searchParams}:Props){const {lang,slug=[]}=await params;if(!isSupportedSiteRoute(slug))notFound();const l=langOf(lang);const root='/'+l;const section=slug[0]||'';if(section==='cart'||section==='checkout')redirect(root+'/quote');if(section==='admin'){const {Admin}=await import('../../../../components/admin');if(slug.length>1)notFound();const admin=await adminUser();const standalone=getStandaloneAuth();const deniedCustomer=!admin&&standalone?await customerUser():null;const externalHosting=(env as unknown as Record<string,string>).SITE_PUBLIC==='true';const user=admin||(externalHosting?null:await getChatGPTUser());return <><a className="skip-link" href="#main">{local(l,'انتقل للمحتوى','Skip to content')}</a><Admin authorized={!!admin} bootstrap={!admin&&!!user&&await canBootstrap()} authConfigured={!externalHosting||!!standalone} deniedAccount={deniedCustomer?{email:deniedCustomer.email,userId:deniedCustomer.userId}:undefined} signin={externalHosting?customerLoginPath(l,root+'/admin','admin'):chatGPTSignInPath(root+'/admin')} signout={standalone?'standalone':chatGPTSignOutPath(root+'/admin')} userName={user?.displayName||''} isOwner={admin?.role==='owner'} permissions={admin?.permissions||[]} initialData={admin?await getAdminData(admin):null}/></>;}const search=await searchParams;const q=typeof search.q==='string'?search.q.slice(0,100):'';const [settings,rawProducts,rows]=await Promise.all([getSettings(),getProducts(),getDb().select().from(content).orderBy(asc(content.sortOrder))]);const products=presentCatalog(rawProducts,(env as unknown as Record<string,string>).SITE_DEMO_PRICES==='true' && (env as unknown as Record<string,string>).SITE_INDEXABLE!=='true');const items=(type:string)=>rows.filter(r=>r.type===type&&r.active);const categories=resolveCategories(rows);const serviceList=resolveServices(rows);const clientList=resolveClients(rows);let body:React.ReactNode;
- if(!section){body=<><HomeOverview lang={l} settings={settings} services={serviceList} products={products} categories={categories} projects={items('project')}/><SeoGuideSection lang={l} guide={homeSeo} links={[{href:root+'/shop',label:['تصفح معدات السلامة','Browse safety equipment']},{href:root+'/services',label:['خدمات الحماية من الحريق','Fire protection services']},{href:root+'/quote',label:['طلب عرض سعر','Request a quotation']}]}/></>;}
+ if(!section){body=<><HomeOverview lang={l} settings={settings} services={serviceList} products={products} categories={categories} projects={items('project')}/><SeoGuideSection lang={l} guide={homeSeo} links={[{href:root+'/shop',label:['تصفح معدات السلامة','Browse safety equipment']},{href:root+'/services',label:['خدمات الحماية من الحريق','Fire protection services']},{href:root+'/eastern-province',label:['طلبات معدات السلامة في الشرقية','Eastern Province project enquiries']},{href:root+'/quote',label:['طلب عرض سعر','Request a quotation']}]}/></>;}
+ else if(section==='eastern-province'){body=<RegionalEnquiries lang={l}/>;}
  else if(section==='about'){body=<AboutOverview lang={l} settings={settings}/>;}
  else if(section==='services'){
   const service=slug[1]?serviceList.find(s=>s.slug===slug[1]):null;if(slug[1]&&!service)notFound();
-  body=service?<><ServiceOverview lang={l} service={service} categories={categories}/>{serviceSeo[service.slug]&&<SeoGuideSection lang={l} guide={serviceSeo[service.slug]} links={[{href:root+'/quote?service='+service.slug,label:['طلب عرض سعر للخدمة','Request a service quote']},{href:root+'/shop',label:['معدات السلامة','Safety equipment']}]}/>}<JSONLD value={{'@context':'https://schema.org','@type':'Service',name:local(l,service.ar,service.en),description:local(l,service.descAr,service.descEn),provider:{'@type':'Organization',legalName:settings.legalNameAr,name:company.nameEn,url:SITE_URL}}}/></>:<ServicesOverview lang={l} services={serviceList}/>;
+  body=service?<><ServiceOverview lang={l} service={service} categories={categories}/>{serviceSeo[service.slug]&&<SeoGuideSection lang={l} guide={serviceSeo[service.slug]} links={[{href:root+'/quote?service='+service.slug,label:['طلب عرض سعر للخدمة','Request a service quote']},{href:root+'/shop',label:['معدات السلامة','Safety equipment']}]}/>}<JSONLD value={{'@context':'https://schema.org','@type':'Service','@id':SITE_URL+root+'/services/'+service.slug+'#service',url:SITE_URL+root+'/services/'+service.slug,name:local(l,service.ar,service.en),description:local(l,service.descAr,service.descEn),provider:{'@id':SITE_URL+'/#organization'}}}/></>:<ServicesOverview lang={l} services={serviceList}/>;
  }
  else if(section==='shop'&&slug[1]&&slug[1]!=='category'){
  const p=products.find(p=>p.slug===slug[1]);if(!p)notFound();const related=relatedProducts(p,products),complements=complementaryProducts(p,products);
@@ -130,5 +133,18 @@ export default async function Page({params,searchParams}:Props){const {lang,slug
  }
  else if(['privacy','terms','returns','collection'].includes(section)){body=<PolicyOverview lang={l} policy={section as 'privacy'|'terms'|'returns'|'collection'} title={names[section][l==='ar'?0:1]} settings={settings}/>;}
  else notFound();
- return <><a className="skip-link" href="#main">{local(l,'انتقل للمحتوى','Skip to content')}</a><Header path={slug.join('/')} phone={settings.phone} products={products} categories={categories} query={q} preview={products.some(p=>p.previewOnly)} checkoutIntent={section==='checkout'&&search.intent==='buy-now'}/><main id="main" className={section==='shop'&&slug[1]&&slug[1]!=='category'?'product-route':section==='cart'?'cart-route':section==='checkout'?'checkout-route':undefined}>{body}</main><Footer lang={l} settings={settings}/><JSONLD value={{'@context':'https://schema.org','@type':'Organization',legalName:settings.legalNameAr,name:company.nameEn,alternateName:company.nameAr,url:SITE_URL,logo:SITE_URL+'/images/safeplaces-logo.webp',telephone:settings.phone.startsWith('0')?'+966'+settings.phone.slice(1):settings.phone,email:settings.email,address:{'@type':'PostalAddress',addressLocality:'Al Khobar',addressRegion:'Eastern Province',addressCountry:'SA'},areaServed:{'@type':'AdministrativeArea',name:'Eastern Province, Saudi Arabia'}}}/>{section&&<JSONLD value={{'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:local(l,'الرئيسية','Home'),item:SITE_URL+root},{'@type':'ListItem',position:2,name:names[section]?.[l==='ar'?0:1]||section,item:SITE_URL+root+'/'+section}]}}/>}</>;
+ const breadcrumbs=[{name:local(l,'الرئيسية','Home'),item:SITE_URL+root},{name:names[section]?.[l==='ar'?0:1]||section,item:SITE_URL+root+'/'+section}];
+ if(section==='shop'&&slug[1]){
+  const product=slug[1]!=='category'?products.find(p=>p.slug===slug[1]):null;
+  const category=categories.find(c=>c.slug===(product?.category||slug[2]));
+  if(category)breadcrumbs.push({name:local(l,category.ar,category.en),item:SITE_URL+root+'/shop/category/'+category.slug});
+  if(product)breadcrumbs.push({name:productName(product,l),item:SITE_URL+root+'/shop/'+product.slug});
+ }else if(section==='services'&&slug[1]){
+  const service=serviceList.find(s=>s.slug===slug[1]);
+  if(service)breadcrumbs.push({name:local(l,service.ar,service.en),item:SITE_URL+root+'/services/'+service.slug});
+ }else if(section==='projects'&&slug[1]){
+  const project=items('project').find(p=>p.slug===slug[1]);
+  if(project)breadcrumbs.push({name:local(l,project.titleAr,project.titleEn),item:SITE_URL+root+'/projects/'+project.slug});
+ }
+ return <><a className="skip-link" href="#main">{local(l,'انتقل للمحتوى','Skip to content')}</a><Header path={slug.join('/')} phone={settings.phone} products={products} categories={categories} query={q} preview={products.some(p=>p.previewOnly)} checkoutIntent={section==='checkout'&&search.intent==='buy-now'}/><main id="main" className={section==='shop'&&slug[1]&&slug[1]!=='category'?'product-route':section==='cart'?'cart-route':section==='checkout'?'checkout-route':undefined}>{body}</main><Footer lang={l} settings={settings}/><JSONLD value={{'@context':'https://schema.org','@type':'Organization','@id':SITE_URL+'/#organization',legalName:settings.legalNameAr,name:company.nameEn,alternateName:company.nameAr,url:SITE_URL,logo:SITE_URL+'/images/safeplaces-logo.webp',telephone:settings.phone.startsWith('0')?'+966'+settings.phone.slice(1):settings.phone,email:settings.email,address:{'@type':'PostalAddress',addressLocality:'Al Khobar',addressRegion:'Eastern Province',addressCountry:'SA'},areaServed:{'@type':'AdministrativeArea',name:'Eastern Province, Saudi Arabia'}}}/>{!section&&<JSONLD value={{'@context':'https://schema.org','@type':'WebSite','@id':SITE_URL+'/#website',url:SITE_URL,name:company.nameEn,alternateName:company.nameAr,inLanguage:['ar','en'],publisher:{'@id':SITE_URL+'/#organization'}}}/>}{section&&<JSONLD value={{'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:breadcrumbs.map((item,index)=>({'@type':'ListItem',position:index+1,...item}))}}/>}</>;
 }

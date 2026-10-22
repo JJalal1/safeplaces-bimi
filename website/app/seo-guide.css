@@ -11,3 +11,18 @@
 .seo-guide-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
 .seo-guide-links a{display:inline-block;padding:8px 12px;border:1px solid var(--line,#e3e6e8);border-radius:9px;text-decoration:underline;text-underline-offset:3px}
 @media(max-width:650px){.seo-guide{margin-top:20px;margin-bottom:36px;padding-block:22px}.seo-guide-answers{grid-template-columns:1fr}}
+.regional-enquiries{padding-block:32px 12px;display:grid;gap:36px}
+.regional-enquiries h2{font-size:clamp(1.35rem,2.3vw,1.85rem);line-height:1.5;margin:0 0 16px}
+.regional-enquiries h3{font-size:1.08rem;line-height:1.6;margin:0 0 12px}
+.regional-enquiries p,.regional-enquiries li{line-height:1.9}
+.regional-location{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:32px;align-items:start}
+.regional-location aside{padding:24px;background:var(--surface,#fff);border:1px solid var(--line,#e3e6e8);border-block-start:3px solid var(--red,#c9242b);border-radius:14px}
+.regional-location ul{padding-inline-start:22px;margin:0 0 20px}
+.regional-scopes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.regional-scopes>div{padding:22px;border:1px solid var(--line,#e3e6e8);border-radius:14px}
+.regional-scopes a{text-decoration:underline;text-underline-offset:4px}
+.regional-scopes p{margin:0}
+.regional-projects{max-width:900px}
+@media(max-width:850px){.regional-location{grid-template-columns:1fr;gap:20px}.regional-scopes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.regional-scopes{grid-template-columns:1fr}.regional-enquiries{padding-block:24px 8px;gap:28px}.regional-location aside,.regional-scopes>div{padding:20px}}
+

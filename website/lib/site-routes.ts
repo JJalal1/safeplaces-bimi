@@ -1,5 +1,5 @@
 const singlePageRoutes = new Set([
-  'about', 'quote', 'contact', 'certificates', 'privacy', 'terms',
+  'about', 'eastern-province', 'quote', 'contact', 'certificates', 'privacy', 'terms',
   'returns', 'collection', 'cart', 'checkout', 'wishlist', 'admin',
 ]);
 const accountRoutes = new Set(['login', 'register', 'forgot', 'confirm', 'reset', 'verify']);
