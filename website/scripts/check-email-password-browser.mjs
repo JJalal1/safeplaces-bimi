@@ -421,7 +421,7 @@ try{
  const serverRoot=resolve('dist/server');assert.ok(existsSync(join(serverRoot,'index.js')),'Build the application before running email browser checks');
  const paths=['index.js',...readdirSync(serverRoot,{recursive:true}).filter(path=>path.endsWith('.js')&&path!=='index.js')];
  const modules=paths.map(path=>({type:'ESModule',path:join(serverRoot,path)}));
- browser=await playwright().chromium.launch({headless:true});
+ browser=await playwright().chromium.launch({headless:true,...(process.env.SAFEPLACES_BROWSER_PATH?{executablePath:process.env.SAFEPLACES_BROWSER_PATH}:{})});
  for(const lang of ['ar','en'])for(const width of [390,1440]){
   const label=lang+'-'+width,lex=words[lang],email=label+'@safeplaces-ui.example.test';
   const oldPassword=secret('First browser passphrase '+randomUUID()),newPassword=secret('Changed browser passphrase '+randomUUID());

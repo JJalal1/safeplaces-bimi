@@ -1,0 +1,36 @@
+name: Release outdated browser setup jobs once
+on:
+  push:
+    branches: [feature/auth-speed-seo-before-hosting]
+    paths: ['.github/workflows/safeplaces-ci-recover-once.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Cancel only the obsolete pre-deployment checks
+        env:
+          TASK_ACTIONS_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          assert.equal(process.env.GITHUB_REPOSITORY,'JJalal1/safeplaces-bimi');
+          const base='https://api.github.com/repos/JJalal1/safeplaces-bimi';
+          const headers={Authorization:'Bearer '+process.env.TASK_ACTIONS_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2026-03-10'};
+          const expected='d65abb598526fbeccc9edb27f72a99d0d163e49a';
+          for(const id of [39853843058,39853848964,39853843070]){
+            const r=await fetch(base+'/actions/runs/'+id,{headers});assert.equal(r.status,200);const run=await r.json();
+            assert.equal(run.head_sha,expected);assert.equal(run.head_branch,'feature/auth-speed-seo-before-hosting');
+            if(run.status==='completed'){console.log(JSON.stringify({run:id,status:'already_completed'}));continue;}
+            const response=await fetch(base+'/actions/runs/'+id+'/jobs?per_page=100',{headers});assert.equal(response.status,200);const {jobs}=await response.json();
+            if(jobs.some(j=>j.name==='deploy'&&!['queued','pending','waiting'].includes(j.status))){console.log(JSON.stringify({run:id,status:'deployment_already_started_do_not_cancel'}));continue;}
+            const stalled=jobs.some(j=>j.steps?.some(s=>s.name==='Prepare browser verification'&&s.status==='in_progress'&&Date.now()-Date.parse(s.started_at)>300000));
+            if(!stalled&&!['queued','pending','waiting'].includes(run.status)){console.log(JSON.stringify({run:id,status:'not_a_stalled_setup_do_not_cancel'}));continue;}
+            const cancelled=await fetch(base+'/actions/runs/'+id+'/cancel',{method:'POST',headers});
+            assert.ok([202,409].includes(cancelled.status));console.log(JSON.stringify({run:id,status:cancelled.status===202?'cancellation_requested':'already_finished'}));
+          }
+          NODE

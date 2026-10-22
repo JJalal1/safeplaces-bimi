@@ -234,7 +234,7 @@ try{
  });
  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
  origin='http://127.0.0.1:'+server.address().port;
- browser=await playwright().chromium.launch({headless:true});
+ browser=await playwright().chromium.launch({headless:true,...(process.env.SAFEPLACES_BROWSER_PATH?{executablePath:process.env.SAFEPLACES_BROWSER_PATH}:{})});
  context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});
  context.setDefaultTimeout(6000);
  context.on('request',request=>{const url=new URL(request.url());if(url.pathname==='/api/orders'&&request.method()==='POST')report.orderRequestAttempts.push({path:url.pathname,method:request.method()});});

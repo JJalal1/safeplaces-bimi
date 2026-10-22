@@ -269,7 +269,7 @@ try{
  const paths=['index.js',...readdirSync(serverRoot,{recursive:true}).filter(path=>path.endsWith('.js')&&path!=='index.js')];
  const modules=paths.map(path=>({type:'ESModule',path:join(serverRoot,path)}));
  main=await startInstance(Miniflare,modules,false);const rows=await fixtures(main.db);
- browser=await playwright().chromium.launch({headless:true});context=await makeContext();page=await context.newPage();
+ browser=await playwright().chromium.launch({headless:true,...(process.env.SAFEPLACES_BROWSER_PATH?{executablePath:process.env.SAFEPLACES_BROWSER_PATH}:{})});context=await makeContext();page=await context.newPage();
  for(const lang of ['ar','en']){
   await page.setViewportSize({width:lang==='ar'?390:1440,height:lang==='ar'?844:1000});
   await visit(page,main,'/'+lang+'/admin');await page.locator('.management-console').waitFor({state:'visible'});

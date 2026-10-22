@@ -1,4 +1,4 @@
-name: Deploy Safe Places validated performance and security
+name: Deploy Safe Places final quality verification
 on:
   push:
     branches: [feature/auth-speed-seo-before-hosting]
