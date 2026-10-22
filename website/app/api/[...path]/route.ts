@@ -12,7 +12,7 @@ import {OperationError,MAX_UPLOAD_BYTES,type OperationsBindings} from '../../../
 import {limitedBody,verifiedFileMime} from '../../../lib/upload-policy';
 import {canAdmin,canAdminContent,ADMIN_PERMISSIONS,HOMEPAGE_SETTINGS_KEYS,parseAdminPermissions} from '../../../lib/admin-permissions';
 import {getProducts,getSettings} from '../../../lib/data';
-import {identifierDigits,businessSettingsError} from '../../../lib/business-identity';
+import {prepareBusinessSettingsPatch,businessSettingsError} from '../../../lib/business-identity';
 import {starterProducts,services} from '../../../lib/catalog';
 import {SITE_URL} from '../../../lib/config';
 import {initialContent} from '../../../lib/content';
@@ -255,11 +255,9 @@ async function handle(req:Request){
   if(req.method==='POST'&&path==='admin/settings'){
    const supplied=z.record(z.unknown()).parse(await body(req));
    if(!canAdmin(admin,'settings')&&(!canAdmin(admin,'homepage')||Object.keys(supplied).some(key=>!(HOMEPAGE_SETTINGS_KEYS as readonly string[]).includes(key))))throw new HttpError('FORBIDDEN',403);const {initialSettings}=await import('../../../lib/config');const patch:Record<string,unknown>={};for(const [key,value]of Object.entries(supplied)){if(!(key in initialSettings))continue;const original=initialSettings[key as keyof typeof initialSettings];if(typeof original==='string'){patch[key]=z.string().max(12000).parse(value);}else if(typeof original==='boolean')patch[key]=z.boolean().parse(value);else patch[key]=z.number().min(0).max(100).parse(value);}if(typeof patch.heroImage==='string'&&!/^\/images\/[a-zA-Z0-9/_.-]+$/.test(patch.heroImage)&&!/^\/api\/media\/[a-f0-9-]+$/.test(patch.heroImage)&&!/^https:\/\//.test(patch.heroImage))throw new HttpError('INVALID_IMAGE');const current=await getSettings();
-   for(const key of ['cr','vatNumber'])if(key in patch)patch[key]=identifierDigits(patch[key]);
-   if(['cr','nationalAddressAr','nationalAddressEn'].some(key=>key in patch&&patch[key]!==current[key as keyof typeof current])&&patch.businessIdentityVerified!==true){patch.businessIdentityVerified=false;patch.vatRegistrationVerified=false;}
-   if('vatNumber' in patch&&patch.vatNumber!==current.vatNumber&&patch.vatRegistrationVerified!==true)patch.vatRegistrationVerified=false;
-   const identityError=businessSettingsError({...current,...patch} as typeof current);if(identityError)throw new HttpError(identityError);
-   const writes=Object.entries(patch).map(([key,value])=>env.DB!.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(key,JSON.stringify(value)));if(writes.length)await env.DB!.batch(writes);await audit(admin.userId,'settings:save');return json({ok:true});}
+   const verifiedPatch=prepareBusinessSettingsPatch(current,patch);
+   const identityError=businessSettingsError({...current,...verifiedPatch} as typeof current);if(identityError)throw new HttpError(identityError);
+   const writes=Object.entries(verifiedPatch).map(([key,value])=>env.DB!.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(key,JSON.stringify(value)));if(writes.length)await env.DB!.batch(writes);await audit(admin.userId,'settings:save');return json({ok:true});}
   if(req.method==='POST'&&path==='admin/content'){const b=z.object({id:z.string().optional(),type:z.enum(['service','project','client','certificate','category','banner','brand']),slug:z.string().regex(/^[a-z0-9-]+$/).max(100),titleAr:z.string().min(1).max(200),titleEn:z.string().min(1).max(200),descriptionAr:z.string().max(12000).default(''),descriptionEn:z.string().max(12000).default(''),image:z.string().max(1000).nullable().optional(),file:z.string().max(1000).nullable().optional(),extra:z.string().max(12000).default('{}'),active:z.number().int().min(0).max(1),sortOrder:z.number().int().min(0).max(9999)}).parse(await body(req));
    if(!canAdminContent(admin,b.type))throw new HttpError('FORBIDDEN',403);
    if(b.id){

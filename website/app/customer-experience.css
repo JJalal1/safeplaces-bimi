@@ -89,3 +89,10 @@
  .support-policy-copy section { scroll-margin-top:145px; }
  .business-details { flex-direction:column; }
 }
+
+.support-registration { display:flex; gap:22px; align-items:flex-start; margin-bottom:30px; padding:26px; background:#fff; border:1px solid var(--brand-border); border-top:3px solid var(--brand-blue); border-radius:10px; }
+.support-registration > svg { flex-shrink:0; color:var(--brand-blue); margin-top:4px; }
+.support-registration > div { min-width:0; flex:1; }
+.support-registration h2 { font-size:21px; line-height:1.7; color:var(--brand-blue); margin-block:5px 12px; }
+.support-registration p { margin:8px 0 16px; line-height:1.9; }
+@media(max-width:640px) { .support-registration { flex-direction:column; padding:21px 18px; gap:12px; } .support-registration h2 { font-size:19px; } }

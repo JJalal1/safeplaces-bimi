@@ -1,4 +1,4 @@
-import {company, type initialSettings} from './config';
+import {type initialSettings} from './config';
 
 type Copy = readonly [string, string];
 export type PolicyKey = 'privacy' | 'terms' | 'returns' | 'collection';
@@ -15,7 +15,7 @@ export const policyLinks = [
 /** Describes the quote-only service actually deployed, including its processors. */
 export function getPolicy(key: PolicyKey, settings: typeof initialSettings): PolicySection[] {
  const identity: PolicySection = {id: 'provider', title: ['المؤسسة والتواصل', 'Company & contact'], paragraphs: [
-  [`يدير الموقع ${company.nameAr}، ومقر نشاطها ${settings.locationAr}. لطلبات الخصوصية أو الشكاوى أو متابعة التعاملات: ${settings.email}، هاتف ${settings.phone}.`, `This website is operated by ${company.nameEn}, based in ${settings.locationEn}. For privacy requests, complaints or transaction enquiries: ${settings.email}; telephone ${settings.phone}.`],
+  [`يدير الموقع ${settings.legalNameAr}، ومقر نشاطها ${settings.locationAr}. لطلبات الخصوصية أو الشكاوى أو متابعة التعاملات: ${settings.email}، هاتف ${settings.phone}.`, `This website is operated by ${settings.legalNameEn}, based in ${settings.locationEn}. For privacy requests, complaints or transaction enquiries: ${settings.email}; telephone ${settings.phone}.`],
  ]};
  if (key === 'privacy') return [identity,
   {id: 'scope', title: ['نطاق السياسة', 'Scope'], paragraphs: [

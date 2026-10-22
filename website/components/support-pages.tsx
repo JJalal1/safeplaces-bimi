@@ -1,9 +1,10 @@
-import {company, local, type Lang, type initialSettings} from '../lib/config';
+import {local, type Lang, type initialSettings} from '../lib/config';
 import type {ContentRow, resolveServices} from '../lib/content';
 import {QuoteForm, ContactForm} from './forms';
 import {Icon, Arrow} from './visuals';
 import {getPolicy, policyLinks, POLICY_UPDATED, type PolicyKey} from '../lib/policies';
 import {BusinessDetails} from './business-details';
+import {publishedBusinessIdentity} from '../lib/business-identity';
 
 type Settings = typeof initialSettings;
 type Service = ReturnType<typeof resolveServices>[number];
@@ -68,8 +69,8 @@ export function ContactOverview({lang, settings}: {lang: Lang; settings: Setting
     <PageIntro lang={lang} title={local(lang, 'تواصل معنا', 'Contact us')} description={local(lang, 'للاستفسار عن معدات السلامة والخدمات، أو متابعة طلب سابق، تواصل مع المؤسسة أو أرسل رسالتك من هذه الصفحة.', 'Ask about safety equipment and services, or follow up on an existing enquiry. Contact the company directly or send a message below.')}/>
     <section className="section container contact-layout support-contact-layout">
       <div className="contact-details">
-        <h2>{local(lang, company.nameAr, company.nameEn)}</h2>
-        <p className="support-location"><Icon name="pin" size={18}/>{local(lang, settings.locationAr, settings.locationEn)}</p>
+        <h2>{local(lang, settings.legalNameAr, settings.legalNameEn)}</h2>
+        <p className="support-location"><Icon name="pin" size={18}/>{local(lang, settings.locationAr, settings.locationEn)}</p><BusinessDetails lang={lang} settings={settings}/>
         <dl className="support-contact-list">{channels.map(channel => <div key={channel.value}><dt><Icon name={channel.icon} size={19}/>{channel.label}</dt><dd><a href={channel.href} dir="ltr">{channel.value}</a></dd></div>)}</dl>
         <p>{local(lang, 'عند متابعة طلب قائم، اذكر رقمه ووسيلة التواصل المستخدمة عند إرساله. ولزيارة الموقع أو استلام مشتريات، تواصل أولًا لتأكيد المكان والجاهزية.', 'When following up, include your request number and the contact details used to submit it. Before a visit or collection, contact the team to confirm the location and readiness.')}</p>
         <RelatedLink lang={lang} href={root + '/quote'} title={['لديك قائمة توريد أو مشروع؟', 'Have a supply list or project?']} detail={['استخدم طلب عرض السعر لتوضيح الأصناف والكميات والنطاق.', 'Use the quotation form to specify items, quantities and scope.']}/>
@@ -115,11 +116,12 @@ export function ProjectsOverview({lang, projects, project}: {lang: Lang; project
   </>;
 }
 
-export function DocumentsOverview({lang, certificates}: {lang: Lang; certificates: ContentRow[]}) {
+export function DocumentsOverview({lang, certificates, settings}: {lang: Lang; certificates: ContentRow[]; settings: Settings}) {
   const root = '/' + lang;
   return <>
     <PageIntro lang={lang} title={local(lang, 'مستندات المؤسسة', 'Company documents')} description={local(lang, 'للاطلاع على المستندات المنشورة، أو طلب الوثائق اللازمة لمراجعة متطلبات التعامل والتوريد.', 'View published documents or request the paperwork needed to review business and supply requirements.')}/>
     <section className="section container support-documents">
+      {publishedBusinessIdentity(settings, lang).length > 0 && <article className="document-card support-registration"><Icon name="clipboard" size={30}/><div><span className="eyebrow">{local(lang, 'بيانات السجل التجاري', 'Commercial registration details')}</span><h2>{local(lang, settings.legalNameAr, settings.legalNameEn)}</h2><BusinessDetails lang={lang} settings={settings}/><p>{local(lang, 'بيانات المؤسسة مطابقة لشهادة السجل المقدمة. يمكنك الاستعلام عن بيانات السجل بالرقم الوطني الموحد عبر وزارة التجارة.', 'These company details match the supplied registration certificate. You can look up registration information using the national unified number through the Ministry of Commerce.')}</p><a className="text-link" href="https://mc.gov.sa/ar/eservices/Pages/Commercial-data.aspx" target="_blank" rel="noreferrer">{local(lang, 'التحقق عبر وزارة التجارة', 'Verify through the Ministry of Commerce')}<Arrow lang={lang}/></a></div></article>}
       {certificates.length > 0 && <div className="project-grid">{certificates.map(item => <article className="document-card" key={item.id}>
         {item.image ? <img src={item.image} alt={local(lang, item.titleAr, item.titleEn)} width={400} height={300} loading="lazy"/> : <Icon name="clipboard" size={32}/>}
         <h2>{local(lang, item.titleAr, item.titleEn)}</h2><p>{local(lang, item.descriptionAr, item.descriptionEn)}</p>{item.file && <a className="button light" href={item.file}>{local(lang, 'فتح المستند', 'Open document')}<Arrow lang={lang}/></a>}
