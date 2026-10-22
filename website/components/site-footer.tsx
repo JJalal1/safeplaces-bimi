@@ -1,5 +1,6 @@
 import {Phone,Mail,MapPin,ArrowUpRight} from 'lucide-react';
 import {Brand} from './brand';
+import {BusinessDetails} from './business-details';
 import {company,local,type Lang} from '../lib/config';
 import type {getSettings} from '../lib/data';
 
@@ -13,6 +14,7 @@ export function SiteFooter({lang,settings}:{lang:Lang;settings:Awaited<ReturnTyp
    <nav className="footer-links" aria-label={local(lang,'روابط مهمة','Useful links')}><h3>{local(lang,'روابط مهمة','Useful links')}</h3>{[['shop','المنتجات','Products'],['quote','طلب عرض سعر','Request a quote'],['account','حسابي وطلباتي','My account'],['contact','تواصل معنا','Contact']].map(([path,ar,en])=><a key={path} href={root+'/'+path}>{local(lang,ar,en)}</a>)}</nav>
    <div className="footer-contact"><h3>{local(lang,'للتواصل','Contact us')}</h3><a className="footer-contact-item" href={'tel:'+settings.phone}><Phone size={18}/><span><small>{local(lang,'اتصل بنا','Call us')}</small><bdi dir="ltr">{settings.phone}</bdi></span></a><a className="footer-contact-item" href={'mailto:'+settings.email}><Mail size={18}/><span><small>{local(lang,'راسلنا','Email us')}</small><bdi dir="ltr">{settings.email}</bdi></span></a><div className="footer-contact-item"><MapPin size={18}/><span><small>{local(lang,'موقعنا','Our location')}</small>{local(lang,settings.locationAr,settings.locationEn)}</span></div></div>
   </div>
+  <div className="container"><BusinessDetails lang={lang} settings={settings}/></div>
   <div className="container footer-bottom"><span>© {new Date().getFullYear()} Safe Places. {local(lang,'جميع الحقوق محفوظة.','All rights reserved.')}</span><nav aria-label={local(lang,'السياسات','Policies')}>{[['privacy','الخصوصية','Privacy'],['terms','الشروط','Terms'],['returns','الإلغاء والاسترجاع','Returns'],['collection','الاستلام','Collection']].map(([path,ar,en])=><a key={path} href={root+'/'+path}>{local(lang,ar,en)}</a>)}<a href={root+'/admin'}>{local(lang,'الإدارة','Admin')}</a></nav></div>
  </footer>;
 }

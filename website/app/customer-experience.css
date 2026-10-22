@@ -67,3 +67,25 @@
  .support-request-layout .form-card,.support-contact-layout .form-card { padding:22px 18px; }
  .form-card .field :is(input,select,textarea) { font-size:16px; }
 }
+
+/* Readable bilingual policies and verified legal details. */
+.support-policy-nav a[aria-current="page"] { color:var(--brand-red); font-weight:700; }
+.support-policy-copy .policy-updated { color:#53667a; font-size:13px; margin-bottom:18px; }
+.policy-contents { display:flex; flex-wrap:wrap; gap:8px 18px; padding:16px; margin-bottom:26px; background:var(--brand-tint); border-radius:8px; }
+.policy-contents a { color:var(--brand-blue); font-size:13px; text-decoration:underline; text-underline-offset:4px; }
+.support-policy-copy section { scroll-margin-top:180px; }
+.support-policy-copy section p + p { margin-top:12px; }
+.support-policy-copy .support-policy-contact { display:flex; flex-wrap:wrap; gap:9px 20px; align-items:center; }
+.support-policy-contact strong { flex-basis:100%; }
+.support-policy-copy .policy-reference { margin-top:20px; font-size:13px; }
+.policy-reference a { text-decoration:underline; text-underline-offset:4px; }
+.business-details { display:flex; flex-wrap:wrap; gap:12px 28px; padding-block:18px; border-top:1px solid var(--brand-border); }
+.business-details > div { min-width:0; }
+.business-details dt { font-size:12px; opacity:.75; }
+.business-details dd { font-size:13px; margin:5px 0 0; overflow-wrap:anywhere; }
+.site-footer .business-details { border-color:#ffffff21; margin:0; }
+@media(max-width:640px) {
+ .policy-contents { padding:14px; gap:9px 16px; }
+ .support-policy-copy section { scroll-margin-top:145px; }
+ .business-details { flex-direction:column; }
+}

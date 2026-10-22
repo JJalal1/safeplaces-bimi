@@ -2,6 +2,8 @@ import {company, local, type Lang, type initialSettings} from '../lib/config';
 import type {ContentRow, resolveServices} from '../lib/content';
 import {QuoteForm, ContactForm} from './forms';
 import {Icon, Arrow} from './visuals';
+import {getPolicy, policyLinks, POLICY_UPDATED, type PolicyKey} from '../lib/policies';
+import {BusinessDetails} from './business-details';
 
 type Settings = typeof initialSettings;
 type Service = ReturnType<typeof resolveServices>[number];
@@ -127,11 +129,19 @@ export function DocumentsOverview({lang, certificates}: {lang: Lang; certificate
   </>;
 }
 
-export function PolicyOverview({lang, title, paragraphs, headings, email}: {lang: Lang; title: string; paragraphs: string[]; headings: Copy[]; email: string}) {
+export function PolicyOverview({lang, title, policy, settings}: {lang: Lang; title: string; policy: PolicyKey; settings: Settings}) {
+  const sections = getPolicy(policy, settings);
   return <>
-    <PageIntro lang={lang} title={title}/>
+    <PageIntro lang={lang} title={title} description={local(lang, 'معلومات واضحة عن استخدام الموقع والتعامل مع المؤسسة وحقوقك.', 'Information about using the website, dealing with the company and your rights.')}/>
     <div className="section container support-policy-layout"><nav className="support-policy-nav" aria-label={local(lang, 'صفحات السياسات', 'Policy pages')}>
-      {([['privacy', 'الخصوصية', 'Privacy'], ['terms', 'الشروط والأحكام', 'Terms'], ['returns', 'الإلغاء والاسترجاع', 'Returns'], ['collection', 'استلام المشتريات', 'Collection']] as const).map(([path, ar, en]) => <a href={'/' + lang + '/' + path} key={path}>{local(lang, ar, en)}</a>)}
-    </nav><article className="legal-copy support-policy-copy">{paragraphs.map((paragraph, index) => <section key={index}><h2>{headings[index] ? text(lang, headings[index]) : local(lang, 'تفاصيل إضافية', 'Further information')}</h2><p>{paragraph}</p></section>)}<p className="support-policy-contact">{local(lang, 'للاستفسار عن هذه الصفحة، راسل المؤسسة على', 'For questions about this page, contact the company at')} <a dir="ltr" href={'mailto:' + email}>{email}</a>.</p></article></div>
+      {policyLinks.map(item => <a href={'/' + lang + '/' + item.path} key={item.path} aria-current={item.path === policy ? 'page' : undefined}>{text(lang, item.title)}</a>)}
+    </nav><article className="legal-copy support-policy-copy">
+      <p className="policy-updated">{local(lang, 'آخر تحديث:', 'Last updated:')} <time dateTime={POLICY_UPDATED}>{new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-GB', {dateStyle: 'long', calendar: 'gregory', timeZone: 'UTC'}).format(new Date(POLICY_UPDATED + 'T00:00:00Z'))}</time></p>
+      <nav className="policy-contents" aria-label={local(lang, 'محتويات الصفحة', 'On this page')}>{sections.map(section => <a key={section.id} href={'#policy-' + section.id}>{text(lang, section.title)}</a>)}</nav>
+      <BusinessDetails lang={lang} settings={settings}/>
+      {sections.map(section => <section id={'policy-' + section.id} key={section.id}><h2>{text(lang, section.title)}</h2>{section.paragraphs.map((paragraph, index) => <p key={index}>{text(lang, paragraph)}</p>)}</section>)}
+      <div className="support-policy-contact"><strong>{local(lang, 'للاستفسارات والطلبات', 'Questions & requests')}</strong><a dir="ltr" href={'mailto:' + settings.email}>{settings.email}</a><a dir="ltr" href={'tel:' + settings.phone}>{settings.phone}</a><a href={'/' + lang + '/contact'}>{local(lang, 'أرسل رسالة للمؤسسة', 'Send the company a message')}</a></div>
+      <p className="policy-reference">{policy === 'privacy' ? <a href="https://dgp.sdaia.gov.sa/wps/portal/pdp/">{local(lang, 'المنصة الوطنية لحوكمة البيانات: الحقوق والشكاوى', 'National Data Governance Platform: rights & complaints')}</a> : <a href="https://mc.gov.sa/ar/ECC/pages/default.aspx">{local(lang, 'نظام التجارة الإلكترونية — وزارة التجارة', 'E-Commerce Law — Ministry of Commerce')}</a>}</p>
+    </article></div>
   </>;
 }

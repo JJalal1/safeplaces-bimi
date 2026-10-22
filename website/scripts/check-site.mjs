@@ -105,6 +105,24 @@ const moduleURL=source=>'data:text/javascript;base64,'+Buffer.from(source).toStr
 const compileSource=path=>ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const configURL=moduleURL(compileSource('lib/config.ts'));
 const {initialSettings}=await import(configURL);
+const businessModule=await import(moduleURL(compileSource('lib/business-identity.ts')));
+const {businessSettingsError, normalizeBusinessSettings, publishedBusinessIdentity}=businessModule;
+assert.deepEqual(publishedBusinessIdentity(initialSettings,'ar'),[],'Unverified defaults must never expose official IDs');
+const legacyIdentity=normalizeBusinessSettings({...initialSettings,vatNumber:'3148287585'});
+assert.equal(legacyIdentity.vatNumber,'','Ten-digit legacy references are not VAT IDs');
+assert.equal(legacyIdentity.taxReference,'3148287585');
+assert.equal(businessSettingsError({...initialSettings,vatNumber:'3148287585'}),'INVALID_VAT_NUMBER');
+assert.equal(businessSettingsError({...initialSettings,vatNumber:'300000000000003'}),null);
+assert.equal(businessSettingsError({...initialSettings,vatNumber:'300000000000004'}),'INVALID_VAT_NUMBER');
+assert.equal(businessSettingsError({...initialSettings,businessIdentityVerified:true}),'BUSINESS_IDENTITY_INCOMPLETE');
+assert.equal(businessSettingsError({...initialSettings,vatRegistrationVerified:true}),'VAT_VERIFICATION_REQUIRED');
+const verifiedIdentity={...initialSettings,cr:'7000000000',nationalAddressAr:'عنوان اختبار',nationalAddressEn:'Test address',businessIdentityVerified:true};
+assert.equal(publishedBusinessIdentity(verifiedIdentity,'en')[0].label,'National unified number');
+assert.equal(publishedBusinessIdentity({...verifiedIdentity,vatNumber:'3148287585',vatRegistrationVerified:true},'en').length,2,'Even an attestation cannot publish a malformed VAT number');
+assert.equal(publishedBusinessIdentity({...verifiedIdentity,vatNumber:'300000000000003',vatRegistrationVerified:true},'en').length,3);
+assert.equal(normalizeBusinessSettings({...initialSettings,cr:'٧٠٠٠٠٠٠٠٠٠'}).cr,'7000000000');
+console.log('PASS: unverified identity stays private, legacy references are not VAT IDs, and statutory identifiers require valid formats');
+
 const {getAboutSections,getServiceGuide,overviewQuestions}=await import(moduleURL(compileSource('lib/company-copy.ts').replace(/from ['"]\.\/config['"]/g,'from '+JSON.stringify(configURL))));
 const {services:serviceDefinitions}=await import(moduleURL(compileSource('lib/catalog.ts')));
 const aboutSections=getAboutSections(initialSettings);
@@ -196,6 +214,16 @@ try{
  const expectJSON=async(path,body,identity={},status=200)=>{const r=await request(path,body,identity);const value=await r.json();assert.equal(r.status,status,path+': '+JSON.stringify(value));return value;};
  const paths=['','/about','/services','/services/fire-alarm','/shop','/shop/category/ppe','/shop/fire-extinguishers','/quote','/contact','/projects','/certificates','/wishlist','/account','/admin','/privacy','/terms','/returns','/collection','/account/login','/account/register','/account/forgot','/account/confirm','/account/reset','/account/verify'];
  for(const lang of ['ar','en'])for(const path of paths){const r=await request('/'+lang+path);const html=await r.text();assert.equal(r.status,200,lang+path+': '+html.slice(0,600));assert.match(html,new RegExp('lang="'+lang+'"'));assert.match(html,new RegExp('dir="'+(lang==='ar'?'rtl':'ltr')+'"'));assert.match(html,/<h1/);assert.match(html,/rel="canonical"/);assert.match(html,/hreflang="ar"/);assert.match(html,/hreflang="en"/);assert.doesNotMatch(html,/Your site is taking shape/);}
+ for(const lang of ['ar','en'])for(const policy of ['privacy','terms','returns','collection']){
+  const response=await request('/'+lang+'/'+policy),html=await response.text();
+  assert.match(html,/<time dateTime="2026-10-22"|<time datetime="2026-10-22"/,'Policies must disclose their revision date');
+  assert.match(html,new RegExp('href="/'+lang+'/'+policy+'"[^>]*aria-current="page"'),'Policy navigation must identify the current page');
+  assert.match(html,/id="policy-provider"/);assert.match(html,/href="#policy-provider"/);
+  assert.doesNotMatch(html,/3148287585|7027770788/,'Unverified company identifiers must not be published');
+  if(policy==='privacy'){assert.match(html,/Cloudflare/);assert.match(html,/Resend/);assert.match(html,/Google/);assert.match(html,/id="policy-rights"/);assert.match(html,/id="policy-retention"/);}
+ }
+ for(const lang of ['ar','en'])for(const form of ['quote','contact'])assert.match(await(await request('/'+lang+'/'+form)).text(),new RegExp('href="/'+lang+'/privacy"'),'Privacy information must be available at collection');
+ console.log('PASS: bilingual policies disclose processors, rights and retention with revision dates and collection-point links');
  const root=await request('/');assert.equal(root.status,307);assert.equal(root.headers.get('location'),'/ar');
  assert.equal((await request('/ar/does-not-exist')).status,404);
  // Catch-all suffixes must not create duplicate pages or redirects with bogus
@@ -326,6 +354,15 @@ try{
  await expectJSON('/api/admin/bulk',{type:'content',ids:[admin.content[0].id],action:'feature'},owner,400);
  assert.equal((await db.prepare("SELECT COUNT(*) AS count FROM activity WHERE action='products:bulk:publish'").first()).count,1);
  await expectJSON('/api/admin/settings',{heroImage:'javascript:alert(1)'},owner,400);
+ await expectJSON('/api/admin/settings',{vatNumber:'3148287585'},owner,400);
+ await expectJSON('/api/admin/settings',{businessIdentityVerified:true},owner,400);
+ await expectJSON('/api/admin/settings',{vatNumber:'300000000000003',vatRegistrationVerified:true},owner,400);
+ await expectJSON('/api/admin/settings',{cr:'7000000000',nationalAddressAr:'عنوان اختبار',nationalAddressEn:'Test address',businessIdentityVerified:true,vatNumber:'300000000000003',vatRegistrationVerified:true},owner);
+ const legalHtml=await(await request('/en/privacy')).text();assert.match(legalHtml,/National unified number/);assert.match(legalHtml,/7000000000/);assert.match(legalHtml,/300000000000003/);
+ await expectJSON('/api/admin/settings',{nationalAddressAr:'تعديل العنوان'},owner);
+ const changedLegalHtml=await(await request('/en/privacy')).text();assert.doesNotMatch(changedLegalHtml,/7000000000|300000000000003/,'Changed identity details require renewed verification');
+ await expectJSON('/api/admin/settings',{cr:initialSettings.cr,nationalAddressAr:'',nationalAddressEn:'',vatNumber:'',businessIdentityVerified:false,vatRegistrationVerified:false},owner);
+
  await expectJSON('/api/admin/settings',{heroImage:'/images/catalog/helmet.webp',heroImageReference:false},owner);
  const heroPage=await request('/en');const customHeroHtml=(await heroPage.text()).match(/<section class="safety-hero"[\s\S]*?<\/section>/)[0];assert.match(customHeroHtml,/safety-hero-photo[^>]*src="\/images\/catalog\/helmet.webp"/);assert.doesNotMatch(customHeroHtml,/safety-hero-caption/,'An owner-provided hero image can hide the reference label');
  const privateDashboard=await request('/en/admin',undefined,owner);assert.match(await privateDashboard.text(),new RegExp(q.number));
