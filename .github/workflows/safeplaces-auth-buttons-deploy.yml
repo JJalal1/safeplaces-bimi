@@ -86,7 +86,7 @@ jobs:
           assert.equal(ref.object?.sha,process.env.GITHUB_SHA,'Do not deploy a superseded commit');
           console.log('PASS: tested commit is the current release branch head');
           NODE
-      - name: Deploy the current verified loading and indexing release
+      - name: Deploy verified critical resource priorities and search release
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
