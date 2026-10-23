@@ -86,6 +86,7 @@ try{
  assert.doesNotMatch(robotsText,/Disallow: \/\*\?/,'Let Google see query-page noindex and clean canonicals');
  assert.ok(robotsText.includes('Sitemap: '+origin+'/sitemap.xml'));
  for(const privatePath of ['/api/','/ar/account','/en/account','/ar/admin','/en/admin'])assert.ok(robotsText.includes('Disallow: '+privatePath));
+  assert.ok(robotsText.includes('Allow: /api/media/'),'Google can fetch deliberately public product photos and datasheets; private media remains authorized server-side');
  const response=await request('/sitemap.xml');assert.equal(response.status,200);const xml=await response.text();
  const urls=[...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>decode(m[1]));
  assert.ok(urls.length>=60,'Include real bilingual public pages in the sitemap');assert.equal(new Set(urls).size,urls.length);
