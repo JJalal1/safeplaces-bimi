@@ -1,4 +1,4 @@
-name: Deploy Safe Places square company favicons and header identity
+name: Deploy Safe Places verified company icons and patched validation
 on:
   push:
     branches: [feature/auth-speed-seo-before-hosting]
