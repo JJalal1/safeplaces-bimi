@@ -20,6 +20,9 @@ jobs:
       - name: Verify notification evidence fixtures without network access
         working-directory: website
         run: node scripts/check-live-notifications-fixture.mjs
+      - name: Check live public cache isolation without submitting forms
+        working-directory: website
+        run: node scripts/check-live-public-cache.mjs
       - name: Inspect live DNS and HTTPS without submitting forms
         run: |
           node --input-type=module <<'NODE'
@@ -42,7 +45,10 @@ jobs:
               const response=await fetch('https://safeplaces.sa/'+lang+'/'+policy,{signal:AbortSignal.timeout(15000)});
               assert.equal(response.status,200);const html=await response.text();
               assert.match(html,/2026-10-22/);assert.match(html,/id="policy-provider"/);
-              assert.doesNotMatch(html,/3148287585/); // A private authority TIN is not a public VAT ID.
+              for(const block of html.matchAll(/<dl class="business-details">([\s\S]*?)<\/dl>/g)) {
+                for(const number of block[1].match(/\b\d{10,15}\b/g)||[])
+                  assert.ok(number==='7027770788'||/^3\d{13}3$/.test(number),'Publish only approved company identifiers');
+              }
               if(policy==='privacy'){assert.match(html,/Cloudflare/);assert.match(html,/Resend/);assert.match(html,/id="policy-rights"/);}
             }
             for(const path of ['quote','contact']){

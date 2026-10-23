@@ -108,17 +108,17 @@ const {initialSettings}=await import(configURL);
 const businessModule=await import(moduleURL(compileSource('lib/business-identity.ts')));
 const {businessSettingsError, normalizeBusinessSettings, publishedBusinessIdentity, prepareBusinessSettingsPatch}=businessModule;
 assert.deepEqual(publishedBusinessIdentity(initialSettings,'ar'),[],'Unverified defaults must never expose official IDs');
-const legacyIdentity=normalizeBusinessSettings({...initialSettings,vatNumber:'3148287585'});
+const legacyIdentity=normalizeBusinessSettings({...initialSettings,vatNumber:'1234567890'});
 assert.equal(legacyIdentity.vatNumber,'','Ten-digit legacy references are not VAT IDs');
-assert.equal(legacyIdentity.taxReference,'3148287585');
-assert.equal(businessSettingsError({...initialSettings,vatNumber:'3148287585'}),'INVALID_VAT_NUMBER');
+assert.equal(legacyIdentity.taxReference,'1234567890');
+assert.equal(businessSettingsError({...initialSettings,vatNumber:'1234567890'}),'INVALID_VAT_NUMBER');
 assert.equal(businessSettingsError({...initialSettings,vatNumber:'300000000000003'}),null);
 assert.equal(businessSettingsError({...initialSettings,vatNumber:'300000000000004'}),'INVALID_VAT_NUMBER');
 assert.equal(businessSettingsError({...initialSettings,cr:'',businessIdentityVerified:true}),'BUSINESS_IDENTITY_INCOMPLETE');
 assert.equal(businessSettingsError({...initialSettings,vatRegistrationVerified:true}),'VAT_VERIFICATION_REQUIRED');
 const verifiedIdentity={...initialSettings,cr:'7000000000',nationalAddressAr:'عنوان اختبار',nationalAddressEn:'Test address',businessIdentityVerified:true,nationalAddressVerified:true};
 assert.equal(publishedBusinessIdentity(verifiedIdentity,'en')[0].label,'National unified number');
-assert.equal(publishedBusinessIdentity({...verifiedIdentity,vatNumber:'3148287585',vatRegistrationVerified:true},'en').length,2,'Even an attestation cannot publish a malformed VAT number');
+assert.equal(publishedBusinessIdentity({...verifiedIdentity,vatNumber:'1234567890',vatRegistrationVerified:true},'en').length,2,'Even an attestation cannot publish a malformed VAT number');
 assert.equal(publishedBusinessIdentity({...verifiedIdentity,vatNumber:'300000000000003',vatRegistrationVerified:true},'en').length,3);
 assert.equal(normalizeBusinessSettings({...initialSettings,cr:'٧٠٠٠٠٠٠٠٠٠'}).cr,'7000000000');
 const registeredOnly={...verifiedIdentity,nationalAddressAr:'',nationalAddressEn:'',nationalAddressVerified:false,vatNumber:'',vatRegistrationVerified:false};
@@ -230,7 +230,7 @@ try{
   assert.match(html,/<time dateTime="2026-10-22"|<time datetime="2026-10-22"/,'Policies must disclose their revision date');
   assert.match(html,new RegExp('href="/'+lang+'/'+policy+'"[^>]*aria-current="page"'),'Policy navigation must identify the current page');
   assert.match(html,/id="policy-provider"/);assert.match(html,/href="#policy-provider"/);
-  assert.doesNotMatch(html,/3148287585|7027770788/,'Unverified company identifiers must not be published');
+  assert.doesNotMatch(html,/1234567890|7027770788/,'Unverified company identifiers must not be published');
   if(policy==='privacy'){assert.match(html,/Cloudflare/);assert.match(html,/Resend/);assert.match(html,/Google/);assert.match(html,/id="policy-rights"/);assert.match(html,/id="policy-retention"/);}
  }
  for(const lang of ['ar','en'])for(const form of ['quote','contact'])assert.match(await(await request('/'+lang+'/'+form)).text(),new RegExp('href="/'+lang+'/privacy"'),'Privacy information must be available at collection');
@@ -365,7 +365,7 @@ try{
  await expectJSON('/api/admin/bulk',{type:'content',ids:[admin.content[0].id],action:'feature'},owner,400);
  assert.equal((await db.prepare("SELECT COUNT(*) AS count FROM activity WHERE action='products:bulk:publish'").first()).count,1);
  await expectJSON('/api/admin/settings',{heroImage:'javascript:alert(1)'},owner,400);
- await expectJSON('/api/admin/settings',{vatNumber:'3148287585'},owner,400);
+ await expectJSON('/api/admin/settings',{vatNumber:'1234567890'},owner,400);
  await expectJSON('/api/admin/settings',{cr:'',businessIdentityVerified:true},owner,400);
  await expectJSON('/api/admin/settings',{vatNumber:'300000000000003',vatRegistrationVerified:true},owner,400);
  await expectJSON('/api/admin/settings',{cr:'7000000000',nationalAddressAr:'عنوان اختبار',nationalAddressEn:'Test address',businessIdentityVerified:true,nationalAddressVerified:true,vatNumber:'300000000000003',vatRegistrationVerified:true},owner);
