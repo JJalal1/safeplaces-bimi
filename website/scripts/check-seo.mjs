@@ -77,7 +77,18 @@ async function page(url){
  assert.equal(org?.['@id'],origin+'/#organization');
  assert.ok(org.legalName&&org.telephone&&org.email,'Publish consistent organisation identity');
  if(path==='/'+lang){
-  assert.equal(schema.find(s=>s['@type']==='WebSite')?.publisher?.['@id'],org['@id']);
+  const websites=schema.filter(s=>s['@type']==='WebSite');
+  assert.equal(websites.length,1,'Keep one site-name node instead of competing identities');
+  const website=websites[0];
+  assert.equal(website.publisher?.['@id'],org['@id']);
+  assert.equal(website.url,origin);
+  assert.equal(website.name,'Safe Places','Use the recognised short brand as the site name');
+  assert.ok(website.alternateName?.includes('المناطق الآمنة'),'Associate the Arabic brand with the same website');
+  assert.ok(website.alternateName?.includes('safeplaces.sa'),'Associate direct domain searches with the site identity');
+  assert.equal(org.name,website.name,'Organisation and website must identify the same brand');
+  assert.equal(meta.find(m=>m.property==='og:site_name')?.content,website.name);
+  assert.ok(title.includes(lang==='ar'?'المناطق الآمنة':'Safe Places'),'The home search title must name the brand');
+  assert.ok(main.includes('Safe Places'),'Provide a visible brand mention rather than schema-only keywords');
  }else{
   const crumbs=schema.find(s=>s['@type']==='BreadcrumbList')?.itemListElement;
   assert.ok(crumbs?.length>=2,path+' needs an actual breadcrumb trail');

@@ -3,7 +3,7 @@ import {notFound,redirect} from 'next/navigation';
 import {env} from 'cloudflare:workers';
 import {getProducts,getSettings,getSiteContent} from '../../../../lib/data';
 import {resolveCategories,resolveServices,resolveClients} from '../../../../lib/content';
-import {company,local,money,langOf,type Lang} from '../../../../lib/config';
+import {company,siteBrand,local,money,langOf,type Lang} from '../../../../lib/config';
 import {siteOrigin,siteIndexable} from '../../../../lib/site-origin';
 import {isSupportedSiteRoute} from '../../../../lib/site-routes';
 import {homeSeo,shopSeo,regionalSeo,categorySeo,serviceSeo,productSeo,seoText} from '../../../../lib/seo-content';
@@ -84,10 +84,10 @@ export async function generateMetadata({params,searchParams}:Props):Promise<Meta
  const privatePage=['account','admin','cart','checkout','wishlist'].includes(key)||Object.keys(query).length>0;
  const index=siteIndexable()&&!privatePage;
  return {
-  title,description,
+  title:key?title:{absolute:title},description,
   alternates:{canonical:pageUrl,languages:{ar:SITE_URL+'/ar'+suffix,en:SITE_URL+'/en'+suffix,'x-default':SITE_URL+'/ar'+suffix}},
   robots:{index,follow:siteIndexable()&&!['account','admin','cart','checkout','wishlist'].includes(key)},
-  openGraph:{type:'website',siteName:company.nameEn,title,description,url:pageUrl,locale:l==='ar'?'ar_SA':'en_US',alternateLocale:l==='ar'?'en_US':'ar_SA',images:[{url:SITE_URL+'/images/hero.webp',width:1920,height:692,alt:local(l,company.nameAr,company.nameEn)}]},
+  openGraph:{type:'website',siteName:siteBrand.name,title,description,url:pageUrl,locale:l==='ar'?'ar_SA':'en_US',alternateLocale:l==='ar'?'en_US':'ar_SA',images:[{url:SITE_URL+'/images/hero.webp',width:1920,height:692,alt:local(l,company.nameAr,company.nameEn)}]},
   twitter:{card:'summary_large_image',title,description,images:[SITE_URL+'/images/hero.webp']}
  };
 }
@@ -143,5 +143,5 @@ export default async function Page({params,searchParams}:Props){const {lang,slug
   const project=items('project').find(p=>p.slug===slug[1]);
   if(project)breadcrumbs.push({name:local(l,project.titleAr,project.titleEn),item:SITE_URL+root+'/projects/'+project.slug});
  }
- return <><a className="skip-link" href="#main">{local(l,'انتقل للمحتوى','Skip to content')}</a><Header path={slug.join('/')} phone={settings.phone} products={products} categories={categories} query={q} preview={products.some(p=>p.previewOnly)} checkoutIntent={section==='checkout'&&search.intent==='buy-now'}/><main id="main" className={section==='shop'&&slug[1]&&slug[1]!=='category'?'product-route':section==='cart'?'cart-route':section==='checkout'?'checkout-route':undefined}>{body}</main><Footer lang={l} settings={settings}/><JSONLD value={{'@context':'https://schema.org','@type':'Organization','@id':SITE_URL+'/#organization',legalName:settings.legalNameAr,name:company.nameEn,alternateName:company.nameAr,url:SITE_URL,logo:SITE_URL+'/images/safeplaces-logo.webp',telephone:settings.phone.startsWith('0')?'+966'+settings.phone.slice(1):settings.phone,email:settings.email,address:{'@type':'PostalAddress',addressLocality:'Al Khobar',addressRegion:'Eastern Province',addressCountry:'SA'},areaServed:{'@type':'AdministrativeArea',name:'Eastern Province, Saudi Arabia'}}}/>{!section&&<JSONLD value={{'@context':'https://schema.org','@type':'WebSite','@id':SITE_URL+'/#website',url:SITE_URL,name:company.nameEn,alternateName:company.nameAr,inLanguage:['ar','en'],publisher:{'@id':SITE_URL+'/#organization'}}}/>}{section&&<JSONLD value={{'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:breadcrumbs.map((item,index)=>({'@type':'ListItem',position:index+1,...item}))}}/>}</>;
+ return <><a className="skip-link" href="#main">{local(l,'انتقل للمحتوى','Skip to content')}</a><Header path={slug.join('/')} phone={settings.phone} products={products} categories={categories} query={q} preview={products.some(p=>p.previewOnly)} checkoutIntent={section==='checkout'&&search.intent==='buy-now'}/><main id="main" className={section==='shop'&&slug[1]&&slug[1]!=='category'?'product-route':section==='cart'?'cart-route':section==='checkout'?'checkout-route':undefined}>{body}</main><Footer lang={l} settings={settings}/><JSONLD value={{'@context':'https://schema.org','@type':'Organization','@id':SITE_URL+'/#organization',legalName:settings.legalNameAr,name:siteBrand.name,alternateName:[...siteBrand.alternateNames,company.nameAr,company.nameEn],url:SITE_URL,logo:SITE_URL+'/images/safeplaces-logo.webp',telephone:settings.phone.startsWith('0')?'+966'+settings.phone.slice(1):settings.phone,email:settings.email,address:{'@type':'PostalAddress',addressLocality:'Al Khobar',addressRegion:'Eastern Province',addressCountry:'SA'},areaServed:{'@type':'AdministrativeArea',name:'Eastern Province, Saudi Arabia'}}}/>{!section&&<JSONLD value={{'@context':'https://schema.org','@type':'WebSite','@id':SITE_URL+'/#website',url:SITE_URL,name:siteBrand.name,alternateName:siteBrand.alternateNames,inLanguage:['ar','en'],publisher:{'@id':SITE_URL+'/#organization'}}}/>}{section&&<JSONLD value={{'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:breadcrumbs.map((item,index)=>({'@type':'ListItem',position:index+1,...item}))}}/>}</>;
 }
