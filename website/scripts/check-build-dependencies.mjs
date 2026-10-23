@@ -30,3 +30,27 @@ for(const entry of readdirSync('node_modules/.pnpm').filter(name=>name.startsWit
 const rscRequire=createRequire(require.resolve('@vitejs/plugin-rsc'));
 assert.equal(rscRequire('react-server-dom-webpack/package.json').version,'19.2.8');
 console.log('PASS: reviewed RSC patch, common glob patterns and bounded nested string/AST walkers for the locally patched braces advisory');
+
+// GHSA-mrhx-c7xc-m3w5: reject oversized collections before walking elements.
+const {z}=await import('zod');
+let parsedItems=0;
+const element=z.number().refine(()=>{parsedItems++;return true;});
+for(const [schema,input,valid]of [
+ [z.array(element).max(2),Array.from({length:2000},(_,i)=>i),[1,2]],
+ [z.set(element).max(2),new Set([1,2,3]),new Set([1,2])],
+ [z.map(z.string(),element).max(2),new Map([['a',1],['b',2],['c',3]]),new Map([['a',1],['b',2]])],
+]){
+ parsedItems=0;
+ assert.equal(schema.safeParse(input).success,false);
+ assert.equal(parsedItems,0,'Length limits must stop parsing before element validators run');
+ assert.equal(schema.safeParse(valid).success,true);
+ assert.equal(parsedItems,2,'Ordinary valid collections keep their validation');
+}
+const {invocationSchema,driverMessageSchema,grantSchema,sessionOptionsSchema}=await import('./connector-preview/protocol.mjs');
+const invocation={connectorId:'fixture',actionName:'fetch',arguments:{q:'safety',limit:3}};
+assert.deepEqual(invocationSchema.parse(invocation),invocation);
+assert.equal(invocationSchema.safeParse({...invocation,accountId:'untrusted'}).success,false);
+assert.equal(grantSchema.safeParse({connectorId:'fixture',actionName:'fetch',readOnly:false}).success,false);
+assert.deepEqual(sessionOptionsSchema.parse({}),{timeoutMs:120000,maxConcurrent:64});
+assert.equal(driverMessageSchema.safeParse({jsonrpc:'2.0',id:'00000000-0000-4000-8000-000000000001',result:{content:[]}}).success,true);
+console.log('PASS: bounded collection validation and existing strict connector protocol with the patched Zod runtime');
