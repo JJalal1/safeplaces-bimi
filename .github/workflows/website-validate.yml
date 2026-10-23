@@ -30,6 +30,8 @@ jobs:
         run: pnpm exec tsc --noEmit --incremental false
       - name: Read-only live-notification evidence fixtures
         run: node scripts/check-live-notifications-fixture.mjs
+      - name: Authentication log privacy and safe disabled fallback
+        run: node scripts/check-auth-log-protection.mjs
       - name: Client request recovery and private response headers
         run: node scripts/check-client-reliability.mjs
       - name: Authentication policy

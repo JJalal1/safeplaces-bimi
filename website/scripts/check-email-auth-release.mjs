@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {readFileSync} from 'node:fs';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {protectAuthLogs} from './auth-log-protection.mjs';
 
 // Deployment checks read fixed schema, binding metadata and public OAuth settings.
 // Public setting comparisons never log values. The optional
@@ -60,16 +61,10 @@ if(action==='preflight'){
   assert.ok(bindings.some(binding=>binding.name===name&&binding.type==='secret_text'),'A required authentication secret is missing');
  console.log('PASS: exact '+target+' database, additive session schema, migration fingerprint, recovery evidence and required secret names');
 }else{
- const protectedLogs={enabled:true,head_sampling_rate:1,redact_query_string:true,logs:{enabled:true,invocation_logs:false,head_sampling_rate:1,persist:true},traces:{enabled:false}};
- try{
-  await api('PATCH',workerPath+'/script-settings',{observability:protectedLogs});
-  const settings=await api('GET',workerPath+'/script-settings'),o=settings.observability;
-  assert.ok(o?.enabled&&o.redact_query_string===true&&o.logs?.enabled&&o.logs.invocation_logs===false&&o.traces?.enabled===false);
-  console.log('PASS: fixed auth diagnostics enabled, query strings redacted, invocation logs and traces disabled');
- }catch{
-  await api('PATCH',workerPath+'/script-settings',{observability:{enabled:false,logs:{enabled:false,invocation_logs:false},traces:{enabled:false}}});
-  const settings=await api('GET',workerPath+'/script-settings'),o=settings.observability;
-  if(o?.enabled!==false||o.logs?.enabled!==false||o.logs?.invocation_logs!==false||o.traces?.enabled!==false)throw new Error('Authentication log protection and recovery could not be confirmed');
-  throw new Error('Auth logging was verified disabled because safe redaction could not be confirmed');
- }
+ const compiled=JSON.parse(readFileSync('dist/server/wrangler.json','utf8'));
+ assert.equal(compiled.name,worker);
+ for(const [name,value]of Object.entries({enabled:compiled.observability?.enabled,logs:compiled.observability?.logs?.enabled,invocations:compiled.observability?.logs?.invocation_logs,traces:compiled.observability?.traces?.enabled}))assert.equal(value,false,'The compiled release must explicitly disable '+name);
+ const protection=await protectAuthLogs({api,workerPath,compiledDisabled:true});
+ mkdirSync('test-results',{recursive:true});writeFileSync('test-results/auth-log-protection.json',JSON.stringify({target,release:process.env.GITHUB_SHA,...protection},null,2)+'\n');
+ console.log(protection.status==='protected'?'PASS: fixed auth diagnostics enabled, query strings redacted, invocation logs and traces disabled':'PASS: auth diagnostic persistence verified disabled; invocation details/traces and external log exporters remain off');
 }

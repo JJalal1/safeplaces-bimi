@@ -62,6 +62,7 @@ jobs:
           c.vars.EMAIL_NOTIFICATIONS_ENABLED='true';
           c.triggers={crons:['*/5 * * * *']};
           c.vars.SITE_DEMO_PRICES='false';
+          c.observability={enabled:false,logs:{enabled:false,invocation_logs:false},traces:{enabled:false}};
           writeFileSync(p,JSON.stringify(c,null,2)+'\n');
           console.log('PASS: public bilingual quote-only site, indexable, no prices or payments');
           NODE
@@ -86,7 +87,7 @@ jobs:
           assert.equal(ref.object?.sha,process.env.GITHUB_SHA,'Do not deploy a superseded commit');
           console.log('PASS: tested commit is the current release branch head');
           NODE
-      - name: Deploy verified critical resource priorities and search release
+      - name: Deploy verified content priorities and safe diagnostic protection
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
@@ -129,6 +130,7 @@ jobs:
           path: |
             website/test-results/live-public-cache.json
             website/test-results/seo-live.json
+            website/test-results/auth-log-protection.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Verify public login labels, SEO and quotation page
