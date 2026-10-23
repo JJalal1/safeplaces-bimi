@@ -1,5 +1,6 @@
 const publicPage=/^\/(?:ar|en)(?:\/(?:about|eastern-province|privacy|terms|returns|collection|certificates)|\/(?:services|projects)(?:\/[a-z0-9-]+)?|\/shop(?:\/[a-z0-9-]+|\/category\/[a-z0-9-]+)?)?$/;
-const allowedVary=new Set(['accept-encoding','rsc','next-router-state-tree','next-router-prefetch','next-url']);
+// Ordinary HTML is stored only after every framework RSC selector is excluded.
+const allowedVary=new Set(['accept','accept-encoding','rsc','next-router-state-tree','next-router-prefetch','next-router-segment-prefetch','next-url','x-vinext-interception-context','x-vinext-interception-id','x-vinext-mounted-slots','x-vinext-rsc-render-mode','x-vinext-rsc-state-fingerprint']);
 
 /** Only anonymous, ordinary HTML navigation on the public production origin. */
 export function publicHtmlCacheKey(request:Request,enabled:boolean,release:string):Request|null{
@@ -10,7 +11,7 @@ export function publicHtmlCacheKey(request:Request,enabled:boolean,release:strin
  if(!/\btext\/html\b/i.test(headers.get('accept')||''))return null;
  if(['cookie','authorization','range','if-none-match','if-modified-since'].some(name=>headers.has(name)))return null;
  if(/no-cache|no-store|max-age\s*=\s*0/i.test(headers.get('cache-control')||'')||/no-cache/i.test(headers.get('pragma')||''))return null;
- for(const name of headers.keys())if(name==='rsc'||name.startsWith('next-')||name.startsWith('x-nextjs-')||name.startsWith('x-middleware-'))return null;
+ for(const name of headers.keys())if(name==='rsc'||name.startsWith('next-')||name.startsWith('x-nextjs-')||name.startsWith('x-middleware-')||name.startsWith('x-vinext-'))return null;
  // Each tested release has a separate namespace. A deployment never reuses
  // the preceding application's HTML or its obsolete asset references.
  url.searchParams.set('__safeplaces_html',release);

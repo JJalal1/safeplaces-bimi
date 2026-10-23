@@ -32,9 +32,9 @@ jobs:
           }
           for(const path of ['https://safeplaces.sa/','https://safeplaces.sa/ar','https://safeplaces.sa/en','https://safeplaces.sa/ar/shop','https://safeplaces.sa/ar/quote','https://safeplaces.sa/robots.txt','https://safeplaces.sa/sitemap.xml','https://www.safeplaces.sa/ar']){
             try{
-              const r=await fetch(path,{redirect:'manual',signal:AbortSignal.timeout(15000)});
+              const r=await fetch(path,{headers:{Accept:'text/html'},redirect:'manual',signal:AbortSignal.timeout(15000)});
               const txt=(await r.text()).slice(0,200);
-              console.log(JSON.stringify({url:path,status:r.status,location:r.headers.get('location'),type:r.headers.get('content-type'),robots:r.headers.get('x-robots-tag'),body_start:txt.replace(/[\r\n]/g,' ')}));
+              console.log(JSON.stringify({url:path,status:r.status,location:r.headers.get('location'),type:r.headers.get('content-type'),robots:r.headers.get('x-robots-tag'),vary:r.headers.get('vary'),cache:r.headers.get('x-safeplaces-cache'),cacheControl:r.headers.get('cache-control'),body_start:txt.replace(/[\r\n]/g,' ')}));
             }catch(e){console.log(JSON.stringify({url:path,error:String(e)}));}
           }
           for(const lang of ['ar','en']){

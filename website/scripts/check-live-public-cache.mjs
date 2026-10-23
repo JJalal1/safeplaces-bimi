@@ -8,7 +8,7 @@ async function read(path,headers={}){
  const started=performance.now();
  const response=await fetch(origin+path,{redirect:'error',signal:AbortSignal.timeout(15000),headers:{Accept:'text/html',...headers}});
  const html=await response.text();
- evidence.requests.push({path,status:response.status,cache:response.headers.get('x-safeplaces-cache'),cacheControl:response.headers.get('cache-control'),robots:response.headers.get('x-robots-tag'),durationMs:Math.round(performance.now()-started)});
+ evidence.requests.push({path,status:response.status,cache:response.headers.get('x-safeplaces-cache'),vary:response.headers.get('vary'),type:response.headers.get('content-type'),cacheControl:response.headers.get('cache-control'),robots:response.headers.get('x-robots-tag'),durationMs:Math.round(performance.now()-started)});
  assert.equal(response.status,200,path);
  return {response,html};
 }

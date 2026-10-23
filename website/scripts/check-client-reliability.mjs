@@ -41,13 +41,14 @@ for(const path of ['/ar','/en','/ar/shop','/en/shop/fire-extinguishers','/ar/sho
  assert.notEqual(key.url,publicHtmlCacheKey(htmlRequest(path),true,otherRelease).url,'Releases cannot share obsolete HTML');
 }
 for(const path of ['/ar/account','/en/admin','/ar/quote','/en/contact','/api/session','/api/media/private-file','/api/admin/data','/ar/shop?q=helmet','/ar/shop?__rsc=1','/ar/shop/category/ppe/extra'])assert.equal(publicHtmlCacheKey(htmlRequest(path),true,release),null,path+' must bypass shared HTML caching');
-for(const extra of [{Cookie:'fixture=1'},{Authorization:'Bearer fixture'},{RSC:'1'},{'Next-Router-Prefetch':'1'},{'X-Nextjs-Data':'1'},{Range:'bytes=0-20'},{'If-None-Match':'fixture'},{'Cache-Control':'no-cache'},{Pragma:'no-cache'},{Accept:'text/x-component'}])assert.equal(publicHtmlCacheKey(htmlRequest('/ar',extra),true,release),null,JSON.stringify(extra));
+for(const extra of [{Cookie:'fixture=1'},{Authorization:'Bearer fixture'},{RSC:'1'},{'Next-Router-Prefetch':'1'},{'Next-Router-Segment-Prefetch':'fixture'},{'X-Vinext-Interception-Context':'fixture'},{'X-Vinext-Mounted-Slots':'fixture'},{'X-Nextjs-Data':'1'},{Range:'bytes=0-20'},{'If-None-Match':'fixture'},{'Cache-Control':'no-cache'},{Pragma:'no-cache'},{Accept:'text/x-component'}])assert.equal(publicHtmlCacheKey(htmlRequest('/ar',extra),true,release),null,JSON.stringify(extra));
 assert.equal(publicHtmlCacheKey(htmlRequest('/ar'),false,release),null);
 assert.equal(publicHtmlCacheKey(htmlRequest('/ar'),true,'local'),null);
 assert.equal(publicHtmlCacheKey(new Request('https://preview.example/ar',{headers:{Accept:'text/html'}}),true,release),null);
 assert.equal(publicHtmlCacheKey(new Request('https://safeplaces.sa/ar',{method:'POST',headers:{Accept:'text/html'}}),true,release),null);
 const html=()=>new Response('<html>Public content</html>',{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store, must-revalidate'}});
 const entry=publicHtmlCacheEntry(html());assert.ok(entry);assert.equal(entry.headers.get('cache-control'),'public, max-age=60');
+const frameworkHtml=html();frameworkHtml.headers.set('Vary','RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Next-Url, X-Vinext-Interception-Context, X-Vinext-Interception-Id, X-Vinext-Mounted-Slots, X-Vinext-Rsc-Render-Mode, X-Vinext-Rsc-State-Fingerprint, Accept-Encoding');assert.ok(publicHtmlCacheEntry(frameworkHtml),'Known RSC selectors are safe only after their request variants are excluded');
 const hit=cachedPublicHtml(entry);assert.match(hit.headers.get('cache-control'),/no-store/);assert.equal(await hit.text(),'<html>Public content</html>');
 for(const [name,value]of [['Set-Cookie','session=fixture'],['Cache-Control','private, no-store'],['X-Robots-Tag','noindex, nofollow'],['Vary','Cookie'],['Vary','*'],['Content-Type','text/x-component']]){
  const privateResult=html();privateResult.headers.set(name,value);assert.equal(publicHtmlCacheEntry(privateResult),null,name+' must prevent storage');
