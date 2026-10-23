@@ -2,18 +2,43 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {createRequire} from 'node:module';
+import {setTimeout as delay} from 'node:timers/promises';
 
 // The same checks run against the built public Worker and the deployed domain.
 // Local fixtures never use production credentials or send requests externally.
 const live=process.argv.includes('--live');
 const origin='https://safeplaces.sa';
 let mf;
-const report={mode:live?'live':'isolated-public-worker',pages:[],checks:[],status:'running'};
+const report={mode:live?'live':'isolated-public-worker',pages:[],checks:[],httpRetries:[],status:'running'};
 const internalLinks=new Set();
 const decode=value=>value.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#x([\da-f]+);/gi,(_,v)=>String.fromCodePoint(parseInt(v,16))).replace(/&#(\d+);/g,(_,v)=>String.fromCodePoint(Number(v)));
 function attributes(tag){return Object.fromEntries([...tag.matchAll(/([\w:-]+)="([^"]*)"/g)].map(m=>[m[1],decode(m[2])]));}
 const tags=(html,name)=>[...html.matchAll(new RegExp('<'+name+'\\b[^>]*>','g'))].map(m=>attributes(m[0]));
-async function request(path){return live?fetch(origin+path,{redirect:'manual',signal:AbortSignal.timeout(20000)}):mf.dispatchFetch(origin+path,{redirect:'manual'});}
+async function request(path){
+ if(!live)return mf.dispatchFetch(origin+path,{redirect:'manual'});
+ // Bounded retries apply only to this anonymous GET audit, never customer
+ // submissions. Persistent faults still fail every original SEO assertion.
+ for(let attempt=0;attempt<3;attempt++){
+  try{
+   const response=await fetch(origin+path,{redirect:'manual',signal:AbortSignal.timeout(20000)});
+   if(![502,503,504].includes(response.status)||attempt===2)return response;
+   report.httpRetries.push({path,attempt:attempt+1,status:response.status});
+   await response.body?.cancel();
+  }catch(error){
+   if(attempt===2)throw error;
+   report.httpRetries.push({path,attempt:attempt+1,error:'GET transport unavailable'});
+  }
+  await delay(350*(attempt+1));
+ }
+}
+async function finishDocument(response){
+ if(!/^text\/html(?:;|$)/i.test(response.headers.get('content-type')||'')){await response.body?.cancel();return;}
+ // Let a real HTML response finish instead of repeatedly aborting server
+ // rendering during a link crawl. Bound memory even if content changes later.
+ const reader=response.body?.getReader();if(!reader)return;
+ let bytes=0;
+ for(;;){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>2*1024*1024){await reader.cancel();throw new Error('Internal HTML exceeds the bounded crawl limit');}}
+}
 async function page(url){
  const path=new URL(url).pathname;
  const response=await request(path);
@@ -97,12 +122,18 @@ try{
  for(const lang of ['ar','en'])for(const path of ['eastern-province','privacy','terms','returns','collection'])assert.ok(urls.includes(origin+'/'+lang+'/'+path));
  for(let i=0;i<urls.length;i+=3)await Promise.all(urls.slice(i,i+3).map(page));
  for(const field of ['title','description'])assert.equal(new Set(report.pages.map(p=>p[field])).size,report.pages.length,'Every sitemap page needs a unique '+field);
+ const verifiedPages=new Set(report.pages.map(page=>page.path));
+ report.internalLinkRequests=0;report.verifiedPageLinksReused=0;
  for(const path of internalLinks){
+  // Its complete content, metadata and 200 status were already verified above.
+  // Query links and redirects still receive independent requests below.
+  if(verifiedPages.has(path)){report.verifiedPageLinksReused++;continue;}
   const linked=await request(path);
+  report.internalLinkRequests++;
   assert.ok([200,301,302,303,307,308].includes(linked.status),'Broken internal link '+path+' returned '+linked.status);
   const location=linked.headers.get('location');
   if(location)assert.equal(new URL(location,origin).origin,origin,'Internal links must remain on the canonical site');
-  await linked.body?.cancel();
+  await finishDocument(linked);
  }
  report.internalLinksChecked=internalLinks.size;
  for(const lang of ['ar','en']){

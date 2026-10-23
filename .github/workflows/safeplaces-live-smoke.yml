@@ -23,6 +23,9 @@ jobs:
       - name: Check live public cache isolation without submitting forms
         working-directory: website
         run: node scripts/check-live-public-cache.mjs
+      - name: Check all live public search pages without deployment
+        working-directory: website
+        run: node scripts/check-seo.mjs --live
       - name: Inspect live DNS and HTTPS without submitting forms
         run: |
           node --input-type=module <<'NODE'
