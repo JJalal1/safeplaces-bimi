@@ -248,6 +248,13 @@ try{
   const path='/'+lang+(route?'/'+route:'');await visit(page,path);
   for(const width of [390,1440]){
    await layout(page,path,width);
+   if(!route){
+    const brand=page.locator('.site-header .wordmark');
+    assert.ok(await brand.locator('.brand-logo').isVisible(),'Company logo must remain visible in the header');
+    assert.ok(await brand.locator('.brand-copy').isVisible(),'Company name must remain visible beside the logo');
+    assert.ok((await brand.locator('.brand-copy').innerText()).includes(lang==='ar'?'المناطق الآمنة':'SAFE PLACES'));
+    assert.ok(await brand.locator('.brand-logo').evaluate(img=>img.complete&&img.naturalWidth>0));
+   }
    if(screenshotPages.has(route)&&((lang==='ar'&&width===390)||(lang==='en'&&width===1440)))await screenshot(page,lang+'-'+(route||'home').replaceAll('/','-')+'-'+width);
   }
   if(critical.has(route))for(const width of [360,768])await layout(page,path,width);

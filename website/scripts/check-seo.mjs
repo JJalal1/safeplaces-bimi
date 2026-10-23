@@ -77,6 +77,8 @@ async function page(url){
  assert.equal(org?.['@id'],origin+'/#organization');
  assert.ok(org.legalName&&org.telephone&&org.email,'Publish consistent organisation identity');
  if(path==='/'+lang){
+  assert.ok(links.some(link=>link.rel==='icon'&&new URL(link.href,origin).href===origin+'/images/brand-favicon.png'&&link.sizes==='96x96'&&link.type==='image/png'),'Expose the square company favicon in the initial head');
+  assert.ok(links.some(link=>link.rel==='apple-touch-icon'&&new URL(link.href,origin).href===origin+'/apple-touch-icon.png'&&link.sizes==='180x180'),'Expose the touch icon in the initial head');
   const websites=schema.filter(s=>s['@type']==='WebSite');
   assert.equal(websites.length,1,'Keep one site-name node instead of competing identities');
   const website=websites[0];
@@ -155,6 +157,19 @@ try{
   const missing=await request('/'+lang+'/eastern-province/not-a-branch');assert.equal(missing.status,404);
   const missingHtml=await missing.text();assert.ok(missingHtml.includes(lang==='ar'?'الصفحة غير موجودة':'Page not found'));
   assert.equal(missing.headers.get('x-robots-tag'),'noindex, nofollow');
+ }
+ if(live){
+  report.icons=[];
+  for(const [path,width]of [['/images/brand-favicon.png',96],['/apple-touch-icon.png',180]]){
+   const response=await request(path);assert.equal(response.status,200,'Public company icon must be crawlable: '+path);
+   assert.match(response.headers.get('content-type')||'',/^image\/png/);
+   assert.doesNotMatch(response.headers.get('x-robots-tag')||'',/noindex/);
+   const bytes=Buffer.from(await response.arrayBuffer());assert.equal(bytes.toString('hex',0,8),'89504e470d0a1a0a');
+   assert.equal(bytes.readUInt32BE(16),width);assert.equal(bytes.readUInt32BE(20),width);
+   report.icons.push({path,status:response.status,width,height:width,bytes:bytes.length});
+  }
+  const ico=await request('/favicon.ico');assert.equal(ico.status,200);
+  const bytes=Buffer.from(await ico.arrayBuffer());assert.equal(bytes.readUInt16LE(2),1);assert.equal(bytes.readUInt16LE(4),4);
  }
  report.status='passed';report.checks.push('All sitemap URLs: status, unique title/description, canonical, reciprocal hreflang, indexing, one H1 and consistent structured data','Regional guide, deep breadcrumbs, no invented offers, private-route exclusions, readable query-page noindex and real 404s');
  console.log('PASS: '+urls.length+' '+report.mode+' sitemap pages, bilingual metadata, canonical/hreflang, breadcrumbs, organisation/service/product schemas and regional content');

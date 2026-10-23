@@ -1,3 +1,4 @@
+import {checkBrandIcons} from './check-brand-icons.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync,statSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
@@ -14,3 +15,5 @@ for(const profile of profiles)for(const width of profile.widths){
 }
 mkdirSync('test-results',{recursive:true});writeFileSync('test-results/responsive-images.json',JSON.stringify(entries,null,2)+'\n');
 console.log('PASS: '+entries.length+' real responsive WebP assets with expected widths, intact payloads and smaller mobile variants');
+
+await checkBrandIcons(resolve('dist/client'));

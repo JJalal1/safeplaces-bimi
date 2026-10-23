@@ -1,4 +1,4 @@
-name: Deploy Safe Places consistent brand search identity
+name: Deploy Safe Places square company favicons and header identity
 on:
   push:
     branches: [feature/auth-speed-seo-before-hosting]
