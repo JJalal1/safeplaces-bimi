@@ -26,12 +26,12 @@ function RelatedLink({lang, href, title, detail}: {lang: Lang; href: string; tit
   return <a className="support-related-link" href={href}><div><strong>{text(lang, title)}</strong><span>{text(lang, detail)}</span></div><Arrow lang={lang}/></a>;
 }
 
-export function QuoteOverview({lang, settings, services, selected, uploadsAvailable, signInAvailable}: {lang: Lang; settings: Settings; services: Service[]; selected: string; uploadsAvailable: boolean; signInAvailable: boolean}) {
+export function QuoteOverview({lang, settings, services, selected, selectedTopic, uploadsAvailable, signInAvailable}: {lang: Lang; settings: Settings; services: Service[]; selected: string; selectedTopic?:{slug:string;title:string}; uploadsAvailable: boolean; signInAvailable: boolean}) {
   const root = '/' + lang;
   return <>
     <PageIntro lang={lang} title={local(lang, 'طلب عرض سعر', 'Request a quotation')} description={local(lang, 'للتوريد بالكميات أو تجهيز الأنظمة أو طلب خدمة. شارك المعلومات المتاحة لنراجع المواصفات ونطاق العمل معك؛ إرسال الاستفسار لا يلزمك بالشراء.', 'For bulk supply, system requirements or a service enquiry. Share the information you have so we can review specifications and scope with you. An enquiry does not commit you to a purchase.')}/>
     <section className="section container quote-layout support-request-layout">
-      <QuoteForm services={services} selected={selected} uploadsAvailable={uploadsAvailable} signInAvailable={signInAvailable}/>
+      <QuoteForm services={services} selected={selected} selectedTopic={selectedTopic} uploadsAvailable={uploadsAvailable} signInAvailable={signInAvailable}/>
       <aside className="support-request-guide">
         <h2>{local(lang, 'معلومات تساعدنا في مراجعة طلبك', 'Help us understand your requirements')}</h2>
         <p>{local(lang, 'ليس مطلوبًا أن تكون جميع التفاصيل جاهزة. ابدأ بما تعرفه، وحدد النقاط التي تحتاج إلى توضيح.', 'You do not need every detail at this stage. Start with what you know and identify anything that needs clarification.')}</p>
@@ -45,6 +45,7 @@ export function QuoteOverview({lang, settings, services, selected, uploadsAvaila
           <li>{local(lang, 'النطاق المطلوب: توريد أو تركيب أو فحص أو اختبار أو صيانة.', 'The requested scope: supply, installation, inspection, testing or maintenance.')}</li>
           <li>{local(lang, 'المخططات أو جدول الكميات أو سجلات المعدات المتاحة، وأي قيود على الوصول للموقع.', 'Available drawings, quantity schedules or equipment records, and any site access constraints.')}</li>
         </ul></section>
+        {selected==='training'&&<section><h3>{local(lang,'لتنظيم التدريب أو تمرين الإخلاء','For training or an evacuation exercise')}</h3><ul><li>{local(lang,'عدد المشاركين وأدوارهم واللغة المناسبة لهم.','Participant numbers, roles and language needs.')}</li><li>{local(lang,'المحاور والمدة والموعد ومكان التدريب المقترح.','Requested topics, duration, date and proposed venue.')}</li><li>{local(lang,'هل تريد برنامجًا توعويًا أو نشاطًا عمليًا؟ أرفق خطة الطوارئ المتاحة إن وجدت.','Whether you need awareness training or a practical activity. Include an existing emergency plan if available.')}</li></ul></section>}
         <section className="support-next-steps"><h3>{local(lang, 'بعد إرسال الطلب', 'After you submit')}</h3><ol>
           <li>{local(lang, 'نراجع وصف الاحتياج والأصناف والمعلومات المتاحة.', 'We review the requirement, items and available information.')}</li>
           <li>{local(lang, 'نستكمل التفاصيل اللازمة لتحديد البنود والمواصفات.', 'We clarify the details needed to define items and specifications.')}</li>

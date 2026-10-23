@@ -19,13 +19,13 @@ function playwright(){
 }
 const output=resolve('test-results');const screenshots=join(output,'screenshots');
 mkdirSync(screenshots,{recursive:true});
-const report={startedAt:new Date().toISOString(),pages:[],checks:[],pageErrors:[],assetErrors:[],orderRequestAttempts:[],blockedExternalRequests:[],screenshots:[]};
+const report={startedAt:new Date().toISOString(),pages:[],checks:[],serviceJourneys:[],pageErrors:[],assetErrors:[],orderRequestAttempts:[],blockedExternalRequests:[],screenshots:[]};
 const started=Date.now();const blocked=new Set();
 let mf,server,browser,context,page,origin;
 const storageKey='safeplaces-store';
 const paths=['','eastern-province','about','services','services/fire-protection','services/fire-alarm','services/maintenance','services/readiness','services/training','services/safety-supply','shop','shop/category/ppe','shop/safety-helmets','quote','contact','projects','certificates','privacy','terms','returns','collection','account'];
 const critical=new Set(['','about','shop','quote']);
-const screenshotPages=new Set(['','eastern-province','about','services','services/fire-protection','shop','shop/category/ppe','shop/safety-helmets','quote','contact','projects','certificates','privacy']);
+const screenshotPages=new Set(['','eastern-province','about','services','services/fire-protection','services/maintenance','services/training','shop','shop/category/ppe','shop/safety-helmets','quote','contact','projects','certificates','privacy']);
 const mime={'.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.jpg':'image/jpeg','.jpeg':'image/jpeg','.ico':'image/x-icon','.woff2':'font/woff2','.woff':'font/woff','.ttf':'font/ttf','.txt':'text/plain','.xml':'application/xml'};
 
 async function until(check,message,timeout=6000){
@@ -267,11 +267,31 @@ try{
   }
   if(route==='quote')assert.equal(await page.locator('main input[type="file"]').count(),0,'Unavailable R2 must not appear as an operational upload field');
   if(route==='services')assert.ok(await page.locator('main a[href*="/services/"]').count()>=6,'All service detail pages must remain reachable');
+  if(!route)for(const service of ['maintenance','training'])assert.equal(await page.locator('main .company-service-grid a[href="/'+lang+'/services/'+service+'"]').count(),1,'Maintenance and training must be discoverable from the home page');
+  if(route==='services/maintenance'||route==='services/training')assert.equal(await page.locator('.company-service-area').count(),route.endsWith('/maintenance')?6:4);
   assert.equal(report.pageErrors.length,0,'Browser JavaScript error: '+JSON.stringify(report.pageErrors));
   assert.equal(report.assetErrors.length,0,'Required browser assets failed: '+JSON.stringify(report.assetErrors));
  }
  report.checks.push({name:'Arabic/English routes, four viewport sizes, one heading, substantial About content, and unavailable attachment UX',status:'passed'});
  console.log('PASS: '+paths.length*2+' bilingual route visits and '+report.pages.length+' viewport checks');
+
+ // Follow the real scope links after hydration. No quote is submitted here.
+ for(const lang of ['ar','en'])for(const [service,topic]of [['maintenance','extinguishers'],['training','evacuation']]){
+  await visit(page,'/'+lang+'/services/'+service);
+  const area=page.locator('#'+service+'-'+topic),title=(await area.locator('h3').innerText()).trim();
+  const href=await area.locator('a').getAttribute('href');
+  const hydrated=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/session'&&response.status()===200,{timeout:10000});void hydrated.catch(()=>{});
+  await area.locator('a').click();await page.waitForURL(origin+href);await hydrated;await stable(page);
+  assert.equal(await page.locator('main select[name="service"]').inputValue(),service);
+  const description=page.locator('main textarea[name="description"]');
+  assert.ok((await description.inputValue()).includes(title),'Selected service scope must reach the editable description');
+  await description.fill((await description.inputValue())+'\nAdditional facility details.');
+  assert.ok((await description.inputValue()).includes('Additional facility details.'));
+  assert.equal(await page.locator('head link[rel="canonical"]').getAttribute('href'),'https://safeplaces.sa/'+lang+'/quote');
+  assert.match(await page.locator('head meta[name="robots"]').getAttribute('content'),/noindex/);
+  report.serviceJourneys.push({lang,service,topic,status:'passed'});
+ }
+ report.checks.push({name:'Existing maintenance/training scope links preserve service selection and editable description in both languages',status:'passed'});
 
  // A failed non-JSON response must preserve the enquiry and its idempotency key.
  for(const lang of ['ar','en']){

@@ -15,7 +15,7 @@ const chromeLauncher=await import(pathToFileURL(require.resolve('chrome-launcher
 const axe=readFileSync(require.resolve('axe-core/axe.min.js'),'utf8');
 const output=resolve('test-results/quality');mkdirSync(output,{recursive:true});
 const origin='https://safeplaces.sa';
-const paths=['','/shop','/shop/fire-extinguishers','/services/fire-alarm','/quote','/contact','/eastern-province'];
+const paths=['','/shop','/shop/fire-extinguishers','/services/fire-alarm','/services/maintenance','/services/training','/quote','/contact','/eastern-province'];
 const report={release:process.env.GITHUB_SHA,checkedAt:new Date().toISOString(),environment:'GitHub Actions Ubuntu Chromium; anonymous lab measurements, not Saudi visitor field data',tools:{playwright:require('playwright/package.json').version,lighthouse:require('lighthouse/package.json').version,axe:require('axe-core/package.json').version},pages:[],lighthouse:[],lighthouseRuns:[],errors:[],blockedMutations:[]};
 let browser;
 try{

@@ -105,6 +105,15 @@ html[dir=rtl] .company-services-intro { border-radius:8px 0 0 8px; }
 .company-service-brief li span { color:#536c81; }
 
 /* Related navigation and questions sit at the end of the reading flow. */
+.company-area-links { display:flex; flex-wrap:wrap; gap:8px; margin-block:20px; }
+.company-area-links a { max-width:100%; padding:8px 12px; border:1px solid var(--brand-border,#dae4ee); border-radius:8px; color:var(--brand-blue,#073669); background:#fff; font-size:13px; line-height:1.8; overflow-wrap:anywhere; }
+.company-area-links a:hover { border-color:var(--brand-blue,#073669); }
+.company-service-areas { display:grid; gap:16px; margin-top:22px; }
+.company-service-area { min-width:0; padding:20px; border:1px solid var(--brand-border,#dae4ee); border-inline-start:3px solid var(--brand-blue,#073669); border-radius:10px; background:#fff; scroll-margin-top:24px; }
+.company-service-area h3 { font-size:19px; line-height:1.65; margin-bottom:12px; }
+.company-service-area .company-area-prepare { color:#425d73; font-size:13px; }
+.company-service-area .text-link { min-height:44px; line-height:1.8; }
+@media(max-width:650px) { .company-service-area { padding:16px; } .company-service-area h3 { font-size:17px; } }
 .company-related-links { gap:12px; margin-block:19px 21px; }
 .company-related-links > a { background:var(--brand-soft,#f3f6fa); border:1px solid var(--brand-border,#dae4ee); border-radius:9px; padding:14px 15px; }
 .company-related-links > a:hover { border-color:var(--brand-blue,#073669); }

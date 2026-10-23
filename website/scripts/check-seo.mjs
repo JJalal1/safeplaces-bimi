@@ -11,6 +11,7 @@ const origin='https://safeplaces.sa';
 let mf;
 const report={mode:live?'live':'isolated-public-worker',pages:[],checks:[],httpRetries:[],status:'running'};
 const internalLinks=new Set();
+const quoteScopes=new Map();
 const decode=value=>value.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#x([\da-f]+);/gi,(_,v)=>String.fromCodePoint(parseInt(v,16))).replace(/&#(\d+);/g,(_,v)=>String.fromCodePoint(Number(v)));
 function attributes(tag){return Object.fromEntries([...tag.matchAll(/([\w:-]+)="([^"]*)"/g)].map(m=>[m[1],decode(m[2])]));}
 const tags=(html,name)=>[...html.matchAll(new RegExp('<'+name+'\\b[^>]*>','g'))].map(m=>attributes(m[0]));
@@ -103,7 +104,23 @@ async function page(url){
  const product=schema.find(s=>s['@type']==='Product');
  if(product){assert.equal(product.url,url);assert.ok(product.name);assert.equal(product.offers,undefined,'Quote-only products must never fabricate a price, offer or stock');assert.equal(product.aggregateRating,undefined);}
  const service=schema.find(s=>s['@type']==='Service');
- if(service){assert.equal(service.url,url);assert.equal(service.provider?.['@id'],org['@id']);}
+ if(service){
+  assert.equal(service.url,url);assert.equal(service.provider?.['@id'],org['@id']);
+  const scopes=service.hasOfferCatalog?.itemListElement||[],slug=path.split('/').at(-1);
+  if(['maintenance','training'].includes(slug))assert.equal(scopes.length,slug==='maintenance'?6:4,path+' needs the published maintenance/training scopes');
+  const visible=decode(main.replace(/<[^>]+>/g,' ')).replace(/\s+/g,' ');
+  for(const offer of scopes){
+   const item=offer.itemOffered,link=new URL(item.url),id=link.hash.slice(1),topic=id.slice(slug.length+1);
+   assert.equal(item['@type'],'Service');assert.equal(item.provider?.['@id'],org['@id']);
+   assert.equal(link.origin+link.pathname,url,'A scope must refer to its existing service page');
+   assert.ok(tags(main,'section').some(s=>s.id===id),'Structured scope needs a visible section: '+id);
+   assert.ok(visible.includes(item.name)&&visible.includes(item.description),'Structured scope must match visible content: '+id);
+   assert.equal(offer.price,undefined,'Service enquiries must not invent prices');assert.equal(offer.availability,undefined);
+   const quote='/'+lang+'/quote?service='+encodeURIComponent(slug)+'&topic='+encodeURIComponent(topic);
+   assert.ok(tags(main,'a').some(a=>a.href===quote),'Every scope needs a usable quotation link');
+   quoteScopes.set(quote,{service:slug,title:item.name});
+  }
+ }
  if(path.endsWith('/eastern-province')){
   for(const text of lang==='ar'?['الخبر','الدمام','الظهران','المواصفات','الكميات']:['Al Khobar','Dammam','Dhahran','specifications','quantities'])assert.ok(main.includes(text),path+' needs real regional project guidance');
   assert.ok(tags(main,'a').filter(a=>a.href?.includes('/shop/category/')||a.href?.includes('/services/')).length>=6);
@@ -146,7 +163,14 @@ try{
   assert.ok([200,301,302,303,307,308].includes(linked.status),'Broken internal link '+path+' returned '+linked.status);
   const location=linked.headers.get('location');
   if(location)assert.equal(new URL(location,origin).origin,origin,'Internal links must remain on the canonical site');
-  await finishDocument(linked);
+  if(quoteScopes.has(path)){
+   const expected=quoteScopes.get(path),html=await linked.text();
+   assert.ok(tags(html,'option').some(o=>o.value===expected.service&&Object.hasOwn(o,'selected')),'Scope link must select the actual service');
+   const description=decode(html.match(/<textarea\b[^>]*name="description"[^>]*>([\s\S]*?)<\/textarea>/)?.[1]||'');
+   assert.ok(description.includes(expected.title),'Scope link must prefill the request description');
+   assert.ok(tags(html,'meta').some(m=>m.name==='robots'&&m.content.includes('noindex')),'Quotation intent URLs stay outside the index');
+   assert.equal(tags(html,'link').find(l=>l.rel==='canonical')?.href,origin+'/'+path.split('/')[1]+'/quote');
+  }else await finishDocument(linked);
  }
  report.internalLinksChecked=internalLinks.size;
  for(const lang of ['ar','en']){
@@ -157,6 +181,11 @@ try{
   const missing=await request('/'+lang+'/eastern-province/not-a-branch');assert.equal(missing.status,404);
   const missingHtml=await missing.text();assert.ok(missingHtml.includes(lang==='ar'?'الصفحة غير موجودة':'Page not found'));
   assert.equal(missing.headers.get('x-robots-tag'),'noindex, nofollow');
+  for(const query of ['service=maintenance&topic=unpublished-topic','service=unpublished-service&topic=extinguishers']){
+   const response=await request('/'+lang+'/quote?'+query);assert.equal(response.status,200);
+   const html=await response.text();
+   assert.ok(!html.includes('Selected scope:')&&!html.includes('الخدمة المحددة:'),'Unpublished topic parameters must not become public services');
+  }
  }
  if(live){
   report.icons=[];
