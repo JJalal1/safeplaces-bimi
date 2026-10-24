@@ -269,6 +269,10 @@ try{
   if(route==='services')assert.ok(await page.locator('main a[href*="/services/"]').count()>=6,'All service detail pages must remain reachable');
   if(!route)for(const service of ['maintenance','training'])assert.equal(await page.locator('main .company-service-grid a[href="/'+lang+'/services/'+service+'"]').count(),1,'Maintenance and training must be discoverable from the home page');
   if(route==='services/maintenance'||route==='services/training')assert.equal(await page.locator('.company-service-area').count(),route.endsWith('/maintenance')?6:4);
+  for(const link of await page.locator('.company-service-area a').all()){
+   const visible=(await link.innerText()).trim(),name=await link.getAttribute('aria-label');
+   assert.ok(name?.includes(visible),'The accessible button name must include its visible label for speech navigation');
+  }
   assert.equal(report.pageErrors.length,0,'Browser JavaScript error: '+JSON.stringify(report.pageErrors));
   assert.equal(report.assetErrors.length,0,'Required browser assets failed: '+JSON.stringify(report.assetErrors));
  }

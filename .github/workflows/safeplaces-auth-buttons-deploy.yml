@@ -1,4 +1,4 @@
-name: Deploy Safe Places maintenance and training service improvements
+name: Deploy Safe Places accessible maintenance and training services
 on:
   push:
     branches: [feature/auth-speed-seo-before-hosting]
