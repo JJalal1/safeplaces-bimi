@@ -3,6 +3,8 @@ import {createRequire} from 'node:module';
 import {pathToFileURL} from 'node:url';
 import {readdirSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {createServer as createNetServer} from 'node:net';
+import {once} from 'node:events';
 const require=createRequire(import.meta.url);
 const nextLintRequire=createRequire(require.resolve('eslint-config-next'));
 const nextPluginRequire=createRequire(nextLintRequire.resolve('@next/eslint-plugin-next'));
@@ -54,3 +56,29 @@ assert.equal(grantSchema.safeParse({connectorId:'fixture',actionName:'fetch',rea
 assert.deepEqual(sessionOptionsSchema.parse({}),{timeoutMs:120000,maxConcurrent:64});
 assert.equal(driverMessageSchema.safeParse({jsonrpc:'2.0',id:'00000000-0000-4000-8000-000000000001',result:{content:[]}}).success,true);
 console.log('PASS: bounded collection validation and existing strict connector protocol with the patched Zod runtime');
+
+// GHSA-xjj6-f33q-929c: an early close after an oversized encoding chain
+// must be a rejected request, never an orphaned stream error or process crash.
+// This uses a loopback fixture and the actual pinned build dependency.
+const undiciRequire=createRequire(resolve('node_modules/.pnpm/undici@7.30.1/node_modules/undici/package.json'));
+assert.equal(undiciRequire('./package.json').version,'7.30.1');
+const {fetch:buildFetch,Client}=undiciRequire('undici');
+let closedBadSocket;
+const badSocketClosed=new Promise(done=>{closedBadSocket=done;});
+const encodingServer=createNetServer(socket=>socket.once('data',request=>{
+ if(request.toString().startsWith('GET /oversized ')){
+  socket.once('close',closedBadSocket);
+  socket.end('HTTP/1.1 200 OK\r\nContent-Encoding: '+Array(7).fill('gzip').join(', ')+'\r\nContent-Length: 4\r\nConnection: close\r\n\r\n');
+ }else socket.end('HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK');
+}));
+encodingServer.listen(0,'127.0.0.1');await once(encodingServer,'listening');
+const localOrigin='http://127.0.0.1:'+encodingServer.address().port,client=new Client(localOrigin);
+try{
+ const response=await buildFetch(localOrigin+'/ordinary',{dispatcher:client,signal:AbortSignal.timeout(3000)});
+ assert.equal(await response.text(),'OK','Ordinary build fetches remain compatible');
+ await assert.rejects(buildFetch(localOrigin+'/oversized',{dispatcher:client,signal:AbortSignal.timeout(3000)}),error=>{
+  assert.match(error.cause?.message||'',/content-encoding/);return true;
+ });
+ await badSocketClosed;await new Promise(done=>setImmediate(done));
+}finally{await client.destroy();await new Promise(done=>encodingServer.close(done));}
+console.log('PASS: pinned Undici handles ordinary requests and rejects excessive encodings with early close without crashing');
