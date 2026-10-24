@@ -82,3 +82,19 @@ try{
  await badSocketClosed;await new Promise(done=>setImmediate(done));
 }finally{await client.destroy();await new Promise(done=>encodingServer.close(done));}
 console.log('PASS: pinned Undici handles ordinary requests and rejects excessive encodings with early close without crashing');
+
+// The URI security release must reject ambiguous schemes/hosts while keeping
+// ordinary URLs and relative JSON-schema references usable.
+const uriRequire=createRequire(resolve('node_modules/.pnpm/fast-uri@3.1.9/node_modules/fast-uri/package.json'));
+assert.equal(uriRequire('./package.json').version,'3.1.9');
+const uri=uriRequire('fast-uri');
+assert.equal(uri.parse('https://safeplaces.sa/ar/quote').host,'safeplaces.sa');
+const rejectsUri=input=>{try{return !!uri.parse(input).error;}catch{return true;}};
+for(const input of ['%68ttps://safeplaces.sa/','%u0068ttps://safeplaces.sa/','https://one@two@example.invalid/','https://safe'+String.fromCharCode(9)+'places.sa/'])assert.ok(rejectsUri(input),'Ambiguous URI must not become an allowed scheme or host');
+for(const reference of ['a/../guide','../quote','../../equipment']){
+ const base='https://safeplaces.sa/ar/services/';
+ assert.equal(uri.resolve(base,uri.normalize(reference)),uri.resolve(base,reference),'Normalization must preserve relative-reference resolution');
+}
+const suffix=uri.serialize({path:'safety:guide'},{reference:'suffix'});
+assert.equal(uri.parse(suffix).scheme,undefined,'A relative suffix must not become an absolute scheme');
+console.log('PASS: URI security patch rejects encoded schemes and ambiguous hosts and preserves relative and suffix references');
