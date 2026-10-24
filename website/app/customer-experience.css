@@ -1,0 +1,103 @@
+/* Consistent surfaces, legible forms and a responsive company footer. */
+.customer-contact { margin-block:0 24px; min-width:0; }
+.contact-fields { min-width:0; padding:0; border:0; margin:0; }
+.contact-fields[hidden] { display:none; }
+.contact-loading { font-size:14px; color:var(--muted); }
+.field-optional { margin-inline-start:8px; color:var(--muted); font-size:12px; font-weight:400; }
+.saved-contact-summary { padding:20px; border:1px solid var(--brand-border); border-radius:10px; background:#f5f8fc; }
+.saved-contact-heading { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:13px; }
+.saved-contact-heading > span { display:inline-flex; align-items:center; gap:8px; font-weight:700; color:var(--brand-blue); }
+.saved-contact-heading button { display:inline-flex; align-items:center; gap:6px; padding:5px 0; border:0; background:none; font-size:13px; min-height:34px; }
+.saved-contact-details { display:flex; flex-wrap:wrap; gap:10px 24px; }
+.saved-contact-details > span { display:flex; align-items:center; gap:8px; font-size:14px; overflow-wrap:anywhere; min-width:0; }
+.saved-contact-details bdi { overflow-wrap:anywhere; }
+.saved-contact-summary p { font-size:13px; margin:12px 0 0; }
+.saved-contact-summary + .contact-fields:not([hidden]) { margin-top:20px; }
+.form-card { border-radius:12px; }
+.form-card .form-heading { margin-bottom:24px; }
+.quote-items { padding-top:24px; border-top:1px solid var(--line); }
+.site-footer { padding-top:0; background:var(--brand-deep); }
+.footer-intro { display:flex; justify-content:space-between; align-items:center; gap:24px; padding-block:35px; border-bottom:1px solid #ffffff1c; }
+.footer-kicker { font-size:11px; font-weight:700; color:#c4d6e5; letter-spacing:2px; }
+.footer-intro h2 { color:#fff; font-size:24px; line-height:1.5; margin:7px 0; }
+.footer-intro p { color:#bfd0df; font-size:14px; margin:0; max-width:560px; }
+.footer-quote { background:var(--brand-red); border-color:var(--brand-red); color:#fff; flex:none; }
+.footer-quote:hover { background:#b91b29; border-color:#b91b29; }
+.site-footer .footer-grid { display:grid; grid-template-columns:1.25fr .7fr .8fr 1.2fr; gap:32px; padding-block:36px; }
+.footer-grid > * { min-width:0; }
+.footer-brand p { max-width:310px; }
+.footer-links { display:flex; flex-direction:column; align-items:flex-start; }
+.site-footer .footer-grid h3 { margin:0 0 18px; font-size:16px; line-height:1.6; }
+.site-footer .footer-grid h3::after { background:var(--brand-red); width:26px; }
+.footer-links > a { display:block; color:#d6e2ec; font-size:14px; padding-block:5px; line-height:1.7; }
+.footer-links > a:hover,.footer-bottom a:hover { color:#fff; text-decoration:underline; text-underline-offset:5px; }
+.site-footer .footer-contact { padding:20px; border:1px solid #ffffff21; border-radius:12px; background:#ffffff06; }
+.site-footer .footer-contact-item { display:flex; gap:12px; align-items:flex-start; color:#e0eaf2; margin:0; padding-block:9px; font-size:14px; line-height:1.7; }
+.footer-contact-item > svg { margin-top:5px; color:#d5e2ef; }
+.footer-contact-item > span { min-width:0; display:flex; flex-direction:column; gap:1px; overflow-wrap:anywhere; }
+.footer-contact-item small { color:#adbfce; font-size:11px; }
+.footer-contact-item bdi { display:block; font-size:14px; overflow-wrap:anywhere; }
+.site-footer .footer-contact-item:hover { color:#fff; }
+.site-footer .footer-bottom { display:flex; align-items:center; justify-content:space-between; gap:18px; padding-block:21px; line-height:1.8; }
+.footer-bottom nav { display:flex; flex-wrap:wrap; gap:10px 20px; }
+/* Repeated numbers and service cards follow one brand treatment. */
+.company-service-tile { --service-accent:var(--brand-blue); --service-surface:var(--brand-tint); }
+.company-section-number,.company-step-no { background:var(--brand-blue); color:#fff; }
+@media(max-width:1000px) {
+ .site-footer .footer-grid { grid-template-columns:1fr 1fr; gap:30px; }
+ .site-footer .footer-contact { grid-column:2; grid-row:1 / span 2; }
+ .footer-brand { grid-column:1; }
+ .site-footer .footer-links { grid-row:3; }
+}
+@media(max-width:640px) {
+ .saved-contact-summary { padding:16px; }
+ .saved-contact-details { flex-direction:column; gap:9px; }
+ .footer-intro { align-items:flex-start; flex-direction:column; gap:18px; padding-block:26px; }
+ .footer-intro h2 { font-size:21px; }
+ .footer-intro p { font-size:13px; }
+ .footer-quote { width:100%; }
+ .site-footer .footer-grid { grid-template-columns:1fr 1fr; gap:26px 20px; padding-block:28px; }
+ .site-footer .footer-brand { grid-column:1 / -1; grid-row:1; }
+ .site-footer .footer-links { grid-row:2; }
+ .site-footer .footer-contact { grid-column:1 / -1; grid-row:3; padding:18px; }
+ .footer-brand p { max-width:none; }
+ .site-footer .footer-contact-item { padding-block:9px; }
+ .site-footer .footer-bottom { align-items:flex-start; flex-direction:column; gap:14px; padding-block:20px 26px; }
+ .footer-bottom nav { gap:10px 18px; }
+ .support-request-layout .form-card,.support-contact-layout .form-card { padding:22px 18px; }
+ .form-card .field :is(input,select,textarea) { font-size:16px; }
+}
+
+/* Readable bilingual policies and verified legal details. */
+.support-policy-nav a[aria-current="page"] { color:var(--brand-red); font-weight:700; }
+.support-policy-copy .policy-updated { color:#53667a; font-size:13px; margin-bottom:18px; }
+.policy-contents { display:flex; flex-wrap:wrap; gap:8px 18px; padding:16px; margin-bottom:26px; background:var(--brand-tint); border-radius:8px; }
+.policy-contents a { color:var(--brand-blue); font-size:13px; text-decoration:underline; text-underline-offset:4px; }
+.support-policy-copy section { scroll-margin-top:180px; }
+.support-policy-copy section p + p { margin-top:12px; }
+.support-policy-copy .support-policy-contact { display:flex; flex-wrap:wrap; gap:9px 20px; align-items:center; }
+.support-policy-contact strong { flex-basis:100%; }
+.support-policy-copy .policy-reference { margin-top:20px; font-size:13px; }
+.policy-reference a { text-decoration:underline; text-underline-offset:4px; }
+.business-details { display:flex; flex-wrap:wrap; gap:12px 28px; padding-block:18px; border-top:1px solid var(--brand-border); }
+.business-details > div { min-width:0; }
+.business-details dt { font-size:12px; opacity:.75; }
+.business-details dd { font-size:13px; margin:5px 0 0; overflow-wrap:anywhere; }
+.site-footer .business-details { border-color:#ffffff21; margin:0; }
+@media(max-width:640px) {
+ .policy-contents { padding:14px; gap:9px 16px; }
+ .support-policy-copy section { scroll-margin-top:145px; }
+ .business-details { flex-direction:column; }
+}
+
+.support-registration { display:flex; gap:22px; align-items:flex-start; margin-bottom:30px; padding:26px; background:#fff; border:1px solid var(--brand-border); border-top:3px solid var(--brand-blue); border-radius:10px; }
+.support-registration > svg { flex-shrink:0; color:var(--brand-blue); margin-top:4px; }
+.support-registration > div { min-width:0; flex:1; }
+.support-registration h2 { font-size:21px; line-height:1.7; color:var(--brand-blue); margin-block:5px 12px; }
+.support-registration p { margin:8px 0 16px; line-height:1.9; }
+@media(max-width:640px) { .support-registration { flex-direction:column; padding:21px 18px; gap:12px; } .support-registration h2 { font-size:19px; } }
+
+/* Keep small form guidance and company details readable on their actual surfaces. */
+.upload-zone > small{color:#536c81}
+.contact-details .business-details dt{color:#c7d8e9}
+.contact-details .business-details dd,.contact-details .business-details bdi{color:#fff}

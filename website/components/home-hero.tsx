@@ -1,5 +1,6 @@
 import {local,type Lang,type initialSettings} from '../lib/config';
 import {Icon,Arrow} from './visuals';
+import {responsiveImage} from '../lib/responsive-images';
 
 type HeroSettings=Pick<typeof initialSettings,'heroImage'|'heroImageReference'|'heroTitleAr'|'heroTitleEn'|'heroDescriptionAr'|'heroDescriptionEn'|'locationAr'|'locationEn'>;
 
@@ -14,7 +15,7 @@ export function HomeHero({lang,settings,serviceSlugs}:{lang:Lang;settings:HeroSe
   {icon:'phone',ar:'تحدث مع فريقنا',en:'Talk to our team',descAr:'المساعدة في اختيار الحل المناسب',descEn:'Help choosing the right solution',href:root+'/contact'}
  ];
  return <section className="safety-hero" aria-labelledby="safety-hero-title">
-  <img className="safety-hero-photo" src={image} alt={local(lang,'معدات وأنظمة الحماية من الحريق','Fire protection equipment and systems')} width={1920} height={692} fetchPriority="high" decoding="async"/>
+  <img className="safety-hero-photo" src={image} {...responsiveImage(image,'100vw')} alt={local(lang,'معدات وأنظمة الحماية من الحريق','Fire protection equipment and systems')} width={1920} height={692} fetchPriority="high" decoding="async"/>
   <div className="safety-hero-shade" aria-hidden="true"/>
   <div className="container safety-hero-inner">
    <div className="safety-hero-copy">
@@ -35,3 +36,4 @@ export function HomeHero({lang,settings,serviceSlugs}:{lang:Lang;settings:HeroSe
   </nav>
  </section>;
 }
+

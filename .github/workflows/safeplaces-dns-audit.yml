@@ -1,0 +1,30 @@
+name: Audit Safe Places existing DNS before migration
+on:
+  push:
+    branches:
+      - feature/auth-speed-seo-before-hosting
+    paths:
+      - '.github/workflows/safeplaces-dns-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read current DNS from public authoritative DNS
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== Nameservers published for safeplaces.sa ==="
+          dig +time=3 +tries=1 +short NS safeplaces.sa
+          echo "=== DNSSEC DS at registrar ==="
+          dig +time=3 +tries=1 +short DS safeplaces.sa
+          for ns in ns10.dnetns.com ns11.dnetns.com; do
+            echo "=== Authoritative records at $ns ==="
+            for item in               'safeplaces.sa SOA' 'safeplaces.sa A' 'safeplaces.sa AAAA' 'safeplaces.sa MX' 'safeplaces.sa TXT' 'safeplaces.sa CAA'               'www.safeplaces.sa CNAME' 'www.safeplaces.sa A' 'www.safeplaces.sa AAAA'               'mail.safeplaces.sa A' 'mail.safeplaces.sa MX' 'mail.safeplaces.sa CNAME'               'webmail.safeplaces.sa CNAME' 'webmail.safeplaces.sa A'               'autodiscover.safeplaces.sa CNAME' 'autodiscover.safeplaces.sa A'               'autoconfig.safeplaces.sa CNAME' '_dmarc.safeplaces.sa TXT'               'default._domainkey.safeplaces.sa TXT' 'selector1._domainkey.safeplaces.sa CNAME' 'selector2._domainkey.safeplaces.sa CNAME'               'google._domainkey.safeplaces.sa TXT' '_acme-challenge.safeplaces.sa TXT'; do
+              read -r host kind <<< "$item"
+              res=$(dig +time=4 +tries=1 +noall +answer @"$ns" "$host" "$kind" || true)
+              if [ -n "$res" ]; then printf '%s\n' "$res"; fi
+            done
+          done

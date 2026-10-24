@@ -1,0 +1,185 @@
+name: Deploy Safe Places staging (protected only)
+on:
+  push:
+    branches:
+      - feature/auth-speed-seo-before-hosting
+    paths:
+      - '.github/workflows/safeplaces-staging-deploy.yml'
+      - 'website/**'
+  workflow_dispatch:
+    inputs:
+      confirm_staging_only:
+        description: "Type safeplaces-staging to confirm that you are NOT deploying production"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safeplaces-staging-deployment
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    uses: ./.github/workflows/website-validate.yml
+  deployment-readiness:
+    name: Check staging schema without applying changes
+    needs: validate
+    if: ${{ github.ref == 'refs/heads/feature/auth-speed-seo-before-hosting' && (github.event_name == 'push' || inputs.confirm_staging_only == 'safeplaces-staging') }}
+    runs-on: ubuntu-latest
+    environment: staging
+    outputs:
+      ready: ${{ steps.schema.outputs.ready }}
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify readiness guard with local fixtures
+        run: node scripts/check-staging-operations-ready.mjs --self-test
+      - name: Verify OAuth log protection and failure recovery with local fixtures
+        run: node scripts/protect-staging-auth-logs.mjs --self-test
+      - name: Read approved migration evidence from the exact staging database
+        id: schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: node scripts/check-staging-operations-ready.mjs
+      - name: Save staging readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safeplaces-staging-readiness
+          path: website/test-results/staging-operations-readiness.json
+          retention-days: 7
+  deploy-staging:
+    needs: [validate, deployment-readiness]
+    if: ${{ needs.deployment-readiness.outputs.ready == 'true' && github.ref == 'refs/heads/feature/auth-speed-seo-before-hosting' && (github.event_name == 'push' || inputs.confirm_staging_only == 'safeplaces-staging') }}
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.25.0'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Validate TypeScript
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Build isolated staging bundle
+        run: pnpm run build:staging
+      - name: Check Cloudflare bundle before deployment
+        run: pnpm exec wrangler deploy --dry-run --keep-vars --config dist/server/wrangler.json
+      - name: Ensure Cloudflare deployment token exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Add the token as a GitHub staging environment secret. Never commit it."
+            exit 1
+          fi
+      - name: Verify staging authentication and safe logging in source and bundle
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          const expected = {
+            STAGING_HOSTNAME: 'safeplaces-preview.pages.dev',
+            BETTER_AUTH_URL: 'https://safeplaces-preview.pages.dev',
+            SITE_PUBLIC: 'true',
+            SITE_INDEXABLE: 'false',
+            SITE_DEMO_PRICES: 'true',
+            STANDALONE_AUTH_ENABLED: 'true',
+            CUSTOMER_AUTH_ENABLED: 'false',
+            ADMIN_BOOTSTRAP_PRIVATE: 'false',
+            EMAIL_NOTIFICATIONS_ENABLED: 'false',
+          };
+          for (const path of ['wrangler.staging.jsonc', 'dist/server/wrangler.json']) {
+            const config = JSON.parse(readFileSync(path, 'utf8'));
+            assert.equal(config.name, 'safeplaces-staging', path + ': staging Worker');
+            assert.equal(config.workers_dev, false, path + ': direct Worker host disabled');
+            assert.equal(config.preview_urls, false, path + ': Worker preview URLs disabled');
+            for (const [name, value] of Object.entries(expected)) {
+              assert.equal(config.vars?.[name], value, path + ': ' + name);
+            }
+            // Deploy without URL logs; restore logging only with verified query redaction.
+            assert.equal(config.observability?.enabled, false, path + ': logging fallback');
+            assert.equal(config.observability?.logs?.enabled, false, path + ': logs fallback');
+            assert.equal(config.observability?.logs?.invocation_logs, false, path + ': invocation fallback');
+            assert.equal(config.observability?.traces?.enabled, false, path + ': traces fallback');
+          }
+          console.log('PASS: source and bundle enable Google only on protected staging, with safe logging fallback');
+          NODE
+      - name: Recheck approved schema and exact built target before deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: node scripts/check-staging-operations-ready.mjs --check-bundle --require-ready
+      - name: Verify existing Google secrets and log-settings access without changing them
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: node scripts/protect-staging-auth-logs.mjs --preflight
+      - name: Verify the additive authentication schema before deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_D1_READ_TOKEN: ${{ secrets.CLOUDFLARE_D1_READ_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: node scripts/check-email-auth-release.mjs staging
+      - name: Deploy staging Worker only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: |
+          set -euo pipefail
+          # Pasted tokens may include invisible line breaks or trailing whitespace.
+          # Normalize only whitespace locally; never echo or persist the secret.
+          export CLOUDFLARE_API_TOKEN="$(node -e "process.stdout.write((process.env.CLOUDFLARE_API_TOKEN || '').replace(/\\s+/g, ''))")"
+          if ! node -e "process.exit(/^[A-Za-z0-9._-]{20,}$/.test(process.env.CLOUDFLARE_API_TOKEN || '') ? 0 : 1)"; then
+            echo "::error::The API token has unexpected characters. Save only its value as the GitHub secret."
+            exit 1
+          fi
+          pnpm exec wrangler deploy --keep-vars --config dist/server/wrangler.json
+      - name: Enable query redaction before restoring OAuth request logs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: b67109c9489a46ae25fb36370c4ba880
+        run: node scripts/protect-staging-auth-logs.mjs --apply
+      - name: Verify protected canonical preview and deny a historical alternate host
+        run: |
+          node --input-type=module <<'NODE'
+          const canonical = 'https://safeplaces-preview.pages.dev/ar';
+          const historical = 'https://e92b423e.safeplaces-preview.pages.dev/ar';
+          const response = await fetch(canonical, {redirect:'manual', signal:AbortSignal.timeout(20000)});
+          const location = response.headers.get('location') || '';
+          const accessRedirect = [301,302,303,307,308].includes(response.status) && new URL(location,canonical).hostname.endsWith('.cloudflareaccess.com');
+          if (!accessRedirect && ![401,403].includes(response.status)) throw new Error('Canonical preview does not require Access');
+          await response.body?.cancel();
+          let denied = false;
+          for (let attempt=0; attempt<6; attempt++) {
+            const result = await fetch(historical, {redirect:'manual', signal:AbortSignal.timeout(20000)});
+            const body = await result.text();
+            if (result.status===403 && body.includes('Preview host unavailable') && result.headers.get('x-robots-tag')?.includes('noindex')) { denied=true; break; }
+            if (attempt<5) await new Promise(resolve=>setTimeout(resolve,5000));
+          }
+          if (!denied) throw new Error('Historical Pages host has not been denied by the staging backend');
+          console.log('PASS: canonical preview requires Access; historical alternate host cannot reach staging');
+          NODE
+      - name: Save final pre-deployment schema verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safeplaces-staging-predeploy-readiness
+          path: website/test-results/staging-operations-readiness.json
+          if-no-files-found: ignore
+          retention-days: 7

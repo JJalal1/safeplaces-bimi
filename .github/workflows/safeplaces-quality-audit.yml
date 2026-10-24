@@ -1,0 +1,51 @@
+name: Safe Places live quality audit
+on:
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: pnpm/action-setup@v4
+        with: {version: '11.25.0'}
+      - name: Install isolated audit tools
+        timeout-minutes: 5
+        run: |
+          npm install --prefix "$RUNNER_TEMP/safeplaces-quality" --no-save --ignore-scripts --no-package-lock --no-audit --no-fund playwright@1.62.1 lighthouse@13.5.0 axe-core@4.14.0 --fetch-retries=1 --fetch-timeout=30000
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "SAFEPLACES_BROWSER_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+            google-chrome --version
+          else
+            node "$RUNNER_TEMP/safeplaces-quality/node_modules/playwright/cli.js" install --with-deps --no-shell chromium
+          fi
+      - name: Audit public pages without submitting forms
+        env:
+          SAFEPLACES_AUDIT_MODULES: ${{ runner.temp }}/safeplaces-quality/node_modules
+        run: node scripts/audit-live-quality.mjs --enforce
+      - name: Inspect production dependency advisories
+        if: always()
+        run: |
+          mkdir -p test-results/quality
+          set +e
+          pnpm audit --prod --json > test-results/quality/production-dependency-audit.json
+          audit_status=$?
+          echo "Dependency audit completed with status $audit_status; structured results saved for review."
+          test -s test-results/quality/production-dependency-audit.json
+          pnpm audit --json > test-results/quality/all-dependency-audit.json
+          test -s test-results/quality/all-dependency-audit.json
+      - name: Save quality evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safeplaces-quality-audit
+          path: website/test-results/quality/
+          retention-days: 14

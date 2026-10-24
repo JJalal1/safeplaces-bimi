@@ -1,5 +1,8 @@
 # Safe Places — Complete Website Source
 
+> الحالة الحالية للمعاينة والإدارة والتفعيل: [OPERATIONS_HANDOFF.md](docs/OPERATIONS_HANDOFF.md).
+> تفاصيل التصدير التاريخية أدناه لا تمثل تفعيل Google أو R2 أو البريد الحالي.
+
 مؤسسة المناطق الآمنة لأدوات ومواد السلامة  
 Safe Places for Safety Tools & Materials Est.
 

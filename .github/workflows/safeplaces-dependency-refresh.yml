@@ -1,0 +1,53 @@
+name: Prepare reviewed Zod security fix lock
+on:
+  push:
+    branches: [feature/auth-speed-seo-before-hosting]
+    paths: ['.github/workflows/safeplaces-dependency-refresh.yml']
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    defaults:
+      run: {working-directory: website}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: pnpm/action-setup@v4
+        with: {version: '11.25.0'}
+      - name: Resolve reviewed patch versions without deploying
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const file='package.json',p=JSON.parse(readFileSync(file,'utf8'));
+          p.dependencies.next='16.4.1';
+          p.dependencies.zod='4.6.6';
+          p.devDependencies['eslint-config-next']='16.4.1';
+          p.devDependencies.sharp='0.35.5';
+          p.dependencies.react='19.2.8';p.dependencies['react-dom']='19.2.8';
+          p.devDependencies['react-server-dom-webpack']='19.2.8';p.devDependencies.vite='8.1.6';
+          const overrides={'miniflare>sharp':'0.35.5','@babel/core':'7.29.6',browserslist:'4.28.7','baseline-browser-mapping':'2.11.0','fast-uri':'3.1.9','source-map-js':'1.2.2',esbuild:'0.28.1',react:'19.2.8','react-dom':'19.2.8','react-server-dom-webpack':'19.2.8','undici@^7':'7.30.1','ws@^8':'8.21.0','image-size':'2.0.3','js-yaml@^4':'4.3.2','brace-expansion@^1':'1.1.21','brace-expansion@^4':'5.0.12','brace-expansion@^5':'5.0.12','fflate@^0.7':'0.7.5',zod:'4.6.6'};
+          p.overrides=overrides;
+          writeFileSync(file,JSON.stringify(p,null,2)+'\n');
+          const workspace='pnpm-workspace.yaml',w=readFileSync(workspace,'utf8');
+          writeFileSync(workspace,w.slice(0,w.indexOf('overrides:'))+'overrides:\n'+Object.entries(overrides).map(([k,v])=>'  '+JSON.stringify(k)+': '+JSON.stringify(v)).join('\n')+'\npatchedDependencies:\n  braces@3.0.3: patches/braces@3.0.3.patch\nauditConfig:\n  ignoreGhsas:\n    # No upstream release exists; bounded string/AST walkers are patched and tested.\n    - GHSA-vfj7-8cjw-p6xm\n');
+          NODE
+          pnpm install --lockfile-only --ignore-scripts
+      - name: Record production advisory results
+        run: |
+          set +e
+          pnpm audit --prod --json > dependency-audit.json
+          test -s dependency-audit.json
+          pnpm audit --json > all-dependency-audit.json
+          test -s all-dependency-audit.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: safeplaces-patched-dependency-lock
+          path: |
+            website/package.json
+            website/pnpm-lock.yaml
+            website/pnpm-workspace.yaml
+            website/dependency-audit.json
+            website/all-dependency-audit.json
+          retention-days: 14

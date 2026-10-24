@@ -115,7 +115,7 @@ html[lang=en] .corporate-hero h1 { line-height: 1.12; letter-spacing: -1.4px; }
 .product-type { top: 12px; inset-inline-start: 12px; font-size: 9px; background: #fffffff5; border: 1px solid #e5eaf0; color: var(--navy); padding: 3px 8px; border-radius: 2px; }
 .product-card-body { padding: 20px; }
 .product-card-body > small { font-size: 10px; color: #6b7f90; }
-.product-card h3 { font-size: 17px; min-height: 48px; margin: 8px 0 12px; line-height: 1.55; }
+.product-card :is(h2,h3) { font-size: 17px; min-height: 48px; margin: 8px 0 12px; line-height: 1.55; }
 .product-price { font-size: 12px; color: #617183; font-weight: normal; margin-bottom: 19px; }
 .product-actions.small > .button { padding: 10px 12px; font-size: 11px; min-height: 40px; gap: 8px; }
 .wish-button { width: 39px; height: 40px; border-radius: 3px; }
@@ -342,7 +342,7 @@ input[type=checkbox] { accent-color: var(--navy); }
   .product-grid { gap: 14px; }
   .product-art { height: 168px; }
   .product-card-body { padding: 15px 13px; }
-  .product-card h3 { font-size: 14px; min-height: 43px; margin-bottom: 11px; }
+  .product-card :is(h2,h3) { font-size: 14px; min-height: 43px; margin-bottom: 11px; }
   .product-card-body > small { font-size: 9px; }
   .product-price { font-size: 10px; margin-bottom: 14px; line-height: 1.8; }
   .product-type { font-size: 8px; top: 8px; inset-inline-start: 8px; padding: 2px 6px; }
@@ -400,7 +400,7 @@ input[type=checkbox] { accent-color: var(--navy); }
   .category-grid, .product-grid, .shop-products { grid-template-columns: 1fr; }
   .category-visual { height: 210px; }
   .product-art { height: 230px; }
-  .product-card h3 { min-height: 0; font-size: 17px; }
+  .product-card :is(h2,h3) { min-height: 0; font-size: 17px; }
   .product-actions.small > .button { font-size: 12px; }
   .wish-button { width: 40px; }
   .category-card h3 { font-size: 18px; }
@@ -412,3 +412,4 @@ input[type=checkbox] { accent-color: var(--navy); }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+

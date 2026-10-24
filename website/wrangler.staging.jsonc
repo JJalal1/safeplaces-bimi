@@ -1,0 +1,69 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "safeplaces-staging",
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": {
+    "enabled": false,
+    "logs": {
+      "enabled": false,
+      "invocation_logs": false
+    },
+    "traces": {
+      "enabled": false
+    }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "safeplaces-staging",
+      "database_id": "d0d80657-6032-40b4-af39-407731d3c972"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "safeplaces-staging-private"
+    }
+  ],
+  "vars": {
+    "STAGING_HOSTNAME": "safeplaces-preview.pages.dev",
+    "SITE_PUBLIC": "true",
+    "SITE_INDEXABLE": "false",
+    "SITE_DEMO_PRICES": "true",
+    "STANDALONE_AUTH_ENABLED": "true",
+    "CUSTOMER_AUTH_ENABLED": "false",
+    "ADMIN_BOOTSTRAP_PRIVATE": "false",
+    "EMAIL_NOTIFICATIONS_ENABLED": "false",
+    "NOTIFICATION_FROM": "info@safeplaces.sa",
+    "NOTIFICATION_REPLY_TO": "info@safeplaces.sa",
+    "BETTER_AUTH_URL": "https://safeplaces-preview.pages.dev",
+    "EMAIL_PASSWORD_ENABLED": "true",
+    "AUTH_EMAIL_FROM": "info@safeplaces.sa"
+  },
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AUTH_PASSWORD_HASHER",
+        "class_name": "PasswordHasher"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "auth-password-v1",
+      "new_sqlite_classes": [
+        "PasswordHasher"
+      ]
+    }
+  ]
+}

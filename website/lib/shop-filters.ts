@@ -2,13 +2,13 @@ import type {Product} from './catalog';
 import {matchesProduct,normalizeSearch} from './shopping';
 export type ShopFilters={q:string;categories:string[];brands:string[];kinds:string[];min:string;max:string;documents:boolean;sale:boolean;specs:Record<string,string[]>;sort:string;page:number};
 export type SpecFacet={key:string;ar:string;en:string;values:string[]};
-export const shopSorts=['featured','new','price','price_high','name'];
+export const shopSorts=['featured','new','name'];
 export const emptyFilters=():ShopFilters=>({q:'',categories:[],brands:[],kinds:[],min:'',max:'',documents:false,sale:false,specs:{},sort:'featured',page:1});
 const values=(value:string|string[]|undefined)=>[...new Set((Array.isArray(value)?value:value?[value]:[]).map(item=>item.slice(0,160)).filter(Boolean))].slice(0,40);
 const price=(value:string|string[]|undefined)=>{const text=Array.isArray(value)?value[0]:value;const amount=Number(text);return text&&Number.isFinite(amount)&&amount>=0&&amount<=1e10?String(amount):'';};
 export function parseShopFilters(query:Record<string,string|string[]|undefined>,category=''):ShopFilters{
  const specs:Record<string,string[]>={};for(const [key,value]of Object.entries(query))if(key.startsWith('spec.')&&key.length<150)specs[key.slice(5)]=values(value);
- return {...emptyFilters(),q:values(query.q)[0]?.slice(0,100)||'',categories:category?[category]:values(query.category),brands:values(query.brand),kinds:values(query.kind).filter(kind=>['direct','quote'].includes(kind)),min:price(query.min),max:price(query.max),documents:query.documents==='1',sale:query.sale==='1',specs,sort:typeof query.sort==='string'&&shopSorts.includes(query.sort)?query.sort:'featured',page:Math.min(10000,Math.max(1,Math.floor(Number(query.page)||1)))};
+ return {...emptyFilters(),q:values(query.q)[0]?.slice(0,100)||'',categories:category?[category]:values(query.category),brands:values(query.brand),kinds:[],min:'',max:'',documents:query.documents==='1',sale:false,specs,sort:typeof query.sort==='string'&&shopSorts.includes(query.sort)?query.sort:'featured',page:Math.min(10000,Math.max(1,Math.floor(Number(query.page)||1)))};
 }
 export function productSpecs(product:Product){
  try{const value=JSON.parse(product.specs);if(!Array.isArray(value))return [];return value.filter((spec):spec is {ar:string;en:string;value:string}=>!!spec&&typeof spec.value==='string'&&(typeof spec.ar==='string'||typeof spec.en==='string')).map(spec=>({ar:spec.ar||spec.en,en:spec.en||spec.ar,value:spec.value.trim()})).filter(spec=>!!spec.value&&spec.value.length<=160);}catch{return [];}

@@ -1,0 +1,53 @@
+/* Responsive refinements for a safety-equipment store AND company website.
+   Preserve the existing brand; prioritise content and clear wayfinding. */
+.cart-loading { display:flex;align-items:center;justify-content:center;gap:12px;min-height:150px;padding:26px;border:1px solid var(--line);border-radius:9px;background:white;color:#637a8d;font-size:13px; }
+@media(max-width:650px) {
+ /* The company and its services must be just as discoverable as the shop. */
+ .safety-hero-links .container { gap:8px; }
+ .market-home { padding-top:12px; }
+ .home-business { margin-block:10px 20px; }
+ .home-business-image { min-height:160px; }
+ .home-business-copy { padding:18px 17px; }
+ .home-business-copy h2 { margin-block:6px 8px;font-size:21px;line-height:1.5; }
+ .home-business-copy p { font-size:11px;line-height:1.75;margin-bottom:12px; }
+ .business-service-links { margin-bottom:12px; }
+ .shop-category-section { margin-block:18px;padding:16px 12px; }
+ .market-section-title { margin-bottom:14px; }
+ .market-section-title h2 { font-size:20px; }
+ .shopping-shelf { margin-block:16px;padding:15px 12px; }
+ .product-section { margin-block:18px; }
+ .collection-banners { margin-block:18px; }
+ .section { padding-block:24px; }
+ .page-heading { padding-block:11px 14px; }
+ .page-heading h1 { font-size:clamp(22px,6vw,27px);margin:0 0 4px;line-height:1.5; }
+ .page-heading p { line-height:1.7; }
+ .cart-route-section { padding-block:14px 24px; }
+ .customer-route-section { padding-block:20px 28px; }
+ .cart-shopping-layout { gap:12px; }
+ .cart-shopping-layout > .cart-page { padding:16px 13px; }
+ .cart-title-row { padding-bottom:10px;margin-bottom:12px; }
+ .cart-title-row h2 { font-size:18px; }
+ .cart-line { padding:10px; }
+ .cart-line .line-name { font-size:12px; }
+ .cart-shopping-layout > .cart-summary { padding:16px 14px; }
+ .cart-shopping-layout > .cart-summary h2 { font-size:18px; }
+ .cart-shopping-layout > .cart-summary .total-line { margin-top:10px; }
+ .cart-shopping-layout > .cart-summary .total-line.final { padding-top:13px; }
+ .cart-shopping-layout > .cart-summary > p { margin-block:13px; }
+ .empty-state { padding:27px 15px; }
+ .cart-route-section .empty-state { padding:29px 15px; }
+ .cart-loading { min-height:140px; }
+ /* Show actual site content earlier, avoid stacked blank heading areas. */
+ .shopping-catalog { padding-block:13px 28px; }
+ .shopping-results-toolbar { margin-bottom:12px; }
+ .shop-business-help { margin-top:18px; }
+ .demo-strip { padding-block:4px;font-size:9px; }
+}
+@media(max-width:360px) {
+ .marketplace-header .brand-logo { width:41px;height:40px; }
+ .home-business-image { min-height:135px; }
+ .cart-shopping-layout > .cart-page { padding:13px 10px; }
+ .cart-line { grid-template-columns:60px minmax(0,1fr) 28px;gap:8px; }
+ .cart-line > .cart-thumb { width:60px;height:67px; }
+ .cart-line .quantity { max-width:100%; }
+}

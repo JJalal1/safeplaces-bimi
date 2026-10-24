@@ -58,3 +58,7 @@ next-env.d.ts
 # Safe export template and disposable compiler cache
 !.env.example
 *.tsbuildinfo
+
+
+# Generated from the original bundled photos before each build.
+/public/images/responsive/

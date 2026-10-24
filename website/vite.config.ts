@@ -1,4 +1,5 @@
 import vinext from "vinext";
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
@@ -13,8 +14,22 @@ const { d1, r2 } = hostingConfig;
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const managedLinux = readExecutionProfile() === "managed-linux";
+// Explicit opt-in: the default build remains the existing private Sites preview.
+const standaloneStaging = process.env.SAFEPLACES_STAGING_BUILD === "1";
+const standaloneProduction = process.env.SAFEPLACES_PRODUCTION_BUILD === "1";
+if (standaloneStaging && standaloneProduction) {
+  throw new Error("Choose staging or production standalone build, not both.");
+}
+const standaloneBuild = standaloneStaging || standaloneProduction;
+const standaloneBindings = standaloneStaging
+  ? JSON.parse(readFileSync(new URL("./wrangler.staging.jsonc", import.meta.url), "utf8"))
+  : standaloneProduction
+    ? JSON.parse(readFileSync(new URL("./wrangler.production.jsonc", import.meta.url), "utf8"))
+    : null;
 
 const localBindingConfig = {
+  durable_objects: {bindings: [{name: "AUTH_PASSWORD_HASHER", class_name: "PasswordHasher"}]},
+  migrations: [{tag: "auth-password-v1", new_sqlite_classes: ["PasswordHasher"]}],
   main: "./build/sites-worker.ts",
   compatibility_flags: ["nodejs_compat"],
   d1_databases: d1
@@ -52,6 +67,10 @@ export default defineConfig(async ({ command }) => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    define: {
+      // Public commit ID only. Local/private builds leave HTML caching disabled.
+      'import.meta.env.SAFEPLACES_RELEASE': JSON.stringify(process.env.GITHUB_SHA||'local'),
+    },
     server: {
       ...(managedLinux
         ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] }
@@ -62,14 +81,13 @@ export default defineConfig(async ({ command }) => {
     },
     plugins: [
       vinext(),
-      sites({ mockAuth: !managedLinux }),
-      connectorPreview(),
+      ...(!standaloneBuild ? [sites({ mockAuth: !managedLinux }), connectorPreview()] : []),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
         config: {
-          ...localBindingConfig,
-          ...(command === "serve"
+          ...(standaloneBindings ? { ...standaloneBindings, main: "./build/sites-worker.ts" } : localBindingConfig),
+          ...(command === "serve" && !standaloneBuild
             ? {
                 services: [
                   {
@@ -81,7 +99,7 @@ export default defineConfig(async ({ command }) => {
               }
             : {}),
         },
-        ...(command === "serve"
+        ...(command === "serve" && !standaloneBuild
           ? {
               auxiliaryWorkers: [
                 {
@@ -98,3 +116,4 @@ export default defineConfig(async ({ command }) => {
     ],
   };
 });
+

@@ -1,0 +1,14 @@
+name: Historical production deployment disabled — safeplaces-production-locked-deploy
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  replacement:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use the verified public production workflow
+        run: |
+          echo 'This historical deployment is disabled to preserve the public site and indexing.'
+          echo 'Use safeplaces-auth-buttons-deploy.yml for a validated production release.'
+          exit 1

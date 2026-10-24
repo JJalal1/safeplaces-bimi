@@ -1,0 +1,311 @@
+name: Safe Places production Google login readiness
+
+on:
+  push:
+    branches:
+      - feature/auth-speed-seo-before-hosting
+    paths:
+      - .github/workflows/safeplaces-login-readiness-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safeplaces-production-login-readiness
+  cancel-in-progress: false
+
+jobs:
+  login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify Google login readiness and request protections
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const origin = 'https://safeplaces.sa';
+          const expectedClientId =
+            '1065235547111-41hr2mvfp3191sdvbd8c1ma306jkcb78.apps.googleusercontent.com';
+
+          let activeCheck = 'setup';
+          let lastStatus = null;
+
+          class ReadinessFailure extends Error {
+            constructor(code) {
+              super(code);
+              this.code = code;
+            }
+          }
+
+          function requireCheck(condition, code) {
+            if (!condition) throw new ReadinessFailure(code);
+          }
+
+          function pass() {
+            console.log(JSON.stringify({
+              check: activeCheck,
+              status: lastStatus,
+              passed: true,
+            }));
+          }
+
+          async function request(path, {body, headers = {}} = {}) {
+            lastStatus = null;
+            const response = await fetch(origin + path, {
+              method: body === undefined ? 'GET' : 'POST',
+              redirect: 'manual',
+              credentials: 'omit',
+              headers: {
+                Accept: 'application/json',
+                ...(body === undefined ? {} : {
+                  'Content-Type': 'application/json',
+                  Origin: origin,
+                  'Sec-Fetch-Site': 'same-origin',
+                }),
+                ...headers,
+              },
+              ...(body === undefined ? {} : {body: JSON.stringify(body)}),
+              signal: AbortSignal.timeout(15000),
+            });
+            lastStatus = response.status;
+            return response;
+          }
+
+          function expectStatus(response, expected) {
+            requireCheck(
+              response.status === expected,
+              'UNEXPECTED_HTTP_STATUS',
+            );
+          }
+
+          function protectedResponse(response) {
+            requireCheck(
+              /\bno-store\b/i.test(response.headers.get('cache-control') || ''),
+              'AUTH_RESPONSE_MUST_NOT_BE_CACHED',
+            );
+            requireCheck(
+              response.headers.get('referrer-policy') === 'no-referrer',
+              'AUTH_REFERRER_POLICY_MISSING',
+            );
+            requireCheck(
+              response.headers.get('x-content-type-options') === 'nosniff',
+              'AUTH_CONTENT_TYPE_PROTECTION_MISSING',
+            );
+          }
+
+          async function json(response) {
+            requireCheck(
+              (response.headers.get('content-type') || '')
+                .toLowerCase().includes('application/json'),
+              'EXPECTED_JSON_RESPONSE',
+            );
+            try {
+              return await response.json();
+            } catch {
+              throw new ReadinessFailure('INVALID_JSON_RESPONSE');
+            }
+          }
+
+          try {
+            activeCheck = 'auth_health';
+            const health = await request('/api/auth/ok');
+            expectStatus(health, 200);
+            protectedResponse(health);
+            requireCheck((await json(health))?.ok === true, 'AUTH_HEALTH_NOT_READY');
+            pass();
+
+            activeCheck = 'anonymous_session';
+            const session = await request('/api/auth/get-session');
+            expectStatus(session, 200);
+            protectedResponse(session);
+            requireCheck(
+              (await json(session)) === null,
+              'ANONYMOUS_SESSION_MUST_BE_NULL',
+            );
+            pass();
+
+            for (const lang of ['ar', 'en']) {
+              activeCheck = 'google_login_page_' + lang;
+              const page = await request(
+                '/' + lang + '/account/login?return_to=' +
+                  encodeURIComponent('/' + lang + '/account'),
+                {headers: {Accept: 'text/html'}},
+              );
+              expectStatus(page, 200);
+              requireCheck(
+                (page.headers.get('content-type') || '')
+                  .toLowerCase().includes('text/html'),
+                'EXPECTED_HTML_PAGE',
+              );
+              const html = await page.text();
+              const button = html.match(
+                /<button\b[^>]*class="[^"]*\bcustomer-social-google\b[^"]*"[^>]*>[\s\S]*?<\/button>/i,
+              )?.[0];
+              const label = lang === 'ar'
+                ? 'المتابعة باستخدام Google'
+                : 'Continue with Google';
+              requireCheck(
+                typeof button === 'string' && button.includes(label),
+                'GOOGLE_SIGN_IN_BUTTON_MISSING',
+              );
+              const openingTag = button.slice(0, button.indexOf('>') + 1);
+              requireCheck(
+                !/\sdisabled(?:\s|=|>)/i.test(openingTag),
+                'GOOGLE_SIGN_IN_BUTTON_DISABLED',
+              );
+              pass();
+            }
+
+            const socialBody = {
+              provider: 'google',
+              callbackURL: '/ar/account',
+              newUserCallbackURL: '/ar/account',
+              errorCallbackURL:
+                '/ar/account/login?return_to=%2Far%2Faccount&reason=account',
+              disableRedirect: true,
+            };
+
+            activeCheck = 'foreign_origin_rejected';
+            const foreignOrigin = await request('/api/auth/sign-in/social', {
+              body: socialBody,
+              headers: {
+                Origin: 'https://untrusted.example',
+                'Sec-Fetch-Site': 'cross-site',
+              },
+            });
+            expectStatus(foreignOrigin, 403);
+            protectedResponse(foreignOrigin);
+            const foreignResult = await json(foreignOrigin);
+            requireCheck(
+              foreignResult?.error === 'INVALID_ORIGIN',
+              'ORIGIN_REJECTION_NOT_CONFIRMED',
+            );
+            requireCheck(
+              !foreignOrigin.headers.has('location') && !foreignResult?.url,
+              'FOREIGN_ORIGIN_MUST_NOT_START_OAUTH',
+            );
+            pass();
+
+            activeCheck = 'external_callback_rejected';
+            const unsafeCallback = await request('/api/auth/sign-in/social', {
+              body: {
+                ...socialBody,
+                callbackURL: 'https://untrusted.example/blocked',
+              },
+            });
+            expectStatus(unsafeCallback, 403);
+            protectedResponse(unsafeCallback);
+            const unsafeResult = await json(unsafeCallback);
+            requireCheck(
+              unsafeResult?.code === 'INVALID_CALLBACK_URL' ||
+                unsafeResult?.error === 'INVALID_CALLBACK_URL',
+              'CALLBACK_REJECTION_NOT_CONFIRMED',
+            );
+            requireCheck(
+              !unsafeCallback.headers.has('location') && !unsafeResult?.url,
+              'EXTERNAL_CALLBACK_MUST_NOT_START_OAUTH',
+            );
+            pass();
+
+            activeCheck = 'google_oauth_start';
+            const started = await request('/api/auth/sign-in/social', {
+              body: socialBody,
+            });
+            expectStatus(started, 200);
+            protectedResponse(started);
+            const startedResult = await json(started);
+            requireCheck(
+              startedResult?.redirect === false &&
+                typeof startedResult?.url === 'string' &&
+                !started.headers.has('location'),
+              'EXPECTED_NON_REDIRECTING_OAUTH_RESPONSE',
+            );
+
+            let authorizationURL;
+            try {
+              authorizationURL = new URL(startedResult.url);
+            } catch {
+              throw new ReadinessFailure('INVALID_AUTHORIZATION_URL');
+            }
+
+            requireCheck(
+              authorizationURL.origin === 'https://accounts.google.com' &&
+                !authorizationURL.username &&
+                !authorizationURL.password &&
+                !authorizationURL.hash,
+              'UNEXPECTED_GOOGLE_AUTHORIZATION_ORIGIN',
+            );
+            requireCheck(
+              authorizationURL.searchParams.get('client_id') === expectedClientId,
+              'UNEXPECTED_GOOGLE_CLIENT',
+            );
+            requireCheck(
+              authorizationURL.searchParams.get('redirect_uri') ===
+                origin + '/api/auth/callback/google',
+              'UNEXPECTED_GOOGLE_CALLBACK',
+            );
+            requireCheck(
+              authorizationURL.searchParams.get('response_type') === 'code' &&
+                authorizationURL.searchParams.get('prompt') === 'select_account',
+              'UNEXPECTED_GOOGLE_FLOW',
+            );
+            requireCheck(
+              Boolean(authorizationURL.searchParams.get('state')),
+              'OAUTH_STATE_MISSING',
+            );
+            requireCheck(
+              authorizationURL.searchParams.get('code_challenge_method') === 'S256' &&
+                Boolean(authorizationURL.searchParams.get('code_challenge')),
+              'OAUTH_PKCE_MISSING',
+            );
+
+            const stateCookies = started.headers.getSetCookie().filter(
+              value => value.startsWith('__Secure-better-auth.state='),
+            );
+            requireCheck(stateCookies.length === 1, 'OAUTH_STATE_COOKIE_MISSING');
+            const [cookiePair, ...rawAttributes] = stateCookies[0].split(';');
+            requireCheck(
+              cookiePair.length > '__Secure-better-auth.state='.length,
+              'OAUTH_STATE_COOKIE_EMPTY',
+            );
+            const attributes = rawAttributes.map(
+              value => value.trim().toLowerCase(),
+            );
+            requireCheck(
+              attributes.includes('secure') &&
+                attributes.includes('httponly') &&
+                attributes.includes('samesite=lax') &&
+                attributes.includes('path=/') &&
+                !attributes.some(value => value.startsWith('domain=')),
+              'OAUTH_STATE_COOKIE_PROTECTION_INVALID',
+            );
+            const maxAge = Number(
+              attributes.find(value => value.startsWith('max-age='))?.slice(8),
+            );
+            requireCheck(
+              Number.isFinite(maxAge) && maxAge > 0 && maxAge <= 600,
+              'OAUTH_STATE_COOKIE_LIFETIME_INVALID',
+            );
+            pass();
+
+            console.log(JSON.stringify({
+              readiness_passed: true,
+              real_google_sign_in_verified: false,
+            }));
+          } catch (error) {
+            console.error(JSON.stringify({
+              check: activeCheck,
+              status: lastStatus,
+              passed: false,
+              code: error instanceof ReadinessFailure
+                ? error.code
+                : 'NETWORK_OR_RESPONSE_PROCESSING_FAILED',
+            }));
+            process.exitCode = 1;
+          }
+          NODE

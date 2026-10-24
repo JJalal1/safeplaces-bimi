@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import ts from 'typescript';
+const load=async file=>import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText).toString('base64'));
+const {requestJSON}=await load('lib/client-request.ts');
+let attempts=0;
+const body={name:'Fixture',key:'unchanged-idempotency-key',message:'Preserve the existing enquiry'};
+const fetcher=async(path,options)=>{attempts++;assert.equal(path,'/api/contact');assert.deepEqual(JSON.parse(options.body),body);assert.equal(options.credentials,'same-origin');assert.equal(options.headers['Content-Type'],'application/json');return Response.json({reference:'SPC-FIXTURE'});};
+assert.deepEqual(await requestJSON('/api/contact',body,{fetcher}),{reference:'SPC-FIXTURE'});assert.equal(attempts,1);
+await assert.rejects(requestJSON('/api/contact',body,{fetcher:async()=>new Response('Temporary HTML failure',{status:502})}),/SERVER_ERROR/);
+await assert.rejects(requestJSON('/api/contact',body,{fetcher:async()=>Response.json({error:'RATE_LIMIT'},{status:429})}),/RATE_LIMIT/);
+await assert.rejects(requestJSON('/api/contact',body,{fetcher:async()=>Response.json({error:'private internal details'},{status:500})}),/SERVER_ERROR/);
+await assert.rejects(requestJSON('/api/contact',body,{fetcher:async()=>{throw new TypeError('Failed to fetch');}}),/NETWORK_ERROR/);
+attempts=0;
+await assert.rejects(requestJSON('/api/contact',body,{timeoutMs:5,fetcher:async(_,options)=>{attempts++;return new Promise((_,reject)=>options.signal.addEventListener('abort',()=>reject(new Error('Aborted'))));}}),/REQUEST_TIMEOUT/);assert.equal(attempts,1,'Never repeat a mutation automatically');
+assert.equal(body.key,'unchanged-idempotency-key');
+const multipart=new FormData();multipart.set('token','fixture');
+await requestJSON('/api/uploads',multipart,{fetcher:async(_,options)=>{assert.equal(options.body,multipart);assert.equal(options.headers,undefined,'The browser sets the multipart boundary');return Response.json({id:'file'});}});
+console.log('PASS: bounded JSON/multipart requests, readable network/server errors and one attempt per mutation with preserved data');
+
+const {responsePolicy}=await load('lib/response-policy.ts');
+const bindings={SITE_PUBLIC:'true',SITE_INDEXABLE:'true'};
+for(const path of ['/api/session','/api/account/requests/quotes/fixture','/api/admin/data','/ar/account/reset','/en/admin']){
+ const response=responsePolicy(new Request('https://safeplaces.sa'+path),Response.json({ok:true}),bindings);
+ assert.equal(response.headers.get('cache-control'),'private, no-store');assert.equal(response.headers.get('referrer-policy'),'no-referrer');assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');assert.equal(response.headers.get('x-frame-options'),'DENY');assert.match(response.headers.get('content-security-policy'),/frame-ancestors 'none'/);
+}
+const headers=new Headers({'Content-Type':'text/html'});headers.append('Set-Cookie','one=1; HttpOnly');headers.append('Set-Cookie','two=2; HttpOnly');
+const cookies=responsePolicy(new Request('https://safeplaces.sa/ar'),new Response('page',{headers}),bindings);assert.equal(cookies.headers.getSetCookie().length,2);assert.equal(await cookies.text(),'page');assert.match(cookies.headers.get('cache-control'),/no-store/);
+const image=responsePolicy(new Request('https://safeplaces.sa/api/media/fixture'),new Response('image',{headers:{'Content-Type':'image/webp','Cache-Control':'public,max-age=86400','Content-Security-Policy':"default-src 'none'; sandbox"}}),bindings);assert.equal(image.headers.get('x-robots-tag'),null);assert.equal(image.headers.get('cache-control'),'public,max-age=86400');assert.match(image.headers.get('content-security-policy'),/default-src 'none'; sandbox/);
+const pdf=responsePolicy(new Request('https://safeplaces.sa/api/media/public-document'),new Response('public document',{headers:{'Content-Type':'application/pdf','Cache-Control':'public,max-age=86400','Content-Security-Policy':"default-src 'none'; sandbox"}}),bindings);assert.equal(pdf.headers.get('x-robots-tag'),null,'Intentionally public datasheets and company documents remain crawlable');assert.equal(pdf.headers.get('cache-control'),'public,max-age=86400');
+const preview=responsePolicy(new Request('https://preview.example/ar'),new Response('preview'),{SITE_PUBLIC:'false',SITE_INDEXABLE:'false'});assert.equal(preview.headers.get('x-frame-options'),null);assert.equal(preview.headers.get('x-robots-tag'),'noindex, nofollow');
+const missing=responsePolicy(new Request('https://safeplaces.sa/ar/missing'),new Response('404',{status:404}),bindings);assert.equal(missing.headers.get('x-robots-tag'),'noindex, nofollow');
+console.log('PASS: nested private routes, cookies, public image caching, file CSP, public frame protection, preview embedding and 404 indexing');
+
+const {publicHtmlCacheKey,publicHtmlCacheEntry,cachedPublicHtml}=await load('lib/public-html-cache.ts');
+const release='a'.repeat(40),otherRelease='b'.repeat(40);
+const htmlRequest=(path,extra={})=>new Request('https://safeplaces.sa'+path,{headers:{Accept:'text/html',...extra}});
+for(const path of ['/ar','/en','/ar/shop','/en/shop/fire-extinguishers','/ar/shop/category/ppe','/en/services/fire-alarm','/ar/privacy']){
+ const key=publicHtmlCacheKey(htmlRequest(path),true,release);
+ assert.ok(key,path+' should be eligible');assert.equal(new URL(key.url).pathname,path);
+ assert.notEqual(key.url,publicHtmlCacheKey(htmlRequest(path),true,otherRelease).url,'Releases cannot share obsolete HTML');
+}
+for(const path of ['/ar/account','/en/admin','/ar/quote','/en/contact','/api/session','/api/media/private-file','/api/admin/data','/ar/shop?q=helmet','/ar/shop?__rsc=1','/ar/shop/category/ppe/extra'])assert.equal(publicHtmlCacheKey(htmlRequest(path),true,release),null,path+' must bypass shared HTML caching');
+for(const extra of [{Cookie:'fixture=1'},{Authorization:'Bearer fixture'},{RSC:'1'},{'Next-Router-Prefetch':'1'},{'Next-Router-Segment-Prefetch':'fixture'},{'X-Vinext-Interception-Context':'fixture'},{'X-Vinext-Mounted-Slots':'fixture'},{'X-Nextjs-Data':'1'},{Range:'bytes=0-20'},{'If-None-Match':'fixture'},{'Cache-Control':'no-cache'},{Pragma:'no-cache'},{Accept:'text/x-component'}])assert.equal(publicHtmlCacheKey(htmlRequest('/ar',extra),true,release),null,JSON.stringify(extra));
+assert.equal(publicHtmlCacheKey(htmlRequest('/ar'),false,release),null);
+assert.equal(publicHtmlCacheKey(htmlRequest('/ar'),true,'local'),null);
+assert.equal(publicHtmlCacheKey(new Request('https://preview.example/ar',{headers:{Accept:'text/html'}}),true,release),null);
+assert.equal(publicHtmlCacheKey(new Request('https://safeplaces.sa/ar',{method:'POST',headers:{Accept:'text/html'}}),true,release),null);
+const html=()=>new Response('<html>Public content</html>',{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store, must-revalidate'}});
+const entry=publicHtmlCacheEntry(html());assert.ok(entry);assert.equal(entry.headers.get('cache-control'),'public, max-age=60');
+const frameworkHtml=html();frameworkHtml.headers.set('Vary','RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Next-Url, X-Vinext-Interception-Context, X-Vinext-Interception-Id, X-Vinext-Mounted-Slots, X-Vinext-Rsc-Render-Mode, X-Vinext-Rsc-State-Fingerprint, Accept-Encoding');assert.ok(publicHtmlCacheEntry(frameworkHtml),'Known RSC selectors are safe only after their request variants are excluded');
+const hit=cachedPublicHtml(entry);assert.match(hit.headers.get('cache-control'),/no-store/);assert.equal(await hit.text(),'<html>Public content</html>');
+for(const [name,value]of [['Set-Cookie','session=fixture'],['Cache-Control','private, no-store'],['X-Robots-Tag','noindex, nofollow'],['Vary','Cookie'],['Vary','*'],['Content-Type','text/x-component']]){
+ const privateResult=html();privateResult.headers.set(name,value);assert.equal(publicHtmlCacheEntry(privateResult),null,name+' must prevent storage');
+}
+for(const status of [302,404,500])assert.equal(publicHtmlCacheEntry(new Response('failure',{status,headers:{'Content-Type':'text/html'}})),null);
+console.log('PASS: anonymous HTML cache isolation across cookies, auth, RSC, queries, private/form routes, deployments and error responses; one-minute edge TTL with no browser HTML storage');

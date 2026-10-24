@@ -1,0 +1,102 @@
+name: Website validation
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - 'website/**'
+      - '.github/workflows/website-validate.yml'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.25.0'
+      - name: Install dependencies without modifying deployment
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check application and build dependency advisories
+        run: pnpm audit --audit-level high
+      - name: Patched build dependency regression checks
+        run: node scripts/check-build-dependencies.mjs
+      - name: TypeScript
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Read-only live-notification evidence fixtures
+        run: node scripts/check-live-notifications-fixture.mjs
+      - name: Authentication log privacy and safe disabled fallback
+        run: node scripts/check-auth-log-protection.mjs
+      - name: Client request recovery and private response headers
+        run: node scripts/check-client-reliability.mjs
+      - name: Authentication policy
+        run: node scripts/check-standalone-auth-policy.mjs
+      - name: Native password hashing inside SQLite Durable Objects
+        run: node scripts/check-auth-password.mjs
+      - name: Staff authorization policy
+        run: node scripts/check-admin-permissions.mjs
+      - name: Existing customer auth tests
+        run: node scripts/check-customer-auth.mjs
+      - name: Protected staging host and Pages gateway
+        run: |
+          node scripts/check-staging-access.mjs
+          node scripts/check-preview-gateway.mjs
+      - name: Build
+        id: site-build
+        run: pnpm run build
+      - name: Generated responsive asset integrity
+        run: node scripts/check-responsive-images.mjs
+      - name: Site integration checks
+        run: node scripts/check-site.mjs
+      - name: Public bilingual SEO, sitemap and structured data
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
+        run: node scripts/check-seo.mjs
+      - name: Admin sessions and permissions
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
+        run: node scripts/check-admin-auth.mjs
+      - name: Verified email accounts, recovery, session security and ownership
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
+        run: node scripts/check-email-password-auth.mjs
+      - name: Request operations and notification reliability
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
+        run: node scripts/check-admin-operations.mjs
+      - name: Prepare browser verification
+        id: browser-setup
+        timeout-minutes: 5
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
+        run: |
+          npm install --prefix "$RUNNER_TEMP/safeplaces-browser" --no-save --ignore-scripts --no-package-lock --no-audit --no-fund playwright@1.62.1 --fetch-retries=1 --fetch-timeout=30000
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "SAFEPLACES_BROWSER_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+            google-chrome --version
+          else
+            node "$RUNNER_TEMP/safeplaces-browser/node_modules/playwright/cli.js" install --with-deps --only-shell chromium
+          fi
+      - name: Arabic and English pages and persistent guest cart
+        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
+        run: SAFEPLACES_PLAYWRIGHT_MODULE="$RUNNER_TEMP/safeplaces-browser/node_modules/playwright" node scripts/check-browser.mjs
+      - name: Arabic and English admin workflows on mobile and desktop
+        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
+        run: SAFEPLACES_PLAYWRIGHT_MODULE="$RUNNER_TEMP/safeplaces-browser/node_modules/playwright" node scripts/check-admin-browser.mjs
+      - name: Customer email and password on Arabic and English mobile and desktop
+        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
+        run: SAFEPLACES_PLAYWRIGHT_MODULE="$RUNNER_TEMP/safeplaces-browser/node_modules/playwright" node scripts/check-email-password-browser.mjs
+      - name: Save browser evidence and resolved dependency lock
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safeplaces-verification
+          path: |
+            website/test-results/
+            website/pnpm-lock.yaml
+          retention-days: 7
+      - name: Cloudflare staging build without deployment
+        run: pnpm run build:staging
+      - name: Validate staging release bundle without deployment
+        run: pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.json
+

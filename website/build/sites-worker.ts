@@ -1,9 +1,33 @@
+export {PasswordHasher} from "../lib/auth-password-worker";
 import handler from "vinext/server/fetch-handler";
 import { runWithConnectorBinding } from "../lib/connector-context";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
+import { stagingHostResponse } from "../lib/staging-access";
+import { productionLaunchGate } from "../lib/production-launch-gate";
+import { responsePolicy } from "../lib/response-policy";
+import { siteIndexable } from "../lib/site-origin";
+import { publicHtmlCacheKey,publicHtmlCacheEntry,cachedPublicHtml } from "../lib/public-html-cache";
+import { runOperationalMaintenance,processNotificationOutbox } from "../lib/notifications";
+import type { OperationsBindings } from "../lib/operations-types";
 
 export default {
+  async scheduled(_controller: ScheduledController, env: Cloudflare.Env, ctx: ExecutionContext) {
+    if (env.DB) ctx.waitUntil(runOperationalMaintenance(env as unknown as OperationsBindings));
+  },
   async fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext<{ CONNECTORS?: ConnectorBinding }>) {
+    const denied = stagingHostResponse(request, env as unknown as Record<string, unknown>);
+    if (denied) return responsePolicy(request,denied,env as unknown as Record<string,unknown>);
+    const launchGate = productionLaunchGate(request, env as unknown as Record<string, unknown>);
+    if (launchGate) return responsePolicy(request,launchGate,env as unknown as Record<string,unknown>);
+    const cacheKey=publicHtmlCacheKey(request,siteIndexable(),import.meta.env.SAFEPLACES_RELEASE);
+    let publicCache:Cache|undefined;
+    if(cacheKey){
+      try{
+        publicCache=await caches.open('safeplaces-public-html');
+        const cached=await publicCache.match(cacheKey);
+        if(cached)return responsePolicy(request,cachedPublicHtml(cached),env as unknown as Record<string,unknown>);
+      }catch{console.error('Safe Places cache diagnostic read/unavailable');}
+    }
     let binding = ctx.props?.CONNECTORS;
     // Local preview emulates the same request-scoped capability. This branch and
     // the auxiliary service binding are absent from production builds.
@@ -24,17 +48,16 @@ export default {
       };
     }
     const result = await runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx));
-    const response = new Response(result.body, result);
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    const pathname = new URL(request.url).pathname;
-    if (/^\/(ar|en)\/admin(?:\/|$)/.test(pathname) || pathname.startsWith('/api/admin/') || /^\/(ar|en)\/(account|checkout|wishlist)(\/|$)/.test(pathname) || pathname.startsWith('/api/auth/') || ['/api/session','/api/account','/api/profile','/api/wishlist'].includes(pathname)) {
-      response.headers.set('Cache-Control', 'private, no-store');
-      response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-      response.headers.set('Referrer-Policy', 'no-referrer');
+    if(request.method==='POST'&&new URL(request.url).pathname.startsWith('/api/admin/')&&result.status<300)ctx.waitUntil(processNotificationOutbox(env as unknown as OperationsBindings,fetch,2).catch(()=>{console.error('Safe Places notification diagnostic outbox/unavailable');}));
+    const response=responsePolicy(request,result,env as unknown as Record<string,unknown>);
+    if(cacheKey&&publicCache){
+      const entry=publicHtmlCacheEntry(response);
+      if(entry){
+        response.headers.set('X-SafePlaces-Cache','MISS');
+        ctx.waitUntil(publicCache.put(cacheKey,entry).catch(()=>{console.error('Safe Places cache diagnostic write/unavailable');}));
+      }
     }
-    if (!response.headers.has('Content-Security-Policy')) response.headers.set('Content-Security-Policy', "object-src 'none'; base-uri 'self'; form-action 'self'");
     return response;
   },
 };
+

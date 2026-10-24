@@ -1,5 +1,8 @@
 # Copied Sites are standalone projects and cannot inherit the monorepo policy.
 minimumReleaseAge: 10080
+# Exact reviewed security release for four URI normalization advisories.
+minimumReleaseAgeExclude:
+  - fast-uri@3.1.9
 minimumReleaseAgeIgnoreMissingTime: false
 trustLockfile: false
 strictDepBuilds: true
@@ -18,4 +21,28 @@ packageImportMethod: auto
 verifyDepsBeforeRun: false
 optimisticRepeatInstall: false
 overrides:
-  miniflare>sharp: 0.35.4
+  "miniflare>sharp": "0.35.5"
+  "@babel/core": "7.29.6"
+  "browserslist": "4.28.7"
+  "baseline-browser-mapping": "2.11.0"
+  "fast-uri": "3.1.9"
+  "source-map-js": "1.2.2"
+  "esbuild": "0.28.1"
+  "react": "19.2.8"
+  "react-dom": "19.2.8"
+  "react-server-dom-webpack": "19.2.8"
+  "undici@^7": "7.30.1"
+  "ws@^8": "8.21.0"
+  "image-size": "2.0.3"
+  "js-yaml@^4": "4.3.2"
+  "brace-expansion@^1": "1.1.21"
+  "brace-expansion@^4": "5.0.12"
+  "brace-expansion@^5": "5.0.12"
+  "fflate@^0.7": "0.7.5"
+  "zod": "4.6.6"
+patchedDependencies:
+  braces@3.0.3: patches/braces@3.0.3.patch
+auditConfig:
+  ignoreGhsas:
+    # No upstream release exists; bounded string/AST walkers are patched and tested.
+    - GHSA-vfj7-8cjw-p6xm
